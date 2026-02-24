@@ -18,7 +18,7 @@ async function aliveCommand(sock, chatId, message) {
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363404186001130@newsletter@newsletter',
+                    newsletterJid: '120363404186001130@newsletter',
                     newsletterName: 'KnightBot MD',
                     serverMessageId: -1
                 }
