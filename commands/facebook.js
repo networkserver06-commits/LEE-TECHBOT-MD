@@ -39,7 +39,8 @@ async function facebookCommand(sock, chatId, message) {
 
         // Use Hanggts API
         async function fetchFromApi(u) {
-            const apiUrl = `https://api.hanggts.xyz/download/facebook?url=${encodeURIComponent(u)}`;
+            // Current working no-key API (Community Scraper)
+const apiUrl = `https://api.botcahx.eu.org/api/dowloader/fbdown?url=${encodeURIComponent(u)}&apikey=btch-beta`;
             
             try {
                 const response = await axios.get(apiUrl, {
