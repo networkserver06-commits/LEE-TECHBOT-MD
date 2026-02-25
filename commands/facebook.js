@@ -40,18 +40,18 @@ async function facebookCommand(sock, chatId, message) {
         // Use Hanggts API
         async function fetchFromApi(u) {
             
-        const apiUrl = `https://api.botcahx.eu.org/api/dowloader/fbdown?url=${encodeURIComponent(u)}&apikey=btch-beta`;
-            
-            try {
-                const response = await axios.get(apiUrl, {
-                    timeout: 20000,
-                    headers: {
-                        'accept': '*/*',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    },
-                    maxRedirects: 5,
-                    validateStatus: s => s >= 200 && s < 500
-                });
+       const apiUrl = `https://api.botcahx.eu.org/api/dowloader/fbdown?url=${encodeURIComponent(u)}&apikey=btch-beta`;
+    
+    try {
+        const response = await axios.get(apiUrl, {
+            timeout: 20000,
+            headers: {
+                'accept': '*/*',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            maxRedirects: 5,
+            validateStatus: s => s >= 200 && s < 500
+        });
                 
                 if (response.data) {
                     // Accept response if status is true, or if response has data/result/url fields
