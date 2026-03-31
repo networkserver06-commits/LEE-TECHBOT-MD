@@ -9,7 +9,7 @@ This is a WhatsApp bot built using the Baileys library for group management, inc
 </div> 
 
 <div align="center"> 
-  <a href="https://youtube.com/@mr_unique_hacker"> 
+  <a href="https://youtube.com/@netwoekserver06"> 
     <img src="https://github.com/networkserver06-commits/Knightbot-MD/blob/main/assets/bot_image.jpg" alt="Knightbot-MD" height="300"> 
   </a> 
 </div>
@@ -19,13 +19,6 @@ This is a WhatsApp bot built using the Baileys library for group management, inc
   <img src="https://img.shields.io/github/stars//networkserver06-commits/Knightbot-MD?style=for-the-badge&label=Stars" alt="Stars"/>
   <img src="https://img.shields.io/github/forks//networkserver06-commits/Knightbot-MD?style=for-the-badge&label=Forks" alt="Forks"/>
   <img src="https://img.shields.io/github/watchers/networkserver06-commits/Knightbot-MD?style=for-the-badge&label=Watchers" alt="Watchers"/>
-</div>
-
----
-<div>
-  <a href="https://www.thordata.com/products/residential-proxies?ls=YouTube&lk=Knightbot-MD" target="_blank">
-    <img src="assets/thor.png" alt="ThorData Proxies" width="100%" />
-  </a>
 </div>
 
 
