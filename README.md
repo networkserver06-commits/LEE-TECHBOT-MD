@@ -149,7 +149,7 @@ It is lightweight and can be easily customized to add more commands as per your 
 
 ## 📄 License
 
-This project is licensed under the [MIT License](https://opensource.org/licenses/MIT) - see the [LICENSE](https://github.com/networkserver-commits06/LEE TECHbot-MD/blob/main/LICENSE) file for details.
+This project is licensed under the [MIT License](https://opensource.org/licenses/MIT) - see the [LICENSE](https://github.com/networkserver-commits06/LEE-TECHBOT-MD/blob/main/LICENSE) file for details.
 
 ---
 
