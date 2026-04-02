@@ -124,8 +124,8 @@ It is lightweight and can be easily customized to add more commands as per your 
 1. **Clone the repository:**
 
     ```bash
-    git clone https://github.com/networkserver-commits06/LEE TECHbot-MD.git
-    cd LEE TECHbot-MD
+    git clone [https://github.com/networkserver-commits06/LEE-TECHBOT-MD.git
+    cd LEE-TECHBOT-MD
     ```
 
 2. **Install the dependencies:**
@@ -155,7 +155,7 @@ This project is licensed under the [MIT License](https://opensource.org/licenses
 
 ## 🙌 Contributions
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/networkserver-commits06/Knightbot-MD/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/networkserver-commits06/LEE-TECHBOT-MD/issues).
 
 ---
 
@@ -166,7 +166,7 @@ If you like this project, please give it a [⭐️ star on GitHub](https://githu
 
 ## Credits
 - [LEE TECH](github.com/networkserver-commits06)
-- [Professor](https://github.com/mruniquehacker) for repo
+- [Professor](https://github.com/mruniquehacker) for code scripts
 - [Baileys](https://github.com/adiwajshing/Baileys)
 - [TechGod143](https://github.com/TechGod143) for pair code
 - [Dgxeon](https://github.com/Dgxeon) for pair code
@@ -194,7 +194,7 @@ This project is licensed under the MIT License. However, you must:
 
 ## 📜 Copyright Notice
 
-Copyright (c) 2025 LEE TECH. All rights reserved.
+Copyright (c) 2025 LEE-TECHBOT-MD. All rights reserved.
 
 This project contains code from various open source projects:
 - Baileys (MIT License)
