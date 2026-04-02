@@ -29,7 +29,7 @@ This is a WhatsApp bot built using the Baileys library for group management, inc
 Click the button below to fork the LEE TECH BOT repository to your GitHub account:
 
 <div align="center">
-  <a href="https://github.com/networkserver06-commits/Knightbot-MD/fork">
+  <a href="https://github.com/networkserver06-commits/LEE-TECHBOT-MD/fork">
     <img src="https://img.shields.io/badge/Fork-Repository-blue?style=for-the-badge" alt="Fork the repository"/>
   </a>
 </div>
