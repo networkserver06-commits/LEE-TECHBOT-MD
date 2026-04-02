@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 async function facebookCommand(sock, chatId, message) {
+    let tempPath = null; // Declare up here for safe cleanup
+
     try {
         const text = message.message?.conversation || message.message?.extendedTextMessage?.text || "";
         let url = text.split(' ').slice(1).join(' ').trim();
@@ -14,8 +16,7 @@ async function facebookCommand(sock, chatId, message) {
         // 1. Initial Reaction
         await sock.sendMessage(chatId, { react: { text: '🔄', key: message.key } });
 
-        // 2. Fetching from the most stable 2026 API
-        // This specific API handles the 403 bypass on its own server
+        // 2. Fetching from the API
         const apiUrl = `https://api.vreden.my.id/api/facebook?url=${encodeURIComponent(url)}`;
         const response = await axios.get(apiUrl, { timeout: 15000 });
         
@@ -23,18 +24,33 @@ async function facebookCommand(sock, chatId, message) {
             throw new Error("API could not resolve this link. The video might be private.");
         }
 
-        // Extract HD if available, otherwise SD
-        const videoUrl = response.data.result.video || response.data.result.url;
-        const title = response.data.result.title || "Facebook Video";
+        const resData = response.data.result;
+        let videoUrl = '';
+        let title = resData.title || "Facebook Video";
 
-        if (!videoUrl) throw new Error("No video stream found.");
+        // 3. Smart URL Extraction (Prioritize HD)
+        if (typeof resData === 'object') {
+            // Try to grab HD first, then fallback to SD or generic URL
+            videoUrl = resData.hd || resData.HD || resData.High_Resolution || resData.sd || resData.SD || resData.video || resData.url;
+            
+            // If the API returns an array of qualities
+            if (!videoUrl && Array.isArray(resData)) {
+                const hd = resData.find(v => v.quality?.toLowerCase().includes('hd') || v.resolution?.includes('720'));
+                const sd = resData.find(v => v.quality?.toLowerCase().includes('sd'));
+                videoUrl = hd?.url || sd?.url || resData[0]?.url;
+            }
+        } else if (typeof resData === 'string') {
+            videoUrl = resData;
+        }
 
-        // 3. Prepare Temp File
+        if (!videoUrl) throw new Error("No playable video stream found in the API response.");
+
+        // 4. Prepare Temp File
         const tmpDir = path.join(process.cwd(), 'tmp');
         if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-        const tempPath = path.join(tmpDir, `fb_${Date.now()}.mp4`);
+        tempPath = path.join(tmpDir, `fb_${Date.now()}.mp4`);
 
-        // 4. Download with "Human-Like" Headers
+        // 5. Download with "Human-Like" Headers
         const writer = fs.createWriteStream(tempPath);
         const videoFetch = await axios({
             method: 'get',
@@ -50,26 +66,27 @@ async function facebookCommand(sock, chatId, message) {
 
         videoFetch.data.pipe(writer);
 
+        // Wait for the file to COMPLETELY finish writing to disk
         await new Promise((resolve, reject) => {
-            writer.on('finish', resolve);
+            writer.on('close', resolve); // 'close' is safer than 'finish'
             writer.on('error', reject);
         });
 
-        // 5. Final Send Check
+        // 6. Final Send Check
         const stats = fs.statSync(tempPath);
         if (stats.size > 2000) { 
             await sock.sendMessage(chatId, {
-                video: fs.readFileSync(tempPath),
+                // BIG CHANGE: Streaming from disk instead of reading into RAM. 
+                // This prevents the bot from crashing on large "full" videos.
+                video: { url: tempPath }, 
                 mimetype: "video/mp4",
-                caption: `✅ *Download Successful*\n\n📝 *Title:* ${title}\n⚖️ *Size:* ${(stats.size / (1024 * 1024)).toFixed(2)} MB`,
+                caption: `𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗𝗘𝗗 𝗕𝗬 ${BOT_NAME}\n\n📝 *Title:* ${title}\n⚖️ *Size:* ${(stats.size / (1024 * 1024)).toFixed(2)} MB`,
             }, { quoted: message });
+            
             await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
         } else {
-            throw new Error("403 Forbidden: Server IP is blocked by Facebook.");
+            throw new Error("403 Forbidden: Server IP is blocked by Facebook, or file is corrupt.");
         }
-
-        // Cleanup
-        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
 
     } catch (error) {
         console.error('FINAL ATTEMPT ERROR:', error.message);
@@ -79,10 +96,21 @@ async function facebookCommand(sock, chatId, message) {
             errorMsg = "❌ *IP BLOCKED:* Facebook is blocking your bot server's IP address. Please restart your VPS or use a Proxy.";
         } else if (error.message.includes('timeout')) {
             errorMsg = "❌ *Timeout:* The API server is slow. Try again.";
+        } else if (error.message.includes('status code 404')) {
+            errorMsg = "❌ *Not Found:* The video may be private, restricted, or deleted.";
         }
 
         await sock.sendMessage(chatId, { text: errorMsg }, { quoted: message });
         await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
+    } finally {
+        // 7. Cleanup: ALWAYS delete the file, even if an error occurred to prevent VPS storage from getting full
+        if (tempPath && fs.existsSync(tempPath)) {
+            try {
+                fs.unlinkSync(tempPath);
+            } catch (cleanupErr) {
+                console.error("Failed to delete temp file:", cleanupErr);
+            }
+        }
     }
 }
 

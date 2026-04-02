@@ -5,8 +5,7 @@ const path = require('path');
 async function helpCommand(sock, chatId, message) {
     const helpMessage = `
 ╔═══════════════════╗
-   *🤖 ${settings.botName || 'LEE TECHBot-MD'}*  
-   Version: *${settings.version || '3.0.0'}*
+   *🤖 ${settings.botName || 'LEE TECHBot-MD'}* Version: *${settings.version || '3.0.0'}*
    by ${settings.botOwner || 'Lee Tech'}
    YT : ${global.ytch}
 ╚═══════════════════╝
@@ -30,7 +29,7 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .8ball <question>
 ║ ➤ .groupinfo
 ║ ➤ .staff or .admins 
-║ ➤ .vv
+║ ➤ .vv or .vv2
 ║ ➤ .trt <text> <lang>
 ║ ➤ .ss <link>
 ║ ➤ .jid
@@ -46,6 +45,7 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .unmute
 ║ ➤ .delete or .del
 ║ ➤ .kick @user
+║ ➤ .kickall
 ║ ➤ .warnings @user
 ║ ➤ .warn @user
 ║ ➤ .antilink
@@ -69,11 +69,15 @@ async function helpCommand(sock, chatId, message) {
 🔒 *Owner Commands*:
 ║ ➤ .mode <public/private>
 ║ ➤ .clearsession
+║ ➤ .setprefix <symbol/none>
 ║ ➤ .antidelete
 ║ ➤ .cleartmp
 ║ ➤ .update
 ║ ➤ .settings
 ║ ➤ .setpp <reply to image>
+║ ➤ .savestatus <reply to status>
+║ ➤ .tostatus <reply to media>
+║ ➤ .togstatus <reply to media>
 ║ ➤ .autoreact <on/off>
 ║ ➤ .autostatus <on/off>
 ║ ➤ .autostatus react <on/off>
