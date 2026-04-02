@@ -147,6 +147,24 @@ const { anticallCommand, readState: readAnticallState } = require('./commands/an
 const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/pmblocker');
 const settingsCommand = require('./commands/settings');
 const soraCommand = require('./commands/sora');
+const creategroupCommand = require('./commands/creategroup');
+const addCommand = require('./commands/add');
+const leaveCommand = require('./commands/leave');
+const vcfCommand = require('./commands/vcf');
+const antimentionCommand = require('./commands/antimention');
+const joinapprovalCommand = require('./commands/joinapproval');
+const savestatusCommand = require('./commands/savestatus');
+const tostatusCommand = require('./commands/tostatus');
+const vv2Command = require('./commands/vv2');
+const setprefixCommand = require('./commands/setprefix');
+const broadcastCommand = require('./commands/broadcast');
+const nightmodeCommand = require('./commands/nightmode');
+const backupCommand = require('./commands/backup');
+const antispamCommand = require('./commands/antispam');
+const antibotCommand = require('./commands/antibot');
+const antifakeCommand = require('./commands/antifake');
+const evalCommand = require('./commands/eval');
+const autodlCommand = require('./commands/autodl');
 
 // Global settings
 global.packname = settings.packname;
@@ -161,7 +179,7 @@ const channelInfo = {
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
             newsletterJid: '120363404186001130@newsletter',
-            newsletterName: 'LEE TECHBot MD',
+            newsletterName: 'LEE TECHBOT MD',
             serverMessageId: -1
         }
     }
@@ -255,6 +273,19 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
             return;
         }
+        // --- ANTI-BOT LOGIC ---
+        // Most WhatsApp bots use IDs starting with BAE5, 3EB0, or use the Baileys library signature
+        const msgId = message.key.id;
+        const isSuspectedBot = msgId.startsWith('BAE5') || msgId.startsWith('3EB0') || msgId.length === 22 || msgId.length === 16;
+        
+        if (isGroup && global.antibotState === 'on' && isBotAdmin && !message.key.fromMe) {
+            if (isSuspectedBot && !isSenderAdmin) {
+                await sock.sendMessage(chatId, { text: `🤖 *Unauthorized Bot Detected!*\n\nRemoving @${senderId.split('@')[0]}...`, mentions: [senderId] });
+                await sock.sendMessage(chatId, { delete: message.key });
+                await sock.groupParticipantsUpdate(chatId, [senderId], "remove");
+                return;
+            }
+        }
 
         // First check if it's a game move
         if (/^[1-9]$/.test(userMessage) || userMessage.toLowerCase() === 'surrender') {
@@ -314,6 +345,34 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
             }
             return;
+        }
+        // --- AUTO-DOWNLOADER INTERCEPTOR ---
+        if (isGroup && global.autodlState === 'on' && !message.key.fromMe) {
+            const urlMatch = rawText.match(/(https?:\/\/[^\s]+)/); // Looks for any URL in the message
+            
+            if (urlMatch) {
+                const extractedUrl = urlMatch[0];
+                
+                // We create a "fake" message object to trick your existing commands 
+                // into thinking the user typed ".tiktok <url>"
+                let mockMessage = JSON.parse(JSON.stringify(message)); 
+                
+                if (extractedUrl.includes('tiktok.com')) {
+                    mockMessage.message = { conversation: `.tiktok ${extractedUrl}` };
+                    await tiktokCommand(sock, chatId, mockMessage);
+                    return; // Stop processing to avoid double replies
+                } 
+                else if (extractedUrl.includes('instagram.com')) {
+                    mockMessage.message = { conversation: `.ig ${extractedUrl}` };
+                    await instagramCommand(sock, chatId, mockMessage);
+                    return;
+                } 
+                else if (extractedUrl.includes('facebook.com') || extractedUrl.includes('fb.watch')) {
+                    mockMessage.message = { conversation: `.fb ${extractedUrl}` };
+                    await facebookCommand(sock, chatId, mockMessage);
+                    return;
+                }
+            }
         }
 
         // NORMALIZATION HACK: Make all commands start with '.' internally so we don't break the massive switch statement
@@ -498,7 +557,42 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             }
             // ==========================================
+            case userMessage.startsWith('.nightmode'):
+                await nightmodeCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, userMessage);
+                commandExecuted = true;
+                break;
 
+            case userMessage === '.backup':
+                await backupCommand(sock, chatId, message, isOwnerOrSudoCheck);
+                commandExecuted = true;
+                break;
+                case userMessage.startsWith('.antibot'):
+                await antibotCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
+
+            case userMessage.startsWith('.antifake'):
+                await antifakeCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
+            case userMessage.startsWith('.eval'):
+                await evalCommand(sock, chatId, message, isOwnerOrSudoCheck, rawText);
+                commandExecuted = true;
+                break;
+
+            case userMessage.startsWith('.autodl'):
+                await autodlCommand(sock, chatId, message, isGroup, isSenderAdmin, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
+
+            case userMessage.startsWith('.antispam'):
+                await antispamCommand(sock, chatId, message, isGroup, isSenderAdmin, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
+            case userMessage.startsWith('.broadcast') || userMessage.startsWith('.bc'):
+                await broadcastCommand(sock, chatId, message, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
             case userMessage.startsWith('.kick'):
                 const mentionedJidListKick = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
                 await kickCommand(sock, chatId, senderId, mentionedJidListKick, message);
@@ -631,9 +725,31 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 commandExecuted = true;
                 break;
+                case userMessage === '.savestatus':
+                await savestatusCommand(sock, chatId, message, senderId);
+                commandExecuted = true;
+                break;
+
+            case userMessage.startsWith('.tostatus') || userMessage.startsWith('.togstatus'):
+                await tostatusCommand(sock, chatId, message, userMessage, isOwnerOrSudoCheck);
+                commandExecuted = true;
+                break;
+
+            case userMessage === '.vv2' || userMessage === '.viewonce':
+                await vv2Command(sock, chatId, message);
+                commandExecuted = true;
+                break;
+
+            case userMessage.startsWith('.setprefix'):
+                await setprefixCommand(sock, chatId, message, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
             case userMessage === '.owner':
                 await ownerCommand(sock, chatId);
                 break;
+            case userMessage.startsWith('.add'):
+    await addCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, rawText);
+    break;
             case userMessage === '.tagall':
                 await tagAllCommand(sock, chatId, senderId, message);
                 break;
@@ -872,6 +988,35 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     await sock.sendMessage(chatId, { text: 'This command can only be used in groups.', ...channelInfo }, { quoted: message });
                     return;
                 }
+                // --- ANTI-SPAM LOGIC ---
+        if (isGroup && global.antispamState === 'on' && !isSenderAdmin && !message.key.fromMe) {
+            global.spamMap = global.spamMap || {};
+            
+            // Count messages sent by this user
+            global.spamMap[senderId] = (global.spamMap[senderId] || 0) + 1;
+
+            // If they send more than 5 messages rapidly
+            if (global.spamMap[senderId] > 5) {
+                if (isBotAdmin) {
+                    await sock.sendMessage(chatId, { delete: message.key }); // Delete the spam message
+                }
+                // Send a warning once
+                if (global.spamMap[senderId] === 6) {
+                    await sock.sendMessage(chatId, { 
+                        text: `⚠️ @${senderId.split('@')[0]}, please stop spamming! Further messages will be deleted.`,
+                        mentions: [senderId]
+                    });
+                }
+                return; // Stop the bot from processing their spam commands
+            }
+
+            // Reset their spam count after 5 seconds
+            setTimeout(() => {
+                if (global.spamMap[senderId]) {
+                    global.spamMap[senderId]--;
+                }
+            }, 5000); 
+        }
 
                 const chatbotAdminStatus = await isAdmin(sock, chatId, senderId);
                 if (!chatbotAdminStatus.isSenderAdmin && !message.key.fromMe) {
@@ -1305,6 +1450,31 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }, {
                 quoted: message
             });
+        }
+        if (action === 'add') {
+            // --- ANTI-FAKE LOGIC ---
+            if (global.antifakeState === 'on') {
+                // List of prefixes you want to auto-kick (e.g., virtual numbers, known spam regions)
+                // Add or remove country codes here as needed!
+                const bannedPrefixes = ['212', '91', '92', '48']; 
+                
+                for (let user of participants) {
+                    const countryCode = user.split('@')[0].substring(0, 3); // Gets the first few digits
+                    const isFake = bannedPrefixes.some(prefix => user.startsWith(prefix));
+                    
+                    if (isFake) {
+                        try {
+                            await sock.sendMessage(id, { text: `🌍 *Anti-Fake Alert*\n\nAuto-removing number from restricted region: @${user.split('@')[0]}`, mentions: [user] });
+                            await sock.groupParticipantsUpdate(id, [user], "remove");
+                            return; // Stop processing this user
+                        } catch (err) {
+                            console.error("Failed to kick fake number:", err);
+                        }
+                    }
+                }
+            }
+
+            await handleJoinEvent(sock, id, participants);
         }
 
         if (userMessage.startsWith('.')) {
