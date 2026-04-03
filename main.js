@@ -174,7 +174,7 @@ const alwaysonlineCommand = require('./commands/alwaysonline');
 global.packname = settings.packname;
 global.author = settings.author;
 global.channelLink = "https://whatsapp.com/channel/0029VbBu1EgJUM2iVI3tPE0S";
-global.ytch = "Network Server";
+global.ytch = "@ServerNetwork-yt";
 
 // Add this near the top of main.js with other global configurations
 const channelInfo = {
