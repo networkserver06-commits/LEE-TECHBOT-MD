@@ -5,8 +5,8 @@ const path = require('path');
 async function helpCommand(sock, chatId, message) {
     const helpMessage = `
 ╔═══════════════════╗
-   *🤖 ${settings.botName || 'LEE TECHBot-MD'}* Version: *${settings.version || '3.0.0'}*
-   by ${settings.botOwner || 'Lee Tech'}
+   *🤖 ${settings.botName || 'LEE TECHBOT-MD'}* Version: *${settings.version || '3.0.7'}*
+   🚀 *FULLY POWERED BY LEE TECH*
    YT : ${global.ytch}
 ╚═══════════════════╝
 
@@ -18,7 +18,7 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .ping
 ║ ➤ .alive
 ║ ➤ .tts <text>
-║ ➤ .owner
+║ ➤ .owner or .vcf
 ║ ➤ .joke
 ║ ➤ .quote
 ║ ➤ .fact
@@ -38,6 +38,7 @@ async function helpCommand(sock, chatId, message) {
 
 ╔═══════════════════╗
 👮‍♂️ *Admin Commands*:
+║ ➤ .add <number>
 ║ ➤ .ban @user
 ║ ➤ .promote @user
 ║ ➤ .demote @user
@@ -50,6 +51,14 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .warn @user
 ║ ➤ .antilink
 ║ ➤ .antibadword
+║ ➤ .antitag <on/off>
+║ ➤ .antimention <on/off>
+║ ➤ .antispam <on/off>
+║ ➤ .antibot <on/off>
+║ ➤ .antifake <on/off>
+║ ➤ .joinapproval <on/off>
+║ ➤ .autodl <on/off>
+║ ➤ .nightmode <on/off>
 ║ ➤ .clear
 ║ ➤ .tag <message>
 ║ ➤ .tagall
@@ -57,7 +66,6 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .hidetag <message>
 ║ ➤ .chatbot
 ║ ➤ .resetlink
-║ ➤ .antitag <on/off>
 ║ ➤ .welcome <on/off>
 ║ ➤ .goodbye <on/off>
 ║ ➤ .setgdesc <description>
@@ -67,6 +75,11 @@ async function helpCommand(sock, chatId, message) {
 
 ╔═══════════════════╗
 🔒 *Owner Commands*:
+║ ➤ .creategroup <name> | @user
+║ ➤ .leave (Bot leaves group)
+║ ➤ .broadcast <message>
+║ ➤ .backup (Get Database)
+║ ➤ .eval <code>
 ║ ➤ .mode <public/private>
 ║ ➤ .clearsession
 ║ ➤ .setprefix <symbol/none>
@@ -226,6 +239,7 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .repo
 ╚═══════════════════╝
 
+🚀 *FULLY POWERED BY LEE TECH*
 Join our channel for updates:`;
 
     try {
@@ -242,7 +256,7 @@ Join our channel for updates:`;
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
                         newsletterJid: '120363404186001130@newsletter',
-                        newsletterName: 'LEE TECHBot MD',
+                        newsletterName: 'LEE TECHBOT MD',
                         serverMessageId: -1
                     }
                 }
@@ -256,7 +270,7 @@ Join our channel for updates:`;
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
                         newsletterJid: '120363404186001130@newsletter',
-                        newsletterName: 'LEE TECHBot MD by Lee Tech',
+                        newsletterName: 'FULLY POWERED BY LEE TECH',
                         serverMessageId: -1
                     } 
                 }
