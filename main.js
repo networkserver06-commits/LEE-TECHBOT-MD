@@ -165,6 +165,10 @@ const antibotCommand = require('./commands/antibot');
 const antifakeCommand = require('./commands/antifake');
 const evalCommand = require('./commands/eval');
 const autodlCommand = require('./commands/autodl');
+const antistickerCommand = require('./commands/antisticker');
+const antiphotoCommand = require('./commands/antiphoto');
+const autobioCommand = require('./commands/autobio');
+const alwaysonlineCommand = require('./commands/alwaysonline');
 
 // Global settings
 global.packname = settings.packname;
@@ -374,6 +378,35 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
             }
         }
+        // --- ANTI-STICKER & ANTI-PHOTO LOGIC ---
+        if (isGroup && !isSenderAdmin && !message.key.fromMe) {
+            const isSticker = message.message?.stickerMessage;
+            const isPhoto = message.message?.imageMessage;
+
+            // Delete Stickers
+            if (isSticker && global.antistickerState === 'on') {
+                if (isBotAdmin) {
+                    await sock.sendMessage(chatId, { delete: message.key });
+                    await sock.sendMessage(chatId, { 
+                        text: `🚫 @${senderId.split('@')[0]}, stickers are currently disabled in this group!`, 
+                        mentions: [senderId] 
+                    });
+                }
+                return; // Stop processing so it doesn't trigger anything else
+            }
+
+            // Delete Photos
+            if (isPhoto && global.antiphotoState === 'on') {
+                if (isBotAdmin) {
+                    await sock.sendMessage(chatId, { delete: message.key });
+                    await sock.sendMessage(chatId, { 
+                        text: `🖼️ 🚫 @${senderId.split('@')[0]}, sending photos is disabled in this group!`, 
+                        mentions: [senderId] 
+                    });
+                }
+                return; // Stop processing
+            }
+        }
 
         // NORMALIZATION HACK: Make all commands start with '.' internally so we don't break the massive switch statement
         if (actualPrefix !== '.' && actualPrefix !== '') {
@@ -561,6 +594,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await nightmodeCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, userMessage);
                 commandExecuted = true;
                 break;
+        
+            case userMessage.startsWith('.alwaysonline'):
+                await alwaysonlineCommand(sock, chatId, message, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
 
             case userMessage === '.backup':
                 await backupCommand(sock, chatId, message, isOwnerOrSudoCheck);
@@ -596,6 +634,20 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.kick'):
                 const mentionedJidListKick = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
                 await kickCommand(sock, chatId, senderId, mentionedJidListKick, message);
+                break;
+                case userMessage.startsWith('.antisticker'):
+                await antistickerCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
+
+            case userMessage.startsWith('.antiphoto'):
+                await antiphotoCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
+
+            case userMessage.startsWith('.autobio'):
+                await autobioCommand(sock, chatId, message, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
                 break;
             case userMessage.startsWith('.mute'):
                 {
