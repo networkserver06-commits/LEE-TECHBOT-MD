@@ -56,6 +56,8 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .antispam <on/off>
 ║ ➤ .antibot <on/off>
 ║ ➤ .antifake <on/off>
+║ ➤ .antisticker <on/off>
+║ ➤ .antiphoto <on/off>
 ║ ➤ .joinapproval <on/off>
 ║ ➤ .autodl <on/off>
 ║ ➤ .nightmode <on/off>
@@ -96,6 +98,8 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .autostatus react <on/off>
 ║ ➤ .autotyping <on/off>
 ║ ➤ .autoread <on/off>
+║ ➤ .autobio <on/off>
+║ ➤ .alwaysonline <on/off>
 ║ ➤ .anticall <on/off>
 ║ ➤ .pmblocker <on/off/status>
 ║ ➤ .pmblocker setmsg <text>
