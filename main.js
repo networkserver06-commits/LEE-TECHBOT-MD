@@ -169,9 +169,10 @@ const autobioCommand = require('./commands/autobio');
 const alwaysonlineCommand = require('./commands/alwaysonline');
 const groupVcfCommand = require('./commands/groupvcf');
 
-// MODERATION IMPORTS - Changed to destructure both command AND interceptor
+// MODERATION IMPORTS
 const { antistickerCommand, checkAntiSticker } = require('./commands/antisticker');
 const { antiphotoCommand, checkAntiPhoto } = require('./commands/antiphoto');
+const { antifakeCommand, checkFakeLinks } = require('./commands/antifake'); // Add this!
 
 // Global settings
 global.packname = settings.packname;
@@ -326,7 +327,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
             // Clean Middleware Logic! If either of these return true, they deleted a message.
             if (await checkAntiSticker(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return;
             if (await checkAntiPhoto(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return;
+            if (await checkFakeLinks(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return; // <-- ADD THIS LINE
         }
+    
 
         // PM blocker
         if (!isGroup && !message.key.fromMe && !senderIsSudo) {
@@ -1499,8 +1502,8 @@ async function handleGroupParticipantUpdate(sock, update) {
         }
 
         if (action === 'add') {
-            // --- ANTI-FAKE LOGIC ---
-            if (global.antifakeState === 'on') {
+            // --- ANTI-FAKE LOGIC (Group-Specific) ---
+            if (global.antifakeState[id] === 'on') {
                 const bannedPrefixes = ['212', '91', '92', '48']; 
                 
                 for (let user of participants) {

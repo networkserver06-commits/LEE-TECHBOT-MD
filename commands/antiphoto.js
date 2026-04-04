@@ -1,41 +1,57 @@
-global.antiphotoState = global.antiphotoState || 'off';
+global.antiphotoState = global.antiphotoState || {};
+global.photoWarnCooldown = global.photoWarnCooldown || {}; 
 
-// 1. The Toggle Command
 const antiphotoCommand = async (sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage) => {
     if (!isGroup) return await sock.sendMessage(chatId, { text: '❌ Groups only.' });
     if (!isSenderAdmin && !isOwnerOrSudoCheck) return await sock.sendMessage(chatId, { text: '❌ Admins only.' });
+    if (!isBotAdmin) return await sock.sendMessage(chatId, { text: '❌ Bot must be an admin to delete photos.' });
 
     const arg = userMessage.split(' ')[1]?.toLowerCase();
     
     if (arg === 'on' || arg === 'off') {
-        global.antiphotoState = arg;
-        await sock.sendMessage(chatId, { text: `🖼️ Anti-Photo is now turned *${arg.toUpperCase()}*` });
+        global.antiphotoState[chatId] = arg; 
+        await sock.sendMessage(chatId, { text: `🖼️ Anti-Photo is now turned *${arg.toUpperCase()}* for this group.` });
     } else {
-        await sock.sendMessage(chatId, { text: `📝 Usage: .antiphoto on/off\nCurrent status: *${global.antiphotoState}*` });
+        const currentState = global.antiphotoState[chatId] || 'off';
+        await sock.sendMessage(chatId, { text: `📝 Usage: .antiphoto on/off\nCurrent status in this group: *${currentState}*` });
     }
 };
 
-// 2. The Merciless Interceptor
 const checkAntiPhoto = async (sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId) => {
-    if (global.antiphotoState !== 'on') return false;
-    if (!isGroup) return false;
+    if (global.antiphotoState[chatId] !== 'on') return false;
+    if (!isGroup || isSenderAdmin || message.key.fromMe) return false;
 
-    // Look deep into the message layers
     const msgContent = message.message?.ephemeralMessage?.message || message.message?.viewOnceMessageV2?.message || message.message?.documentWithCaptionMessage?.message || message.message;
     const isPhoto = msgContent?.imageMessage;
 
     if (isPhoto) {
-        console.log(`⚠️ PHOTO DETECTED from ${senderId}!`);
-        
         if (isBotAdmin) {
-            console.log(`🗑️ Bot is admin. Deleting photo now...`);
-            await sock.sendMessage(chatId, { delete: message.key });
-            await sock.sendMessage(chatId, { text: `🖼️ 🚫 @${senderId.split('@')[0]}, photos are disabled!`, mentions: [senderId] });
-        } else {
-            console.log(`❌ Bot is NOT admin. Cannot delete.`);
-            await sock.sendMessage(chatId, { text: `⚠️ I caught a photo, but I am not a Group Admin so I cannot delete it!` });
+            await sock.sendMessage(chatId, { delete: message.key }); 
+            
+            const now = Date.now();
+            const userKey = `${chatId}-${senderId}`; 
+            const lastWarned = global.photoWarnCooldown[userKey] || 0;
+
+            if (now - lastWarned > 10000) {
+                const adMessage = `🖼️ 🚫 @${senderId.split('@')[0]}, photos are not allowed here!\n\n🤖 *Protected by LEE TECHBOT MD*`;
+
+                await sock.sendMessage(chatId, { 
+                    text: adMessage, 
+                    mentions: [senderId],
+                    contextInfo: {
+                        forwardingScore: 999,
+                        isForwarded: true,
+                        forwardedNewsletterMessageInfo: {
+                            newsletterJid: '120363404186001130@newsletter',
+                            newsletterName: 'LEE TECHBOT MD',
+                            serverMessageId: -1
+                        }
+                    }
+                });
+                global.photoWarnCooldown[userKey] = now; 
+            }
         }
-        return true; // Stop processing
+        return true; 
     }
     return false;
 };
