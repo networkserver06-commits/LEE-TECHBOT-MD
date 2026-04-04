@@ -1,7 +1,7 @@
 // 🧹 Fix for ENOSPC / temp overflow in hosted panels
 const fs = require('fs');
 const path = require('path');
-const { downloadContentFromMessage } = require('@whiskeysockets/baileys'); // <== ADDED DEPENDENCY FOR MEDIA DOWNLOADS
+const { downloadContentFromMessage } = require('@whiskeysockets/baileys'); 
 
 // Initialize global prefix (Defaults to '.')
 global.prefix = global.prefix !== undefined ? global.prefix : '.'; 
@@ -165,11 +165,14 @@ const antibotCommand = require('./commands/antibot');
 const antifakeCommand = require('./commands/antifake');
 const evalCommand = require('./commands/eval');
 const autodlCommand = require('./commands/autodl');
-const { antistickerCommand, checkAntiSticker } = require('./commands/antisticker');
-const { antiphotoCommand, checkAntiPhoto } = require('./commands/antiphoto');
 const autobioCommand = require('./commands/autobio');
 const alwaysonlineCommand = require('./commands/alwaysonline');
 const groupVcfCommand = require('./commands/groupvcf');
+
+// MODERATION IMPORTS - Changed to destructure both command AND interceptor
+const { antistickerCommand, checkAntiSticker } = require('./commands/antisticker');
+const { antiphotoCommand, checkAntiPhoto } = require('./commands/antiphoto');
+
 // Global settings
 global.packname = settings.packname;
 global.author = settings.author;
@@ -316,12 +319,18 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         if (!message.key.fromMe) incrementMessageCount(chatId, senderId);
 
-        // Check for bad words and antilink FIRST
+        // =====================================================================
+        // THE FRONT-LINE INTERCEPTORS (Badwords, Links, Photos, Stickers)
+        // =====================================================================
         if (isGroup) {
             if (userMessage) {
                 await handleBadwordDetection(sock, chatId, message, userMessage, senderId);
             }
             await Antilink(message, sock);
+
+            // Clean Middleware Logic! If either of these return true, they deleted a message.
+            if (await checkAntiSticker(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return;
+            if (await checkAntiPhoto(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return;
         }
 
         // PM blocker
@@ -384,18 +393,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     return;
                 }
             }
-        }
-
-        // Check for bad words and antilink FIRST
-        if (isGroup) {
-            if (userMessage) {
-                await handleBadwordDetection(sock, chatId, message, userMessage, senderId);
-            }
-            await Antilink(message, sock);
-            
-            // --- CLEAN MODERATION INTERCEPTORS ---
-            if (await checkAntiSticker(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return;
-            if (await checkAntiPhoto(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return;
         }
 
         // NORMALIZATION HACK
@@ -697,7 +694,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await settingsCommand(sock, chatId, message);
                 break;
             case userMessage.startsWith('.mode'):
-                // Check if sender is the owner
                 if (!message.key.fromMe && !senderIsOwnerOrSudo) {
                     await sock.sendMessage(chatId, { text: 'Only bot owner can use this command!', ...channelInfo }, { quoted: message });
                     return;
