@@ -1,10 +1,9 @@
 global.antiphotoState = global.antiphotoState || 'off';
 
-// 1. The Toggle Command (.antiphoto on/off)
+// 1. The Toggle Command
 const antiphotoCommand = async (sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage) => {
     if (!isGroup) return await sock.sendMessage(chatId, { text: '❌ Groups only.' });
     if (!isSenderAdmin && !isOwnerOrSudoCheck) return await sock.sendMessage(chatId, { text: '❌ Admins only.' });
-    if (!isBotAdmin) return await sock.sendMessage(chatId, { text: '❌ Bot must be an admin to delete photos.' });
 
     const arg = userMessage.split(' ')[1]?.toLowerCase();
     
@@ -16,20 +15,27 @@ const antiphotoCommand = async (sock, chatId, message, isGroup, isSenderAdmin, i
     }
 };
 
-// 2. The Interceptor (Checks every message and deletes if it's a photo)
+// 2. The Merciless Interceptor
 const checkAntiPhoto = async (sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId) => {
     if (global.antiphotoState !== 'on') return false;
-    if (!isGroup || isSenderAdmin || message.key.fromMe) return false;
+    if (!isGroup) return false;
 
+    // Look deep into the message layers
     const msgContent = message.message?.ephemeralMessage?.message || message.message?.viewOnceMessageV2?.message || message.message?.documentWithCaptionMessage?.message || message.message;
     const isPhoto = msgContent?.imageMessage;
 
     if (isPhoto) {
+        console.log(`⚠️ PHOTO DETECTED from ${senderId}!`);
+        
         if (isBotAdmin) {
+            console.log(`🗑️ Bot is admin. Deleting photo now...`);
             await sock.sendMessage(chatId, { delete: message.key });
             await sock.sendMessage(chatId, { text: `🖼️ 🚫 @${senderId.split('@')[0]}, photos are disabled!`, mentions: [senderId] });
+        } else {
+            console.log(`❌ Bot is NOT admin. Cannot delete.`);
+            await sock.sendMessage(chatId, { text: `⚠️ I caught a photo, but I am not a Group Admin so I cannot delete it!` });
         }
-        return true; // Tells main.js to stop
+        return true; // Stop processing
     }
     return false;
 };
