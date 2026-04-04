@@ -162,7 +162,6 @@ const nightmodeCommand = require('./commands/nightmode');
 const backupCommand = require('./commands/backup');
 const antispamCommand = require('./commands/antispam');
 const antibotCommand = require('./commands/antibot');
-const antifakeCommand = require('./commands/antifake');
 const evalCommand = require('./commands/eval');
 const autodlCommand = require('./commands/autodl');
 const autobioCommand = require('./commands/autobio');
