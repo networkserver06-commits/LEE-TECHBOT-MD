@@ -169,7 +169,7 @@ const antistickerCommand = require('./commands/antisticker');
 const antiphotoCommand = require('./commands/antiphoto');
 const autobioCommand = require('./commands/autobio');
 const alwaysonlineCommand = require('./commands/alwaysonline');
-
+const groupVcfCommand = require('./commands/groupvcf');
 // Global settings
 global.packname = settings.packname;
 global.author = settings.author;
@@ -617,6 +617,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
         
             case userMessage.startsWith('.alwaysonline'):
                 await alwaysonlineCommand(sock, chatId, message, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
+            case userMessage === '.groupvcf' || userMessage === '.savecontacts' || userMessage === '.extract':
+                await groupVcfCommand(sock, chatId, message, isGroup, isSenderAdmin, isOwnerOrSudoCheck);
                 commandExecuted = true;
                 break;
 
