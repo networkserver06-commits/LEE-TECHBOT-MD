@@ -467,32 +467,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
             }
-
             case userMessage === '.vv2':
-            case userMessage === '.viewonce': {
-                const quotedMsg = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-                if (!quotedMsg) {
-                    await sock.sendMessage(chatId, { text: "Reply to a View Once message.", ...channelInfo }, { quoted: message });
-                    break;
-                }
-                let viewOnceMsg = quotedMsg.viewOnceMessage?.message || quotedMsg.viewOnceMessageV2?.message || quotedMsg.viewOnceMessageV2Extension?.message;
-                if (!viewOnceMsg) {
-                    await sock.sendMessage(chatId, { text: "This is not a View Once message.", ...channelInfo }, { quoted: message });
-                    break;
-                }
-                const msgType = Object.keys(viewOnceMsg)[0];
-                let mediaStream = await downloadContentFromMessage(viewOnceMsg[msgType], msgType.replace('Message', ''));
-                let buffer = Buffer.from([]);
-                for await (const chunk of mediaStream) buffer = Buffer.concat([buffer, chunk]);
-
-                await sock.sendMessage(chatId, { 
-                    [msgType.replace('Message', '')]: buffer, 
-                    caption: "『 VV2 BYPASS 』\n" + (viewOnceMsg[msgType].caption || "") 
-                }, { quoted: message });
-                
+            case userMessage === '.vv':
+                await vv2Command(sock, chatId, message, isOwnerOrSudoCheck);
                 commandExecuted = true;
                 break;
-            }
+
 
             case userMessage === '.savestatus': {
                 const quotedMsg = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
