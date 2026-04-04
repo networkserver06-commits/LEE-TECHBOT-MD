@@ -89,6 +89,8 @@ async function helpCommand(sock, chatId, message) {
 ║ ➤ .cleartmp
 ║ ➤ .update
 ║ ➤ .settings
+║ ➤ .setbotpp <reply to image>
+║ ➤ .setmenuimage <reply to image>
 ║ ➤ .setpp <reply to image>
 ║ ➤ .savestatus <reply to status>
 ║ ➤ .tostatus <reply to media>
@@ -247,11 +249,19 @@ async function helpCommand(sock, chatId, message) {
 Join our channel for updates:`;
 
     try {
-        const imagePath = path.join(__dirname, '../assets/bot_image.jpg');
+        // Look for custom menu image first, then fallback to default assets image
+        const customImagePath = path.join(__dirname, '../menu.jpg');
+        const defaultImagePath = path.join(__dirname, '../assets/bot_image.jpg');
         
-        if (fs.existsSync(imagePath)) {
-            const imageBuffer = fs.readFileSync(imagePath);
-            
+        let imageBuffer = null;
+
+        if (fs.existsSync(customImagePath)) {
+            imageBuffer = fs.readFileSync(customImagePath);
+        } else if (fs.existsSync(defaultImagePath)) {
+            imageBuffer = fs.readFileSync(defaultImagePath);
+        }
+        
+        if (imageBuffer) {
             await sock.sendMessage(chatId, {
                 image: imageBuffer,
                 caption: helpMessage,
@@ -266,7 +276,7 @@ Join our channel for updates:`;
                 }
             },{ quoted: message });
         } else {
-            console.error('Bot image not found at:', imagePath);
+            console.error('No menu image found! Checked for menu.jpg and assets/bot_image.jpg');
             await sock.sendMessage(chatId, { 
                 text: helpMessage,
                 contextInfo: {

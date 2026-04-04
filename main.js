@@ -167,6 +167,7 @@ const autodlCommand = require('./commands/autodl');
 const autobioCommand = require('./commands/autobio');
 const alwaysonlineCommand = require('./commands/alwaysonline');
 const groupVcfCommand = require('./commands/groupvcf');
+const setMenuImageCommand = require('./commands/setmenuimage');
 
 // MODERATION IMPORTS
 const { antistickerCommand, checkAntiSticker } = require('./commands/antisticker');
@@ -609,6 +610,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await broadcastCommand(sock, chatId, message, isOwnerOrSudoCheck, userMessage);
                 commandExecuted = true;
                 break;
+                
             case userMessage.startsWith('.kick'):
                 const mentionedJidListKick = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
                 await kickCommand(sock, chatId, senderId, mentionedJidListKick, message);
@@ -662,6 +664,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage === '.help' || userMessage === '.menu' || userMessage === '.bot' || userMessage === '.list':
                 await helpCommand(sock, chatId, message, global.channelLink);
+                commandExecuted = true;
+                break;
+            case userMessage === '.setmenuimage' || userMessage === '.setmenu':
+                await setMenuImageCommand(sock, chatId, message, isOwnerOrSudoCheck);
                 commandExecuted = true;
                 break;
             case userMessage === '.sticker' || userMessage === '.s':
