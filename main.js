@@ -262,13 +262,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
             if (typeof data.isPublic === 'boolean') isPublic = data.isPublic;
         } catch (error) {
             console.error('Error checking access mode:', error);
-            // default isPublic=true on error
         }
         const isOwnerOrSudoCheck = message.key.fromMe || senderIsOwnerOrSudo;
 
-        // Check if user is banned (skip ban check for unban command)
+        // Check if user is banned
         if (isBanned(senderId) && !userMessage.startsWith('.unban')) {
-            // Only respond occasionally to avoid spam
             if (Math.random() < 0.1) {
                 await sock.sendMessage(chatId, {
                     text: '❌ You are banned from using the bot. Contact an admin to get unbanned.',
@@ -298,7 +296,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         // --- ANTI-BOT LOGIC ---
-        // Most WhatsApp bots use IDs starting with BAE5, 3EB0, or use the Baileys library signature
         const msgId = message.key.id;
         const isSuspectedBot = msgId.startsWith('BAE5') || msgId.startsWith('3EB0') || msgId.length === 22 || msgId.length === 16;
         
@@ -319,17 +316,15 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         if (!message.key.fromMe) incrementMessageCount(chatId, senderId);
 
-        // Check for bad words and antilink FIRST, before ANY other processing
-        // Always run moderation in groups, regardless of mode
+        // Check for bad words and antilink FIRST
         if (isGroup) {
             if (userMessage) {
                 await handleBadwordDetection(sock, chatId, message, userMessage, senderId);
             }
-            // Antilink checks message text internally, so run it even if userMessage is empty
             await Antilink(message, sock);
         }
 
-        // PM blocker: block non-owner DMs when enabled (do not ban)
+        // PM blocker
         if (!isGroup && !message.key.fromMe && !senderIsSudo) {
             try {
                 const pmState = readPmBlockerState();
@@ -342,28 +337,22 @@ async function handleMessages(sock, messageUpdate, printLog) {
             } catch (e) { }
         }
 
-        // ==========================================
-        // DYNAMIC PREFIX LOGIC INJECTED HERE
-        // ==========================================
         let actualPrefix = global.prefix === 'none' ? '' : global.prefix;
         let isCmd = false;
 
         if (actualPrefix === '') {
-            isCmd = userMessage.length > 0; // Without a prefix, any typed text is evaluated
+            isCmd = userMessage.length > 0;
         } else {
             isCmd = userMessage.startsWith(actualPrefix);
         }
 
         if (!isCmd) {
-            // Show typing indicator if autotyping is enabled
             await handleAutotypingForMessage(sock, chatId, userMessage);
 
             if (isGroup) {
-                // Always run moderation features (antitag) regardless of mode
                 await handleTagDetection(sock, chatId, message, senderId);
                 await handleMentionDetection(sock, chatId, message);
 
-                // Only run chatbot in public mode or for owner/sudo
                 if (isPublic || isOwnerOrSudoCheck) {
                     await handleChatbotResponse(sock, chatId, message, userMessage, senderId);
                 }
@@ -373,19 +362,16 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         // --- AUTO-DOWNLOADER INTERCEPTOR ---
         if (isGroup && global.autodlState === 'on' && !message.key.fromMe) {
-            const urlMatch = rawText.match(/(https?:\/\/[^\s]+)/); // Looks for any URL in the message
+            const urlMatch = rawText.match(/(https?:\/\/[^\s]+)/);
             
             if (urlMatch) {
                 const extractedUrl = urlMatch[0];
-                
-                // We create a "fake" message object to trick your existing commands 
-                // into thinking the user typed ".tiktok <url>"
                 let mockMessage = JSON.parse(JSON.stringify(message)); 
                 
                 if (extractedUrl.includes('tiktok.com')) {
                     mockMessage.message = { conversation: `.tiktok ${extractedUrl}` };
                     await tiktokCommand(sock, chatId, mockMessage);
-                    return; // Stop processing to avoid double replies
+                    return; 
                 } 
                 else if (extractedUrl.includes('instagram.com')) {
                     mockMessage.message = { conversation: `.ig ${extractedUrl}` };
@@ -400,13 +386,17 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
         }
 
-        // --- ANTI-STICKER & ANTI-PHOTO LOGIC ---
+        // --- BULLETPROOF ANTI-STICKER & ANTI-PHOTO LOGIC ---
         if (isGroup && !isSenderAdmin && !message.key.fromMe) {
-            const isSticker = message.message?.stickerMessage;
-            const isPhoto = message.message?.imageMessage;
+            // Dig through Disappearing Messages and View Once wrappers!
+            const msgContent = message.message?.ephemeralMessage?.message || message.message?.viewOnceMessageV2?.message || message.message;
+
+            const isSticker = msgContent?.stickerMessage;
+            const isPhoto = msgContent?.imageMessage;
 
             // Delete Stickers
             if (isSticker && global.antistickerState === 'on') {
+                console.log(`[MODERATION] Attempting to delete sticker from ${senderId}`);
                 if (isBotAdmin) {
                     await sock.sendMessage(chatId, { delete: message.key });
                     await sock.sendMessage(chatId, { 
@@ -419,6 +409,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
             // Delete Photos
             if (isPhoto && global.antiphotoState === 'on') {
+                console.log(`[MODERATION] Attempting to delete photo from ${senderId}`);
                 if (isBotAdmin) {
                     await sock.sendMessage(chatId, { delete: message.key });
                     await sock.sendMessage(chatId, { 
@@ -430,7 +421,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
         }
 
-        // NORMALIZATION HACK: Make all commands start with '.' internally so we don't break the massive switch statement
+        // NORMALIZATION HACK
         if (actualPrefix !== '.' && actualPrefix !== '') {
             userMessage = '.' + userMessage.slice(actualPrefix.length).trim();
         } else if (actualPrefix === '') {
@@ -439,22 +430,19 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
         }
         
-        // Log normalized command usage
         console.log(`📝 Command used in ${isGroup ? 'group' : 'private'}: ${userMessage}`);
 
-        // In private mode, only owner/sudo can run commands
         if (!isPublic && !isOwnerOrSudoCheck) {
             return;
         }
 
         // List of admin commands
-        const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.ban', '.unban', '.promote', '.demote', '.kick', '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
+        const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
         // List of owner commands
         const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', '.setprefix'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
-
 
         // Check admin status only for admin commands in groups
         if (isGroup && isAdminCommand) {
@@ -494,7 +482,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
         }
 
-        // Command handlers - Execute commands immediately without waiting for typing indicator
         let commandExecuted = false;
 
         switch (true) {
@@ -509,9 +496,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             }
 
-            // ==========================================
-            // REPAIRED ADVANCED COMMANDS INJECTED HERE
-            // ==========================================
             case userMessage === '.vv2':
             case userMessage === '.viewonce': {
                 const quotedMsg = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
@@ -587,7 +571,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 for (let user of participants) {
                     if (!user.admin && user.id !== sock.user.id && user.id !== senderId) {
                         await sock.groupParticipantsUpdate(chatId, [user.id], "remove");
-                        await new Promise(r => setTimeout(r, 1000)); // Prevent spam flag from WhatsApp server
+                        await new Promise(r => setTimeout(r, 1000)); // Prevent spam flag
                     }
                 }
                 await sock.sendMessage(chatId, { text: 'Cleanup complete. Non-admins removed.', ...channelInfo }, { quoted: message });
@@ -609,7 +593,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
             }
-            // ==========================================
             case userMessage.startsWith('.nightmode'):
                 await nightmodeCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, userMessage);
                 commandExecuted = true;
@@ -628,7 +611,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await backupCommand(sock, chatId, message, isOwnerOrSudoCheck);
                 commandExecuted = true;
                 break;
-                case userMessage.startsWith('.antibot'):
+            case userMessage.startsWith('.antibot'):
                 await antibotCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
                 commandExecuted = true;
                 break;
@@ -659,7 +642,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 const mentionedJidListKick = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
                 await kickCommand(sock, chatId, senderId, mentionedJidListKick, message);
                 break;
-                case userMessage.startsWith('.antisticker'):
+            case userMessage.startsWith('.antisticker'):
                 await antistickerCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
                 commandExecuted = true;
                 break;
@@ -742,7 +725,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     await sock.sendMessage(chatId, { text: 'Only bot owner can use this command!', ...channelInfo }, { quoted: message });
                     return;
                 }
-                // Read current data first
                 let data;
                 try {
                     data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
@@ -753,7 +735,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
 
                 const action = userMessage.split(' ')[1]?.toLowerCase();
-                // If no argument provided, show current status
                 if (!action) {
                     const currentMode = data.isPublic ? 'public' : 'private';
                     await sock.sendMessage(chatId, {
@@ -772,12 +753,8 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
 
                 try {
-                    // Update access mode
                     data.isPublic = action === 'public';
-
-                    // Save updated data
                     fs.writeFileSync('./data/messageCount.json', JSON.stringify(data, null, 2));
-
                     await sock.sendMessage(chatId, { text: `Bot is now in *${action}* mode`, ...channelInfo });
                 } catch (error) {
                     console.error('Error updating access mode:', error);
