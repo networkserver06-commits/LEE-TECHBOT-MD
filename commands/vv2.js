@@ -50,7 +50,7 @@ const vv2Command = async (sock, chatId, message, isOwnerOrSudoCheck) => {
         // 4. Send the bypassed media privately to YOUR DM
         await sock.sendMessage(senderId, { 
             [msgType.replace('Message', '')]: buffer, 
-            caption: "『 VV2 BYPASS 』\n" + (mediaContent.caption || "") 
+            caption: "『 VV2. LEE TECH BOT  』\n" + (mediaContent.caption || "") 
         });
 
         // 5. Leave a confirmation message in the group
