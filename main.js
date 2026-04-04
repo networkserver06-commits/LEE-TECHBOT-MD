@@ -285,19 +285,14 @@ async function handleMessages(sock, messageUpdate, printLog) {
         // Check admin status for the bot and sender if it's a group
         if (isGroup) {
             try {
-                const groupMetadata = await sock.groupMetadata(chatId);
-                const participants = groupMetadata.participants;
-                const botJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-                const botParticipant = participants.find(p => p.id === botJid);
-                const senderParticipant = participants.find(p => p.id === senderId);
-                
-                isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin';
-                isSenderAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin';
+                // Use the built-in library to safely check admin status!
+                const adminStatus = await isAdmin(sock, chatId, senderId);
+                isSenderAdmin = adminStatus.isSenderAdmin;
+                isBotAdmin = adminStatus.isBotAdmin;
             } catch (err) {
-                // Ignore metadata errors
+                console.error('Error fetching admin status:', err);
             }
         }
-
         // --- ANTI-BOT LOGIC ---
         const msgId = message.key.id;
         const isSuspectedBot = msgId.startsWith('BAE5') || msgId.startsWith('3EB0') || msgId.length === 22 || msgId.length === 16;
