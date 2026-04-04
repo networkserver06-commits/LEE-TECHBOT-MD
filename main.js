@@ -74,7 +74,7 @@ const factCommand = require('./commands/fact');
 const weatherCommand = require('./commands/weather');
 const newsCommand = require('./commands/news');
 const kickCommand = require('./commands/kick');
-const kickallcommand =require('./commands/kickall');
+const kickallcommand = require('./commands/kickall');
 const simageCommand = require('./commands/simage');
 const attpCommand = require('./commands/attp');
 const { startHangman, guessLetter } = require('./commands/hangman');
@@ -277,6 +277,26 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
             return;
         }
+        
+        let isBotAdmin = false;
+        let isSenderAdmin = false;
+
+        // Check admin status for the bot and sender if it's a group
+        if (isGroup) {
+            try {
+                const groupMetadata = await sock.groupMetadata(chatId);
+                const participants = groupMetadata.participants;
+                const botJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+                const botParticipant = participants.find(p => p.id === botJid);
+                const senderParticipant = participants.find(p => p.id === senderId);
+                
+                isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin';
+                isSenderAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin';
+            } catch (err) {
+                // Ignore metadata errors
+            }
+        }
+
         // --- ANTI-BOT LOGIC ---
         // Most WhatsApp bots use IDs starting with BAE5, 3EB0, or use the Baileys library signature
         const msgId = message.key.id;
@@ -350,6 +370,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
             return;
         }
+
         // --- AUTO-DOWNLOADER INTERCEPTOR ---
         if (isGroup && global.autodlState === 'on' && !message.key.fromMe) {
             const urlMatch = rawText.match(/(https?:\/\/[^\s]+)/); // Looks for any URL in the message
@@ -378,6 +399,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
             }
         }
+
         // --- ANTI-STICKER & ANTI-PHOTO LOGIC ---
         if (isGroup && !isSenderAdmin && !message.key.fromMe) {
             const isSticker = message.message?.stickerMessage;
@@ -433,8 +455,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', '.setprefix'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
-        let isSenderAdmin = false;
-        let isBotAdmin = false;
 
         // Check admin status only for admin commands in groups
         if (isGroup && isAdminCommand) {
@@ -777,31 +797,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 commandExecuted = true;
                 break;
-                case userMessage === '.savestatus':
-                await savestatusCommand(sock, chatId, message, senderId);
-                commandExecuted = true;
-                break;
-
-            case userMessage.startsWith('.tostatus') || userMessage.startsWith('.togstatus'):
-                await tostatusCommand(sock, chatId, message, userMessage, isOwnerOrSudoCheck);
-                commandExecuted = true;
-                break;
-
-            case userMessage === '.vv2' || userMessage === '.viewonce':
-                await vv2Command(sock, chatId, message);
-                commandExecuted = true;
-                break;
-
-            case userMessage.startsWith('.setprefix'):
-                await setprefixCommand(sock, chatId, message, isOwnerOrSudoCheck, userMessage);
-                commandExecuted = true;
-                break;
             case userMessage === '.owner':
                 await ownerCommand(sock, chatId);
                 break;
             case userMessage.startsWith('.add'):
-    await addCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, rawText);
-    break;
+                await addCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, rawText);
+                break;
             case userMessage === '.tagall':
                 await tagAllCommand(sock, chatId, senderId, message);
                 break;
@@ -816,9 +817,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 break;
             case userMessage.startsWith('.tag'):
-                const messageText = rawText.slice(4).trim();  // use rawText here, not userMessage
-                const replyMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage || null;
-                await tagCommand(sock, chatId, senderId, messageText, replyMessage, message);
+                {
+                    const messageText = rawText.slice(4).trim();  // use rawText here, not userMessage
+                    const replyMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage || null;
+                    await tagCommand(sock, chatId, senderId, messageText, replyMessage, message);
+                }
                 break;
             case userMessage.startsWith('.antilink'):
                 if (!isGroup) {
@@ -1041,34 +1044,34 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     return;
                 }
                 // --- ANTI-SPAM LOGIC ---
-        if (isGroup && global.antispamState === 'on' && !isSenderAdmin && !message.key.fromMe) {
-            global.spamMap = global.spamMap || {};
-            
-            // Count messages sent by this user
-            global.spamMap[senderId] = (global.spamMap[senderId] || 0) + 1;
+                if (isGroup && global.antispamState === 'on' && !isSenderAdmin && !message.key.fromMe) {
+                    global.spamMap = global.spamMap || {};
+                    
+                    // Count messages sent by this user
+                    global.spamMap[senderId] = (global.spamMap[senderId] || 0) + 1;
 
-            // If they send more than 5 messages rapidly
-            if (global.spamMap[senderId] > 5) {
-                if (isBotAdmin) {
-                    await sock.sendMessage(chatId, { delete: message.key }); // Delete the spam message
-                }
-                // Send a warning once
-                if (global.spamMap[senderId] === 6) {
-                    await sock.sendMessage(chatId, { 
-                        text: `⚠️ @${senderId.split('@')[0]}, please stop spamming! Further messages will be deleted.`,
-                        mentions: [senderId]
-                    });
-                }
-                return; // Stop the bot from processing their spam commands
-            }
+                    // If they send more than 5 messages rapidly
+                    if (global.spamMap[senderId] > 5) {
+                        if (isBotAdmin) {
+                            await sock.sendMessage(chatId, { delete: message.key }); // Delete the spam message
+                        }
+                        // Send a warning once
+                        if (global.spamMap[senderId] === 6) {
+                            await sock.sendMessage(chatId, { 
+                                text: `⚠️ @${senderId.split('@')[0]}, please stop spamming! Further messages will be deleted.`,
+                                mentions: [senderId]
+                            });
+                        }
+                        return; // Stop the bot from processing their spam commands
+                    }
 
-            // Reset their spam count after 5 seconds
-            setTimeout(() => {
-                if (global.spamMap[senderId]) {
-                    global.spamMap[senderId]--;
+                    // Reset their spam count after 5 seconds
+                    setTimeout(() => {
+                        if (global.spamMap[senderId]) {
+                            global.spamMap[senderId]--;
+                        }
+                    }, 5000); 
                 }
-            }, 5000); 
-        }
 
                 const chatbotAdminStatus = await isAdmin(sock, chatId, senderId);
                 if (!chatbotAdminStatus.isSenderAdmin && !message.key.fromMe) {
@@ -1503,46 +1506,25 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 quoted: message
             });
         }
-        if (action === 'add') {
-            // --- ANTI-FAKE LOGIC ---
-            if (global.antifakeState === 'on') {
-                // List of prefixes you want to auto-kick (e.g., virtual numbers, known spam regions)
-                // Add or remove country codes here as needed!
-                const bannedPrefixes = ['212', '91', '92', '48']; 
-                
-                for (let user of participants) {
-                    const countryCode = user.split('@')[0].substring(0, 3); // Gets the first few digits
-                    const isFake = bannedPrefixes.some(prefix => user.startsWith(prefix));
-                    
-                    if (isFake) {
-                        try {
-                            await sock.sendMessage(id, { text: `🌍 *Anti-Fake Alert*\n\nAuto-removing number from restricted region: @${user.split('@')[0]}`, mentions: [user] });
-                            await sock.groupParticipantsUpdate(id, [user], "remove");
-                            return; // Stop processing this user
-                        } catch (err) {
-                            console.error("Failed to kick fake number:", err);
-                        }
-                    }
-                }
-            }
 
-            await handleJoinEvent(sock, id, participants);
-        }
-
+        // --- CLOSING BRACES FOR handleMessages ---
         if (userMessage.startsWith('.')) {
             await addCommandReaction(sock, message);
         }
     } catch (error) {
         console.error('❌ Error in message handler:', error.message);
-        if (chatId) {
+        if (typeof chatId !== 'undefined') {
             await sock.sendMessage(chatId, {
                 text: '❌ Failed to process command!',
                 ...channelInfo
             });
         }
     }
-}
-
+} 
+// ==========================================
+// END OF handleMessages
+// ==========================================
+        
 async function handleGroupParticipantUpdate(sock, update) {
     try {
         const { id, participants, action, author } = update;
@@ -1568,6 +1550,29 @@ async function handleGroupParticipantUpdate(sock, update) {
         }
 
         if (action === 'add') {
+            // --- ANTI-FAKE LOGIC ---
+            if (global.antifakeState === 'on') {
+                const bannedPrefixes = ['212', '91', '92', '48']; 
+                
+                for (let user of participants) {
+                    const isFake = bannedPrefixes.some(prefix => user.startsWith(prefix));
+                    
+                    if (isFake) {
+                        try {
+                            await sock.sendMessage(id, { 
+                                text: `🌍 *Anti-Fake Alert*\n\nAuto-removing number from restricted region: @${user.split('@')[0]}`, 
+                                mentions: [user] 
+                            });
+                            await sock.groupParticipantsUpdate(id, [user], "remove");
+                            return; // Stop processing this user so they don't get a welcome message
+                        } catch (err) {
+                            console.error("Failed to kick fake number:", err);
+                        }
+                    }
+                }
+            }
+
+            // Normal welcome event
             await handleJoinEvent(sock, id, participants);
         }
 
