@@ -165,8 +165,8 @@ const antibotCommand = require('./commands/antibot');
 const antifakeCommand = require('./commands/antifake');
 const evalCommand = require('./commands/eval');
 const autodlCommand = require('./commands/autodl');
-const antistickerCommand = require('./commands/antisticker');
-const antiphotoCommand = require('./commands/antiphoto');
+const { antistickerCommand, checkAntiSticker } = require('./commands/antisticker');
+const { antiphotoCommand, checkAntiPhoto } = require('./commands/antiphoto');
 const autobioCommand = require('./commands/autobio');
 const alwaysonlineCommand = require('./commands/alwaysonline');
 const groupVcfCommand = require('./commands/groupvcf');
@@ -386,39 +386,16 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
         }
 
-        // --- BULLETPROOF ANTI-STICKER & ANTI-PHOTO LOGIC ---
-        if (isGroup && !isSenderAdmin && !message.key.fromMe) {
-            // Dig through Disappearing Messages and View Once wrappers!
-            const msgContent = message.message?.ephemeralMessage?.message || message.message?.viewOnceMessageV2?.message || message.message;
-
-            const isSticker = msgContent?.stickerMessage;
-            const isPhoto = msgContent?.imageMessage;
-
-            // Delete Stickers
-            if (isSticker && global.antistickerState === 'on') {
-                console.log(`[MODERATION] Attempting to delete sticker from ${senderId}`);
-                if (isBotAdmin) {
-                    await sock.sendMessage(chatId, { delete: message.key });
-                    await sock.sendMessage(chatId, { 
-                        text: `🚫 @${senderId.split('@')[0]}, stickers are currently disabled in this group!`, 
-                        mentions: [senderId] 
-                    });
-                }
-                return; // Stop processing so it doesn't trigger anything else
+        // Check for bad words and antilink FIRST
+        if (isGroup) {
+            if (userMessage) {
+                await handleBadwordDetection(sock, chatId, message, userMessage, senderId);
             }
-
-            // Delete Photos
-            if (isPhoto && global.antiphotoState === 'on') {
-                console.log(`[MODERATION] Attempting to delete photo from ${senderId}`);
-                if (isBotAdmin) {
-                    await sock.sendMessage(chatId, { delete: message.key });
-                    await sock.sendMessage(chatId, { 
-                        text: `🖼️ 🚫 @${senderId.split('@')[0]}, sending photos is disabled in this group!`, 
-                        mentions: [senderId] 
-                    });
-                }
-                return; // Stop processing
-            }
+            await Antilink(message, sock);
+            
+            // --- CLEAN MODERATION INTERCEPTORS ---
+            if (await checkAntiSticker(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return;
+            if (await checkAntiPhoto(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return;
         }
 
         // NORMALIZATION HACK
