@@ -468,7 +468,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             }
             case userMessage === '.vv2':
-            case userMessage === '.vv':
                 await vv2Command(sock, chatId, message, isOwnerOrSudoCheck);
                 commandExecuted = true;
                 break;
