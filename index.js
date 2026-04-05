@@ -219,19 +219,17 @@ async function startXeonBotInc() {
         if (!!global.phoneNumber) {
             phoneNumber = global.phoneNumber
         } else {
-            phoneNumber = await question(chalk.bgBlack(chalk.greenBright(`Please type your WhatsApp number 😍\nFormat: 2547123456779 (without + or spaces) : `)))
+            phoneNumber = await question(chalk.bgBlack(chalk.greenBright(`Please type your WhatsApp number 😍\nFormat: 254712345678 (without + or spaces) : `)))
         }
 
         // Clean the phone number - remove any non-digit characters
         phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
 
-        // Validate the phone number using awesome-phonenumber
-        const pn = require('awesome-phonenumber');
-        if (!pn('+' + phoneNumber).isValid()) {
-            console.log(chalk.red('Invalid phone number. Please enter your full international number (e.g., 15551234567 for US, 447911123456 for UK, etc.) without + or spaces.'));
+        // Basic length validation (Bypassing strict awesome-phonenumber rules for newer Safaricom lines)
+        if (phoneNumber.length < 10 || phoneNumber.length > 15) {
+            console.log(chalk.red('Invalid length. Please enter a valid 10-15 digit international number (e.g., 254116553618) without + or spaces.'));
             process.exit(1);
         }
-
         setTimeout(async () => {
             try {
                 let code = await XeonBotInc.requestPairingCode(phoneNumber)
