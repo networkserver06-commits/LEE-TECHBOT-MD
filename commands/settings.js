@@ -76,15 +76,19 @@ async function settingsCommand(sock, chatId, message) {
             lines.push(`🖼️ *Anti-Photo:* ${getGroupState(global.antiphotoState)}`);
             lines.push(`🛡️ *Anti-Fake / Links:* ${getGroupState(global.antifakeState)}`);
             
+            // Anti-Bot is now a group-specific object, so we extract the status and action!
+            const botState = global.antibotState && global.antibotState[chatId];
+            const botStatus = (botState && botState.status === 'on') ? `ON (${botState.action.toUpperCase()})` : 'OFF';
+            lines.push(`🤖 *Anti-Bot:* ${botStatus}`);
+            
             // Global Toggles (Applies everywhere if ON)
             lines.push(`\n*Global Protections:*`);
-            lines.push(`🤖 *Anti-Bot:* ${global.antibotState === 'on' ? 'ON' : 'OFF'}`);
             lines.push(`🛑 *Anti-Spam:* ${global.antispamState === 'on' ? 'ON' : 'OFF'}`);
             lines.push(`📥 *Auto-DL:* ${global.autodlState === 'on' ? 'ON' : 'OFF'}`);
 
         } else {
             lines.push('──────────────────');
-            lines.push('ℹ️ *Note:* Use this command inside a group chat to view Group-Specific protections (Anti-Link, Anti-Sticker, Anti-Fake, etc).');
+            lines.push('ℹ️ *Note:* Use this command inside a group chat to view Group-Specific protections (Anti-Link, Anti-Sticker, Anti-Fake, Anti-Bot, etc).');
         }
 
         await sock.sendMessage(chatId, { text: lines.join('\n') }, { quoted: message });

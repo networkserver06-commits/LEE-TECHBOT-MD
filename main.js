@@ -161,7 +161,6 @@ const broadcastCommand = require('./commands/broadcast');
 const nightmodeCommand = require('./commands/nightmode');
 const backupCommand = require('./commands/backup');
 const antispamCommand = require('./commands/antispam');
-const antibotCommand = require('./commands/antibot');
 const evalCommand = require('./commands/eval');
 const autodlCommand = require('./commands/autodl');
 const autobioCommand = require('./commands/autobio');
@@ -173,7 +172,7 @@ const setMenuImageCommand = require('./commands/setmenuimage');
 const { antistickerCommand, checkAntiSticker } = require('./commands/antisticker');
 const { antiphotoCommand, checkAntiPhoto } = require('./commands/antiphoto');
 const { antifakeCommand, checkFakeLinks } = require('./commands/antifake'); // Add this!
-
+const { antibotCommand, checkAntiBot } = require('./commands/antibot'); // <== ADD THIS LINE
 // Global settings
 global.packname = settings.packname;
 global.author = settings.author;
@@ -294,18 +293,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 console.error('Error fetching admin status:', err);
             }
         }
-        // --- ANTI-BOT LOGIC ---
-        const msgId = message.key.id;
-        const isSuspectedBot = msgId.startsWith('BAE5') || msgId.startsWith('3EB0') || msgId.length === 22 || msgId.length === 16;
-        
-        if (isGroup && global.antibotState === 'on' && isBotAdmin && !message.key.fromMe) {
-            if (isSuspectedBot && !isSenderAdmin) {
-                await sock.sendMessage(chatId, { text: `🤖 *Unauthorized Bot Detected!*\n\nRemoving @${senderId.split('@')[0]}...`, mentions: [senderId] });
-                await sock.sendMessage(chatId, { delete: message.key });
-                await sock.groupParticipantsUpdate(chatId, [senderId], "remove");
-                return;
-            }
-        }
+    
 
         // First check if it's a game move
         if (/^[1-9]$/.test(userMessage) || userMessage.toLowerCase() === 'surrender') {
@@ -325,6 +313,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             await Antilink(message, sock);
 
             // Clean Middleware Logic! If either of these return true, they deleted a message.
+            if (await checkAntiBot(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return; // <== ADD THIS
             if (await checkAntiSticker(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return;
             if (await checkAntiPhoto(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return;
             if (await checkFakeLinks(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId)) return; // <-- ADD THIS LINE
