@@ -154,7 +154,6 @@ const vcfCommand = require('./commands/vcf');
 const antimentionCommand = require('./commands/antimention');
 const joinapprovalCommand = require('./commands/joinapproval');
 const savestatusCommand = require('./commands/savestatus');
-const tostatusCommand = require('./commands/tostatus');
 const vv2Command = require('./commands/vv2');
 const setprefixCommand = require('./commands/setprefix');
 const broadcastCommand = require('./commands/broadcast');
@@ -168,6 +167,9 @@ const alwaysonlineCommand = require('./commands/alwaysonline');
 const groupVcfCommand = require('./commands/groupvcf');
 const setMenuImageCommand = require('./commands/setmenuimage');
 const linkCommand = require('./commands/link');
+const toStatusCommand = require('./commands/tostatus');
+const togStatusCommand = require('./commands/togstatus');
+
 // MODERATION IMPORTS
 const { antistickerCommand, checkAntiSticker } = require('./commands/antisticker');
 const { antiphotoCommand, checkAntiPhoto } = require('./commands/antiphoto');
@@ -475,34 +477,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             }
 
-            case userMessage.startsWith('.tostatus'):
-            case userMessage.startsWith('.togstatus'): {
-                const quotedMsg = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-                if (!quotedMsg) {
-                    await sock.sendMessage(chatId, { text: 'Reply to an image/video to post to status.', ...channelInfo }, { quoted: message });
-                    break;
-                }
-                const msgType = Object.keys(quotedMsg)[0];
-                if (msgType !== 'imageMessage' && msgType !== 'videoMessage') {
-                    await sock.sendMessage(chatId, { text: 'Only images and videos are supported.', ...channelInfo }, { quoted: message });
-                    break;
-                }
-                
-                let mediaStream = await downloadContentFromMessage(quotedMsg[msgType], msgType.replace('Message', ''));
-                let buffer = Buffer.from([]);
-                for await (const chunk of mediaStream) buffer = Buffer.concat([buffer, chunk]);
-
-                const caption = userMessage.split(' ').slice(1).join(' ') || quotedMsg[msgType].caption || "Uploaded via LEE TECH BOT";
-
-                await sock.sendMessage('status@broadcast', { 
-                    [msgType.replace('Message', '')]: buffer,
-                    caption: caption
-                });
-                await sock.sendMessage(chatId, { text: 'Shared to Status successfully!', ...channelInfo }, { quoted: message });
-                commandExecuted = true;
-                break;
-            }
-
+            
             case userMessage === '.kickall': {
                 await sock.sendMessage(chatId, { text: 'Starting group cleanup... please wait.', ...channelInfo }, { quoted: message });
                 const groupMetadata = await sock.groupMetadata(chatId);
@@ -544,6 +519,16 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage === '.groupvcf' || userMessage === '.savecontacts' || userMessage === '.extract':
                 await groupVcfCommand(sock, chatId, message, isGroup, isSenderAdmin, isOwnerOrSudoCheck);
+                commandExecuted = true;
+                break;
+
+            case userMessage === '.tostatus':
+                await toStatusCommand(sock, chatId, message, isOwnerOrSudoCheck);
+                commandExecuted = true;
+                break;
+                
+            case userMessage === '.togstatus':
+                await togStatusCommand(sock, chatId, message, isOwnerOrSudoCheck, isGroup);
                 commandExecuted = true;
                 break;
 
