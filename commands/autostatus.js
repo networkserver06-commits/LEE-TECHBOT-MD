@@ -17,12 +17,12 @@ const channelInfo = {
 // Path to store auto status configuration
 const configPath = path.join(__dirname, '../data/autoStatus.json');
 
-// Initialize config file if it doesn't exist (Now includes emoji!)
+// Initialize config file if it doesn't exist
 if (!fs.existsSync(configPath)) {
     fs.writeFileSync(configPath, JSON.stringify({ 
         enabled: false, 
         reactOn: false,
-        emoji: '💚' 
+        emoji: 'random' // Defaulting to random because it's awesome!
     }));
 }
 
@@ -46,10 +46,10 @@ async function autoStatusCommand(sock, chatId, msg, args) {
         if (!args || args.length === 0) {
             const status = config.enabled ? 'ON ✅' : 'OFF ❌';
             const reactStatus = config.reactOn ? 'ON ✅' : 'OFF ❌';
-            const currentEmoji = config.emoji || '💚';
+            const currentEmoji = config.emoji === 'random' ? 'Random 🎲' : config.emoji;
             
             await sock.sendMessage(chatId, { 
-                text: `🔄 *AUTO STATUS SETTINGS*\n\n👀 *Auto View:* ${status}\n💫 *Auto React:* ${reactStatus}\n🎭 *Reaction Emoji:* ${currentEmoji}\n\n*Commands:*\n➤ .autostatus on/off _(Toggles viewing)_\n➤ .autostatus react on/off _(Toggles reacting)_\n➤ .autostatus emoji <emoji> _(Sets reaction emoji)_`,
+                text: `🔄 *AUTO STATUS SETTINGS*\n\n👀 *Auto View:* ${status}\n💫 *Auto React:* ${reactStatus}\n🎭 *Reaction Emoji:* ${currentEmoji}\n\n*Commands:*\n➤ .autostatus on/off _(Toggles viewing)_\n➤ .autostatus react on/off _(Toggles reacting)_\n➤ .autostatus emoji <emoji or "random"> _(Sets emoji)_`,
                 ...channelInfo
             });
             return;
@@ -76,7 +76,7 @@ async function autoStatusCommand(sock, chatId, msg, args) {
             if (reactCommand === 'on') {
                 config.reactOn = true;
                 fs.writeFileSync(configPath, JSON.stringify(config));
-                await sock.sendMessage(chatId, { text: `💫 *Auto-React Enabled!*\nBot will now react to statuses with ${config.emoji || '💚'}.`, ...channelInfo });
+                await sock.sendMessage(chatId, { text: `💫 *Auto-React Enabled!*\nBot will now react to statuses.`, ...channelInfo });
             } else if (reactCommand === 'off') {
                 config.reactOn = false;
                 fs.writeFileSync(configPath, JSON.stringify(config));
@@ -87,12 +87,15 @@ async function autoStatusCommand(sock, chatId, msg, args) {
             
         } else if (command === 'emoji') {
             if (!args[1]) {
-                return await sock.sendMessage(chatId, { text: '❌ Please provide an emoji!\nUse: *.autostatus emoji 🥳*', ...channelInfo });
+                return await sock.sendMessage(chatId, { text: '❌ Please provide an emoji or type "random"!\nUse: *.autostatus emoji 🥳* OR *.autostatus emoji random*', ...channelInfo });
             }
             
-            config.emoji = args[1]; // Save the new emoji
+            const newEmoji = args[1].toLowerCase() === 'random' ? 'random' : args[1];
+            config.emoji = newEmoji;
             fs.writeFileSync(configPath, JSON.stringify(config));
-            await sock.sendMessage(chatId, { text: `🎭 *Emoji Updated!*\nThe bot will now react to statuses using: ${config.emoji}`, ...channelInfo });
+            
+            const displayEmoji = newEmoji === 'random' ? 'Random 🎲' : newEmoji;
+            await sock.sendMessage(chatId, { text: `🎭 *Emoji Updated!*\nThe bot will now react to statuses using: ${displayEmoji}`, ...channelInfo });
             
         } else {
             await sock.sendMessage(chatId, { text: '❌ Invalid command!', ...channelInfo });
@@ -142,7 +145,7 @@ async function handleStatusUpdate(sock, status) {
 
         const shouldView = config.enabled;
         const shouldReact = config.reactOn;
-        const emoji = config.emoji || '💚';
+        const emojiSetting = config.emoji || 'random';
 
         // If BOTH are disabled, skip processing entirely
         if (!shouldView && !shouldReact) return;
@@ -165,6 +168,9 @@ async function handleStatusUpdate(sock, status) {
         // Add initial delay to look natural and prevent instant-read bans
         await new Promise(resolve => setTimeout(resolve, 2500));
 
+        // Pool of natural reactions for random mode
+        const randomEmojis = ['💚', '🔥', '😂', '😍', '👍', '💯', '✨', '🎉', '🙌', '😎', '❤️', '🥰', '🙏'];
+
         // Process each status independently
         for (const key of keysToProcess) {
             // 1. View it if viewing is ON
@@ -182,7 +188,14 @@ async function handleStatusUpdate(sock, status) {
 
             // 2. React to it if reacting is ON
             if (shouldReact) {
-                await reactToStatus(sock, key, emoji);
+                let currentEmoji = emojiSetting;
+                
+                // If set to random, pick one from the array!
+                if (currentEmoji === 'random') {
+                    currentEmoji = randomEmojis[Math.floor(Math.random() * randomEmojis.length)];
+                }
+
+                await reactToStatus(sock, key, currentEmoji);
             }
 
             // Small delay between multiple statuses from the same person

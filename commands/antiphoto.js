@@ -1,5 +1,17 @@
-global.antiphotoState = global.antiphotoState || {};
-global.photoWarnCooldown = global.photoWarnCooldown || {}; 
+const fs = require('fs');
+const path = require('path');
+
+// 1. Setup Permanent Storage
+const dbPath = path.join(__dirname, '../data/antiphoto.json');
+
+// Create the file if it doesn't exist yet
+if (!fs.existsSync(dbPath)) {
+    fs.writeFileSync(dbPath, JSON.stringify({}));
+}
+
+// Load saved states into global memory on startup
+global.antiphotoState = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+global.photoWarnCooldown = {}; // Cooldowns stay temporary so memory doesn't bloat
 
 const antiphotoCommand = async (sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage) => {
     if (!isGroup) return await sock.sendMessage(chatId, { text: '❌ Groups only.' });
@@ -10,7 +22,11 @@ const antiphotoCommand = async (sock, chatId, message, isGroup, isSenderAdmin, i
     
     if (arg === 'on' || arg === 'off') {
         global.antiphotoState[chatId] = arg; 
-        await sock.sendMessage(chatId, { text: `🖼️ Anti-Photo is now turned *${arg.toUpperCase()}* for this group.` });
+        
+        // 2. SAVE TO DISK PERMANENTLY
+        fs.writeFileSync(dbPath, JSON.stringify(global.antiphotoState, null, 2));
+        
+        await sock.sendMessage(chatId, { text: `🖼️ Anti-Photo is now permanently turned *${arg.toUpperCase()}* for this group.` });
     } else {
         const currentState = global.antiphotoState[chatId] || 'off';
         await sock.sendMessage(chatId, { text: `📝 Usage: .antiphoto on/off\nCurrent status in this group: *${currentState}*` });

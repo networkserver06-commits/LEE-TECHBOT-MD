@@ -3,8 +3,18 @@ const fs = require('fs');
 const path = require('path');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys'); 
 
-// Initialize global prefix (Defaults to '.')
-global.prefix = global.prefix !== undefined ? global.prefix : '.'; 
+// Initialize global prefix
+// Dynamic Prefix Loader
+        let currentPrefix = '.'; // Fallback default
+        try {
+            const prefixPath = path.join(__dirname, './data/prefix.json');
+            if (fs.existsSync(prefixPath)) {
+                const prefixData = JSON.parse(fs.readFileSync(prefixPath, 'utf8'));
+                currentPrefix = prefixData.prefix || '.';
+            }
+        } catch (e) {
+            console.log("Error loading prefix, using default.");
+        }
 
 // Redirect temp storage away from system /tmp
 const customTemp = path.join(process.cwd(), 'temp');

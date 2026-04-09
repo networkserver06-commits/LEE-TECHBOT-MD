@@ -1,18 +1,23 @@
-const setprefixCommand = async (sock, chatId, message, isOwnerOrSudoCheck, userMessage) => {
+const fs = require('fs');
+const path = require('path');
+
+const prefixPath = path.join(__dirname, '../data/prefix.json');
+
+const setPrefixCommand = async (sock, chatId, message, isOwnerOrSudoCheck, userMessage) => {
     if (!isOwnerOrSudoCheck) {
-        return await sock.sendMessage(chatId, { text: '❌ Only the bot owner can change the prefix.' }, { quoted: message });
+        return await sock.sendMessage(chatId, { text: '❌ Only the owner can change the prefix.' }, { quoted: message });
     }
 
     const newPrefix = userMessage.split(' ')[1];
+
     if (!newPrefix) {
-        return await sock.sendMessage(chatId, { text: '📝 Please provide a prefix. Example: .setprefix ! or .setprefix none' }, { quoted: message });
+        return await sock.sendMessage(chatId, { text: '📝 Usage: .setprefix [symbol]\nExample: .setprefix !' }, { quoted: message });
     }
 
-    // Set global prefix (handles 'none' state gracefully)
-    global.prefix = newPrefix.toLowerCase() === 'none' ? '' : newPrefix;
-    const displayPrefix = global.prefix === '' ? 'none (No prefix)' : global.prefix;
+    // Save the new prefix permanently
+    fs.writeFileSync(prefixPath, JSON.stringify({ prefix: newPrefix }, null, 2));
 
-    await sock.sendMessage(chatId, { text: `✅ Prefix has been set to: *${displayPrefix}*` }, { quoted: message });
+    await sock.sendMessage(chatId, { text: `✅ Prefix successfully and permanently changed to: *${newPrefix}*` }, { quoted: message });
 };
 
-module.exports = setprefixCommand;
+module.exports = setPrefixCommand;

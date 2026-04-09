@@ -1,5 +1,17 @@
-global.antistickerState = global.antistickerState || {};
-global.stickerWarnCooldown = global.stickerWarnCooldown || {}; 
+const fs = require('fs');
+const path = require('path');
+
+// 1. Setup Permanent Storage
+const dbPath = path.join(__dirname, '../data/antisticker.json');
+
+// Create the file if it doesn't exist yet
+if (!fs.existsSync(dbPath)) {
+    fs.writeFileSync(dbPath, JSON.stringify({}));
+}
+
+// Load saved states into global memory on startup
+global.antistickerState = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+global.stickerWarnCooldown = {}; // Cooldowns stay temporary so memory doesn't bloat
 
 const antistickerCommand = async (sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage) => {
     if (!isGroup) return await sock.sendMessage(chatId, { text: '❌ Groups only.' });
@@ -10,7 +22,11 @@ const antistickerCommand = async (sock, chatId, message, isGroup, isSenderAdmin,
     
     if (arg === 'on' || arg === 'off') {
         global.antistickerState[chatId] = arg; 
-        await sock.sendMessage(chatId, { text: `🚫 Anti-Sticker is now turned *${arg.toUpperCase()}* for this group.` });
+        
+        // 2. SAVE TO DISK PERMANENTLY
+        fs.writeFileSync(dbPath, JSON.stringify(global.antistickerState, null, 2));
+        
+        await sock.sendMessage(chatId, { text: `🚫 Anti-Sticker is now permanently turned *${arg.toUpperCase()}* for this group.` });
     } else {
         const currentState = global.antistickerState[chatId] || 'off';
         await sock.sendMessage(chatId, { text: `📝 Usage: .antisticker on/off\nCurrent status in this group: *${currentState}*` });
