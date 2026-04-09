@@ -18,31 +18,36 @@ const togStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck, isGro
     try {
         await sock.sendMessage(chatId, { text: '⏳ *Uploading to Group Status...*' }, { quoted: message });
 
-        // 1. Get ONLY the members of this specific group
+        // 1. Get the members of THIS specific group and strip device tags
         const groupMetadata = await sock.groupMetadata(chatId);
-        const statusJidList = groupMetadata.participants.map(p => p.id);
+        let jids = [];
+        for (const p of groupMetadata.participants) {
+            jids.push(p.id.split('@')[0].split(':')[0] + '@s.whatsapp.net');
+        }
+        const statusJidList = [...new Set(jids)];
 
-        // 2. UPLOAD TEXT
+        // 2. Handle Text
         if (msgType === 'conversation' || msgType === 'extendedTextMessage') {
             const text = quoted.conversation || quoted.extendedTextMessage?.text;
-            await sock.sendMessage('status@broadcast', { 
-                text: text,
-                backgroundColor: '#1E1E1E', // Required
-                font: 1                     // Required
-            }, { statusJidList });          // Locked to group members
+            await sock.sendMessage(
+                'status@broadcast', 
+                { text: text, backgroundColor: '#000000', font: 1 }, 
+                { broadcast: true, statusJidList } // Explicit broadcast to group list
+            );          
             return await sock.sendMessage(chatId, { text: `✅ *Text uploaded! Visible ONLY to members of ${groupMetadata.subject}*` }, { quoted: message });
         } 
         
-        // 3. UPLOAD MEDIA
+        // 3. Handle Media
         if (msgType === 'imageMessage' || msgType === 'videoMessage') {
             const mediaStream = await downloadContentFromMessage(quoted[msgType], msgType.replace('Message', ''));
             let buffer = Buffer.from([]);
             for await (const chunk of mediaStream) buffer = Buffer.concat([buffer, chunk]);
 
-            await sock.sendMessage('status@broadcast', {
-                [msgType.replace('Message', '')]: buffer,
-                caption: quoted[msgType].caption || ''
-            }, { statusJidList });         // Locked to group members
+            await sock.sendMessage(
+                'status@broadcast', 
+                { [msgType.replace('Message', '')]: buffer, caption: quoted[msgType].caption || '' }, 
+                { broadcast: true, statusJidList } // Explicit broadcast to group list
+            );         
             
             return await sock.sendMessage(chatId, { text: `✅ *Media uploaded! Visible ONLY to members of ${groupMetadata.subject}*` }, { quoted: message });
         }
