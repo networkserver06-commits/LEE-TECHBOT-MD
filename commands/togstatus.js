@@ -1,7 +1,6 @@
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 
 const togStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck, isGroup) => {
-    // 1. Security & Group Check
     if (!isOwnerOrSudoCheck) {
         return await sock.sendMessage(chatId, { text: '❌ Only the bot owner can use this command!' }, { quoted: message });
     }
@@ -19,38 +18,39 @@ const togStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck, isGro
     try {
         await sock.sendMessage(chatId, { text: '⏳ *Uploading to Group Status...*' }, { quoted: message });
 
-        // 2. Fetch Group Participants to restrict status visibility
+        // 1. Get ONLY the members of this specific group
         const groupMetadata = await sock.groupMetadata(chatId);
-        const participants = groupMetadata.participants.map(p => p.id);
+        const statusJidList = groupMetadata.participants.map(p => p.id);
 
-        // 3. Handle Text Status (Restricted to Group Members)
+        // 2. UPLOAD TEXT
         if (msgType === 'conversation' || msgType === 'extendedTextMessage') {
             const text = quoted.conversation || quoted.extendedTextMessage?.text;
-            
-            await sock.sendMessage('status@broadcast', { text: text }, { statusJidList: participants });
-            return await sock.sendMessage(chatId, { text: `✅ *Text uploaded to Status!*\n👀 _Visible ONLY to members of ${groupMetadata.subject}_` }, { quoted: message });
+            await sock.sendMessage('status@broadcast', { 
+                text: text,
+                backgroundColor: '#1E1E1E', // Required
+                font: 1                     // Required
+            }, { statusJidList });          // Locked to group members
+            return await sock.sendMessage(chatId, { text: `✅ *Text uploaded! Visible ONLY to members of ${groupMetadata.subject}*` }, { quoted: message });
         } 
         
-        // 4. Handle Media Status (Restricted to Group Members)
+        // 3. UPLOAD MEDIA
         if (msgType === 'imageMessage' || msgType === 'videoMessage') {
             const mediaStream = await downloadContentFromMessage(quoted[msgType], msgType.replace('Message', ''));
             let buffer = Buffer.from([]);
             for await (const chunk of mediaStream) buffer = Buffer.concat([buffer, chunk]);
 
-            const caption = quoted[msgType].caption || '';
-
             await sock.sendMessage('status@broadcast', {
                 [msgType.replace('Message', '')]: buffer,
-                caption: caption
-            }, { statusJidList: participants }); // <-- This makes it private to the group!
+                caption: quoted[msgType].caption || ''
+            }, { statusJidList });         // Locked to group members
             
-            return await sock.sendMessage(chatId, { text: `✅ *Media uploaded to Status!*\n👀 _Visible ONLY to members of ${groupMetadata.subject}_` }, { quoted: message });
+            return await sock.sendMessage(chatId, { text: `✅ *Media uploaded! Visible ONLY to members of ${groupMetadata.subject}*` }, { quoted: message });
         }
 
         return await sock.sendMessage(chatId, { text: '❌ Unsupported message type.' }, { quoted: message });
 
     } catch (error) {
-        console.error('Error uploading to group status:', error);
+        console.error('Error uploading group status:', error);
         await sock.sendMessage(chatId, { text: '❌ Failed to upload group status.' }, { quoted: message });
     }
 };
