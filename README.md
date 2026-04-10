@@ -10,15 +10,15 @@ This is a WhatsApp bot built using the Baileys library for group management, inc
 
 <div align="center"> 
   <a href="https://youtube.com/@netwoekserver06"> 
-    <img src="https://github.com/networkserver06-commits/Knightbot-MD/blob/main/assets/bot_image.jpg" alt="LEE TECHBOT" height="300"> 
+    <img src="https://github.com/networkserver06-commits/LEE-TECHBOT-MD/blob/main/assets/bot_image.jpg" alt="LEE TECHBOT" height="300"> 
   </a> 
 </div>
 
 <div align="center">
   <img src="https://img.shields.io/github/followers/networkserver06-commits?style=for-the-badge&label=Followers" alt="Followers"/>
-  <img src="https://img.shields.io/github/stars//networkserver06-commits/Knightbot-MD?style=for-the-badge&label=Stars" alt="Stars"/>
-  <img src="https://img.shields.io/github/forks//networkserver06-commits/Knightbot-MD?style=for-the-badge&label=Forks" alt="Forks"/>
-  <img src="https://img.shields.io/github/watchers/networkserver06-commits/Knightbot-MD?style=for-the-badge&label=Watchers" alt="Watchers"/>
+  <img src="https://img.shields.io/github/stars//networkserver06-commits/LEE-TECHBOT-MD?style=for-the-badge&label=Stars" alt="Stars"/>
+  <img src="https://img.shields.io/github/forks//networkserver06-commits/LEE-TECHBOT-MD?style=for-the-badge&label=Forks" alt="Forks"/>
+  <img src="https://img.shields.io/github/watchers/networkserver06-commits/LEE-TECHBOT-MD?style=for-the-badge&label=Watchers" alt="Watchers"/>
 </div>
 
 
@@ -41,7 +41,7 @@ Click the button below to fork the LEE TECH BOT repository to your GitHub accoun
 Deploy the bot and easily connect it to your WhatsApp account by pair code. Click the button below to deploy the bot on Replit.
 
 <div align="center">
-  <a href="https://Knight-bot-paircode.onrender.com" target="_blank">
+  <a href="https://leetechbotpaircode.vercel.app/" target="_blank">
     <img src="https://img.shields.io/badge/GET%20PAIR%20CODE-Easy%20Method-ff4d4d?style=for-the-badge" alt="Generate Pair Code"/>
   </a>
 </div>
@@ -166,7 +166,7 @@ If you like this project, please give it a [⭐️ star on GitHub](https://githu
 
 ## Credits
 - [LEE TECH](github.com/networkserver-commits06)
-- [Professor](https://github.com/mruniquehacker) for code scripts
+- [Professor](https://github.com/mruniquehacker) for code scripts and teaching
 - [Baileys](https://github.com/adiwajshing/Baileys)
 - [TechGod143](https://github.com/TechGod143) for pair code
 - [Dgxeon](https://github.com/Dgxeon) for pair code
@@ -194,7 +194,7 @@ This project is licensed under the MIT License. However, you must:
 
 ## 📜 Copyright Notice
 
-Copyright (c) 2025 LEE-TECHBOT-MD. All rights reserved.
+Copyright (c) 2025 LEE TECH. All rights reserved.
 
 This project contains code from various open source projects:
 - Baileys (MIT License)
