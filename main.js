@@ -408,11 +408,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         // List of admin commands
-        const Commands = ['.add', 'joinapproval', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute','topmembers', '.link', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', 'antimention', '.antiphoto', '.antisticker', '.antitag', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
+        const Commands = ['.add', 'joinapproval', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute','.topmembers', '.link', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', 'antimention', '.antiphoto', '.antisticker', '.antitag', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
         // List of owner commands
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', '.mention', '.setprefix'];
+        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.pair', '.system', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', '.mention', '.setprefix'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         // Check admin status only for admin commands in groups
