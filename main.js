@@ -184,6 +184,8 @@ const setMenuImageCommand = require('./commands/setmenuimage');
 const linkCommand = require('./commands/link');
 const toStatusCommand = require('./commands/tostatus');
 const togStatusCommand = require('./commands/togstatus');
+const pairCommand = require('./commands/pair');
+const systemCommand = require('./commands/system');
 
 // MODERATION IMPORTS
 const { antistickerCommand, checkAntiSticker } = require('./commands/antisticker');
@@ -531,6 +533,18 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage.startsWith('.antimention'):
                 await antimentionCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
+            case userMessage.startsWith('.pair'):
+                {
+                    const args = userMessage.split(' ').slice(1);
+                    await pairCommand(sock, chatId, message, args);
+                }
+                commandExecuted = true;
+                break;
+                
+            case userMessage === '.system' || userMessage === '.stats':
+                await systemCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
 

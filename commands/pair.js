@@ -1,134 +1,109 @@
 const axios = require('axios');
-const { sleep } = require('../lib/myfunc');
 
-async function pairCommand(sock, chatId, message, q) {
+// Fallback sleep function to guarantee it works without throwing import errors
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Reusable Channel Info block to keep the code clean
+const channelInfo = {
+    contextInfo: {
+        forwardingScore: 1,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363404186001130@newsletter',
+            newsletterName: 'LEE TECHBOT MD',
+            serverMessageId: -1
+        }
+    }
+};
+
+const pairCommand = async (sock, chatId, message, args) => {
     try {
+        // Join args into a single string in case the user spaced the number out
+        const q = args.join('');
+
         if (!q) {
             return await sock.sendMessage(chatId, {
-                text: "Please provide valid WhatsApp number\nExample: .pair 91702395XXXX",
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363404186001130@newsletter',
-                        newsletterName: 'LEE TECHBot MD',
-                        serverMessageId: -1
-                    }
-                }
-            });
+                text: "❌ Please provide a valid WhatsApp number.\n*Example:* .pair 254712345678",
+                ...channelInfo
+            }, { quoted: message });
         }
 
-        const numbers = q.split(',')
-            .map((v) => v.replace(/[^0-9]/g, ''))
-            .filter((v) => v.length > 5 && v.length < 20);
+        // Clean the number - remove +, spaces, dashes, etc.
+        const number = q.replace(/[^0-9]/g, '');
 
-        if (numbers.length === 0) {
+        if (number.length < 10 || number.length > 15) {
             return await sock.sendMessage(chatId, {
-                text: "Invalid number❌️ Please use the correct format!",
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363404186001130@newsletter',
-                        newsletterName: 'LEE TECHBot MD',
-                        serverMessageId: -1
-                    }
-                }
-            });
+                text: "❌ Invalid number! Please use the correct international format without '+' or spaces.",
+                ...channelInfo
+            }, { quoted: message });
         }
 
-        for (const number of numbers) {
-            const whatsappID = number + '@s.whatsapp.net';
-            const result = await sock.onWhatsApp(whatsappID);
+        // Verify if the number is actually registered on WhatsApp!
+        const whatsappID = number + '@s.whatsapp.net';
+        const result = await sock.onWhatsApp(whatsappID);
 
-            if (!result[0]?.exists) {
-                return await sock.sendMessage(chatId, {
-                    text: `That number is not registered on WhatsApp❗️`,
-                    contextInfo: {
-                        forwardingScore: 1,
-                        isForwarded: true,
-                        forwardedNewsletterMessageInfo: {
-                            newsletterJid: '120363404186001130@newsletter',
-                            newsletterName: 'LEE TECHBot MD',
-                            serverMessageId: -1
-                        }
-                    }
-                });
-            }
+        if (!result || !result[0]?.exists) {
+            return await sock.sendMessage(chatId, {
+                text: `❌ That number is not registered on WhatsApp!`,
+                ...channelInfo
+            }, { quoted: message });
+        }
 
-            await sock.sendMessage(chatId, {
-                text: "Wait a moment for the code",
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363404186001130@newsletter',
-                        newsletterName: 'LEE TECHBot MD',
-                        serverMessageId: -1
-                    }
-                }
-            });
+        await sock.sendMessage(chatId, {
+            text: "⏳ *Wait a moment, generating your pairing code...*",
+            ...channelInfo
+        }, { quoted: message });
 
-            try {
-                const response = await axios.get(`https://LEE TECH-bot-paircode.onrender.com/code?number=${number}`);
+        try {
+            // Using your new Render URL!
+            const response = await axios.get(`https://lee-techbot-pair.onrender.com/pair?number=${number}`);
+            
+            if (response.data && response.data.code) {
+                const code = response.data.code;
                 
-                if (response.data && response.data.code) {
-                    const code = response.data.code;
-                    if (code === "Service Unavailable") {
-                        throw new Error('Service Unavailable');
-                    }
-                    
-                    await sleep(5000);
-                    await sock.sendMessage(chatId, {
-                        text: `Your pairing code: ${code}`,
-                        contextInfo: {
-                            forwardingScore: 1,
-                            isForwarded: true,
-                            forwardedNewsletterMessageInfo: {
-                                newsletterJid: '120363404186001130@newsletter',
-                                newsletterName: 'LEE TECHBot MD',
-                                serverMessageId: -1
-                            }
-                        }
-                    });
-                } else {
-                    throw new Error('Invalid response from server');
+                if (code === "Service Unavailable") {
+                    throw new Error('Service Unavailable');
                 }
-            } catch (apiError) {
-                console.error('API Error:', apiError);
-                const errorMessage = apiError.message === 'Service Unavailable' 
-                    ? "Service is currently unavailable. Please try again later."
-                    : "Failed to generate pairing code. Please try again later.";
                 
+                await sleep(2000); // Short delay for dramatic effect
+                
+                // Simple, clear step-by-step instructions
+                const successMsg = `✅ *Pairing Code Generated!*\n\n` +
+                                 `📱 *Number:* ${number}\n` +
+                                 `🔑 *Code:* ${code}\n\n` +
+                                 `*📌 How to link your bot:*\n` +
+                                 `1️⃣ Open WhatsApp on your phone.\n` +
+                                 `2️⃣ Tap the 3 dots (⋮) or Settings (⚙️).\n` +
+                                 `3️⃣ Tap *Linked Devices* -> *Link a Device*.\n` +
+                                 `4️⃣ Tap *Link with phone number instead*.\n` +
+                                 `5️⃣ Enter the code above!`;
+
                 await sock.sendMessage(chatId, {
-                    text: errorMessage,
-                    contextInfo: {
-                        forwardingScore: 1,
-                        isForwarded: true,
-                        forwardedNewsletterMessageInfo: {
-                            newsletterJid: '120363404186001130@newsletter',
-                            newsletterName: 'LEE TECHBot MD',
-                            serverMessageId: -1
-                        }
-                    }
-                });
+                    text: successMsg,
+                    ...channelInfo
+                }, { quoted: message });
+                
+            } else {
+                throw new Error('Invalid response from server');
             }
+        } catch (apiError) {
+            console.error('API Error:', apiError.message);
+            const errorMessage = apiError.message === 'Service Unavailable' 
+                ? "❌ Service is currently unavailable. Please try again later."
+                : "❌ Failed to generate pairing code. Make sure your Render server is online!";
+            
+            await sock.sendMessage(chatId, {
+                text: errorMessage,
+                ...channelInfo
+            }, { quoted: message });
         }
     } catch (error) {
-        console.error(error);
+        console.error('Pair command critical error:', error);
         await sock.sendMessage(chatId, {
-            text: "An error occurred. Please try again later.",
-            contextInfo: {
-                forwardingScore: 1,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363404186001130@newsletter',
-                    newsletterName: 'LEE TECHBot MD',
-                    serverMessageId: -1
-                }
-            }
-        });
+            text: "❌ An unexpected error occurred. Please try again later.",
+            ...channelInfo
+        }, { quoted: message });
     }
-}
+};
 
-module.exports = pairCommand; 
+module.exports = pairCommand;
