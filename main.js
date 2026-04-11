@@ -323,7 +323,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
             if (await checkAntiBot(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return; 
             if (await checkAntiSticker(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return;
             if (await checkAntiPhoto(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return;
-            if (await checkFakeLinks(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return; 
+            if (await checkFakeLinks(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return;
+            if (await checkAntiMention(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return; // <== ADDED HERE
+
         }
 
         // PM blocker
@@ -404,7 +406,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         // List of admin commands
-        const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
+        const Commands = ['.add', 'joinapproval', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', 'antimention', '.antiphoto', '.antisticker', '.antitag', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
         // List of owner commands
@@ -465,6 +467,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             }
             
+            
             case userMessage === '.kickall': {
                 await sock.sendMessage(chatId, { text: 'Starting group cleanup... please wait.', ...channelInfo }, { quoted: message });
                 const groupMetadata = await sock.groupMetadata(chatId);
@@ -480,6 +483,16 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
             }
+            case userMessage.startsWith('.joinapproval') || userMessage.startsWith('.approve') || userMessage.startsWith('.reject'):
+                {
+                    const parts = userMessage.trim().split(/\s+/);
+                    const cmd = parts[0].substring(1); // extracts 'joinapproval', 'approve', or 'reject'
+                    const args = parts.slice(1);
+                    
+                    await handleJoinApproval(sock, chatId, message, senderId, args, cmd, isGroup, isBotAdmin, isSenderAdmin);
+                }
+                commandExecuted = true;
+                break;
 
             case userMessage.startsWith('.setprefix'): {
                 if (!isOwnerOrSudoCheck) {
@@ -514,6 +527,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage === '.groupvcf' || userMessage === '.savecontacts' || userMessage === '.extract':
                 await groupVcfCommand(sock, chatId, message, isGroup, isSenderAdmin, isOwnerOrSudoCheck);
+                commandExecuted = true;
+                break;
+            case userMessage.startsWith('.antimention'):
+                await antimentionCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
                 commandExecuted = true;
                 break;
 
