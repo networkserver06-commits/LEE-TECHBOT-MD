@@ -408,7 +408,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         // List of admin commands
-        const Commands = ['.add', 'joinapproval', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', 'antimention', '.antiphoto', '.antisticker', '.antitag', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
+        const Commands = ['.add', 'joinapproval', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute','topmembers', '.link', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', 'antimention', '.antiphoto', '.antisticker', '.antitag', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
         // List of owner commands
