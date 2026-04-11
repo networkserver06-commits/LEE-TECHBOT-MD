@@ -16,7 +16,7 @@ try {
 } catch (e) {
     console.log("Error loading prefix, using default.");
 }
-global.prefix = currentPrefix; // Make sure the bot memory knows the prefix!
+global.prefix = currentPrefix; 
 
 // ==========================================
 // 2. TEMP FOLDER MANAGEMENT
@@ -43,42 +43,52 @@ setInterval(() => {
 }, 3 * 60 * 60 * 1000);
 
 // ==========================================
-// 3. IMPORTS
+// 3. IMPORTS (ALL FEATURES INCLUDED)
 // ==========================================
 const settings = require('./settings');
 require('./config.js');
 const { isBanned } = require('./lib/isBanned');
-const yts = require('yt-search');
 const { fetchBuffer } = require('./lib/myfunc');
-const fetch = require('node-fetch');
-const ytdl = require('ytdl-core');
-const axios = require('axios');
-const ffmpeg = require('fluent-ffmpeg');
 const { isSudo } = require('./lib/index');
 const isOwnerOrSudo = require('./lib/isOwner');
-const { autotypingCommand, isAutotypingEnabled, handleAutotypingForMessage, handleAutotypingForCommand, showTypingAfterCommand } = require('./commands/autotyping');
-const { autoreadCommand, isAutoreadEnabled, handleAutoread } = require('./commands/autoread');
+const isAdmin = require('./lib/isAdmin');
 
-// Command imports
-const tagAllCommand = require('./commands/tagall');
+// Auto Features
+const { autotypingCommand, handleAutotypingForMessage, showTypingAfterCommand } = require('./commands/autotyping');
+const { autoreadCommand, handleAutoread } = require('./commands/autoread');
+const { autoStatusCommand, handleStatusUpdate } = require('./commands/autostatus');
+
+// Moderation
+const { antistickerCommand, checkAntiSticker } = require('./commands/antisticker');
+const { antiphotoCommand, checkAntiPhoto } = require('./commands/antiphoto');
+const { antifakeCommand, checkFakeLinks } = require('./commands/antifake'); 
+const { antibotCommand, checkAntiBot } = require('./commands/antibot'); 
+const { handleAntiBadwordCommand, handleBadwordDetection } = require('./lib/antibadword');
+const { Antilink, handleAntilinkCommand } = require('./lib/antilink'); 
+const { antimentionCommand, checkAntiMention } = require('./commands/antimention'); 
+
+// Commands
+const pingCommand = require('./commands/ping');
 const helpCommand = require('./commands/help');
+const ownerCommand = require('./commands/owner');
+const vv2Command = require('./commands/vv2');
+const toStatusCommand = require('./commands/tostatus');
+const togStatusCommand = require('./commands/togstatus');
+const { handleChatbotCommand, handleChatbotResponse } = require('./commands/chatbot');
+const tagAllCommand = require('./commands/tagall');
 const banCommand = require('./commands/ban');
 const { promoteCommand } = require('./commands/promote');
 const { demoteCommand } = require('./commands/demote');
 const muteCommand = require('./commands/mute');
 const unmuteCommand = require('./commands/unmute');
 const stickerCommand = require('./commands/sticker');
-const isAdmin = require('./lib/isAdmin');
 const warnCommand = require('./commands/warn');
 const warningsCommand = require('./commands/warnings');
 const ttsCommand = require('./commands/tts');
 const { tictactoeCommand, handleTicTacToeMove } = require('./commands/tictactoe');
 const { incrementMessageCount, topMembers } = require('./commands/topmembers');
-const ownerCommand = require('./commands/owner');
 const deleteCommand = require('./commands/delete');
-const { handleAntilinkCommand, handleLinkDetection } = require('./commands/antilink');
 const { handleAntitagCommand, handleTagDetection } = require('./commands/antitag');
-const { Antilink } = require('./lib/antilink');
 const { handleMentionDetection, mentionToggleCommand, setMentionCommand } = require('./commands/mention');
 const memeCommand = require('./commands/meme');
 const tagCommand = require('./commands/tag');
@@ -102,15 +112,12 @@ const { lyricsCommand } = require('./commands/lyrics');
 const { dareCommand } = require('./commands/dare');
 const { truthCommand } = require('./commands/truth');
 const { clearCommand } = require('./commands/clear');
-const pingCommand = require('./commands/ping');
 const aliveCommand = require('./commands/alive');
 const blurCommand = require('./commands/img-blur');
 const { welcomeCommand, handleJoinEvent } = require('./commands/welcome');
 const { goodbyeCommand, handleLeaveEvent } = require('./commands/goodbye');
 const githubCommand = require('./commands/github');
-const { handleAntiBadwordCommand, handleBadwordDetection } = require('./lib/antibadword');
 const antibadwordCommand = require('./commands/antibadword');
-const { handleChatbotCommand, handleChatbotResponse } = require('./commands/chatbot');
 const takeCommand = require('./commands/take');
 const { flirtCommand } = require('./commands/flirt');
 const characterCommand = require('./commands/character');
@@ -125,7 +132,6 @@ const { handlePromotionEvent } = require('./commands/promote');
 const { handleDemotionEvent } = require('./commands/demote');
 const viewOnceCommand = require('./commands/viewonce');
 const clearSessionCommand = require('./commands/clearsession');
-const { autoStatusCommand, handleStatusUpdate } = require('./commands/autostatus');
 const { simpCommand } = require('./commands/simp');
 const { stupidCommand } = require('./commands/stupid');
 const stickerTelegramCommand = require('./commands/stickertelegram');
@@ -159,7 +165,7 @@ const updateCommand = require('./commands/update');
 const removebgCommand = require('./commands/removebg');
 const { reminiCommand } = require('./commands/remini');
 const { igsCommand } = require('./commands/igs');
-const { anticallCommand, readState: readAnticallState } = require('./commands/anticall');
+const { anticallCommand } = require('./commands/anticall');
 const { pmblockerCommand, readState: readPmBlockerState } = require('./commands/pmblocker');
 const settingsCommand = require('./commands/settings');
 const soraCommand = require('./commands/sora');
@@ -167,10 +173,8 @@ const creategroupCommand = require('./commands/creategroup');
 const addCommand = require('./commands/add');
 const leaveCommand = require('./commands/leave');
 const vcfCommand = require('./commands/vcf');
-const antimentionCommand = require('./commands/antimention');
-const joinapprovalCommand = require('./commands/joinapproval');
+const handleJoinApproval = require('./commands/joinapproval');
 const savestatusCommand = require('./commands/savestatus');
-const vv2Command = require('./commands/vv2');
 const broadcastCommand = require('./commands/broadcast');
 const nightmodeCommand = require('./commands/nightmode');
 const backupCommand = require('./commands/backup');
@@ -182,16 +186,8 @@ const alwaysonlineCommand = require('./commands/alwaysonline');
 const groupVcfCommand = require('./commands/groupvcf');
 const setMenuImageCommand = require('./commands/setmenuimage');
 const linkCommand = require('./commands/link');
-const toStatusCommand = require('./commands/tostatus');
-const togStatusCommand = require('./commands/togstatus');
 const pairCommand = require('./commands/pair');
 const systemCommand = require('./commands/system');
-
-// MODERATION IMPORTS
-const { antistickerCommand, checkAntiSticker } = require('./commands/antisticker');
-const { antiphotoCommand, checkAntiPhoto } = require('./commands/antiphoto');
-const { antifakeCommand, checkFakeLinks } = require('./commands/antifake'); 
-const { antibotCommand, checkAntiBot } = require('./commands/antibot'); 
 
 // ==========================================
 // 4. GLOBAL SETTINGS
@@ -269,7 +265,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             ''
         ).toLowerCase().replace(/\.\s+/g, '.').trim();
 
-        // Preserve raw message for commands like .tag that need original casing
+        // Preserve raw message
         const rawText = message.message?.conversation?.trim() ||
             message.message?.extendedTextMessage?.text?.trim() ||
             message.message?.imageMessage?.caption?.trim() ||
@@ -313,8 +309,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         if (!message.key.fromMe) incrementMessageCount(chatId, senderId);
 
         // =====================================================================
-        // THE FRONT-LINE INTERCEPTORS (Badwords, Links, Photos, Stickers, Bots)
-        // Wrapped in catches so a single failure doesn't crash the bot
+        // THE FRONT-LINE INTERCEPTORS 
         // =====================================================================
         if (isGroup && !message.key.fromMe) {
             if (userMessage) {
@@ -325,9 +320,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
             if (await checkAntiBot(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return; 
             if (await checkAntiSticker(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return;
             if (await checkAntiPhoto(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return;
-            if (await checkFakeLinks(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return;
-            if (await checkAntiMention(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return; // <== ADDED HERE
-
+            if (await checkFakeLinks(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return; 
+            
+            if (typeof checkAntiMention === 'function') {
+                if (await checkAntiMention(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, senderId).catch(()=>false)) return;
+            }
         }
 
         // PM blocker
@@ -392,7 +389,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
         }
 
-        // NORMALIZATION HACK
         if (actualPrefix !== '.' && actualPrefix !== '') {
             userMessage = '.' + userMessage.slice(actualPrefix.length).trim();
         } else if (actualPrefix === '') {
@@ -407,15 +403,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
             return;
         }
 
-        // List of admin commands
-        const Commands = ['.add', 'joinapproval', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute','.topmembers', '.link', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', 'antimention', '.antiphoto', '.antisticker', '.antitag', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
+        const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
-        // List of owner commands
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.pair', '.system', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', '.mention', '.setprefix'];
+        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', '.setprefix'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
-        // Check admin status only for admin commands in groups
         if (isGroup && isAdminCommand) {
             if (!isBotAdmin) {
                 await sock.sendMessage(chatId, { text: 'Please make the bot an admin to use admin commands.', ...channelInfo }, { quoted: message });
@@ -430,7 +423,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
         }
 
-        // Check owner status for owner commands
         if (isOwnerCommand) {
             if (!message.key.fromMe && !senderIsOwnerOrSudo) {
                 await sock.sendMessage(chatId, { text: '❌ This command is only available for the owner or sudo!' }, { quoted: message });
@@ -441,6 +433,35 @@ async function handleMessages(sock, messageUpdate, printLog) {
         let commandExecuted = false;
 
         switch (true) {
+            case userMessage.startsWith('.pair'):
+                {
+                    const args = userMessage.split(' ').slice(1);
+                    await pairCommand(sock, chatId, message, args);
+                }
+                commandExecuted = true;
+                break;
+                
+            case userMessage === '.system' || userMessage === '.stats':
+                await systemCommand(sock, chatId, message);
+                commandExecuted = true;
+                break;
+
+            case userMessage.startsWith('.joinapproval') || userMessage.startsWith('.approve') || userMessage.startsWith('.reject'):
+                {
+                    const parts = userMessage.trim().split(/\s+/);
+                    const cmd = parts[0].substring(1);
+                    const args = parts.slice(1);
+                    
+                    await handleJoinApproval(sock, chatId, message, senderId, args, cmd, isGroup, isBotAdmin, isSenderAdmin);
+                }
+                commandExecuted = true;
+                break;
+                
+            case userMessage.startsWith('.antimention'):
+                await antimentionCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                commandExecuted = true;
+                break;
+
             case userMessage === '.simage': {
                 const quotedMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
                 if (quotedMessage?.stickerMessage) {
@@ -469,7 +490,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             }
             
-            
             case userMessage === '.kickall': {
                 await sock.sendMessage(chatId, { text: 'Starting group cleanup... please wait.', ...channelInfo }, { quoted: message });
                 const groupMetadata = await sock.groupMetadata(chatId);
@@ -485,16 +505,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
             }
-            case userMessage.startsWith('.joinapproval') || userMessage.startsWith('.approve') || userMessage.startsWith('.reject'):
-                {
-                    const parts = userMessage.trim().split(/\s+/);
-                    const cmd = parts[0].substring(1); // extracts 'joinapproval', 'approve', or 'reject'
-                    const args = parts.slice(1);
-                    
-                    await handleJoinApproval(sock, chatId, message, senderId, args, cmd, isGroup, isBotAdmin, isSenderAdmin);
-                }
-                commandExecuted = true;
-                break;
 
             case userMessage.startsWith('.setprefix'): {
                 if (!isOwnerOrSudoCheck) {
@@ -529,22 +539,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage === '.groupvcf' || userMessage === '.savecontacts' || userMessage === '.extract':
                 await groupVcfCommand(sock, chatId, message, isGroup, isSenderAdmin, isOwnerOrSudoCheck);
-                commandExecuted = true;
-                break;
-            case userMessage.startsWith('.antimention'):
-                await antimentionCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
-                commandExecuted = true;
-                break;
-            case userMessage.startsWith('.pair'):
-                {
-                    const args = userMessage.split(' ').slice(1);
-                    await pairCommand(sock, chatId, message, args);
-                }
-                commandExecuted = true;
-                break;
-                
-            case userMessage === '.system' || userMessage === '.stats':
-                await systemCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
 
@@ -746,7 +740,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage.startsWith('.tag'):
                 {
-                    const messageText = rawText.slice(4).trim();  // use rawText here, not userMessage
+                    const messageText = rawText.slice(4).trim();
                     const replyMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage || null;
                     await tagCommand(sock, chatId, senderId, messageText, replyMessage, message);
                 }
@@ -1158,10 +1152,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await handleAntideleteCommand(sock, chatId, message, antideleteMatch);
                 commandExecuted = true;
                 break;
-            case userMessage === '.surrender':
-                await handleTicTacToeMove(sock, chatId, senderId, 'surrender');
-                commandExecuted = true;
-                break;
             case userMessage === '.cleartmp':
                 await clearTmpCommand(sock, chatId, message);
                 commandExecuted = true;
@@ -1515,7 +1505,6 @@ async function handleGroupParticipantUpdate(sock, update) {
         }
 
         if (action === 'add') {
-            // --- ANTI-FAKE LOGIC (Group-Specific) ---
             const antifakeState = global.antifakeState || {};
             if (antifakeState[id] === 'on') {
                 const bannedPrefixes = ['212', '91', '92', '48']; 
@@ -1530,7 +1519,7 @@ async function handleGroupParticipantUpdate(sock, update) {
                                 mentions: [user] 
                             });
                             await sock.groupParticipantsUpdate(id, [user], "remove");
-                            return; // Stop processing this user so they don't get a welcome message
+                            return; 
                         } catch (err) {
                             console.error("Failed to kick fake number:", err);
                         }
@@ -1538,7 +1527,6 @@ async function handleGroupParticipantUpdate(sock, update) {
                 }
             }
 
-            // Normal welcome event
             if (typeof handleJoinEvent === 'function') await handleJoinEvent(sock, id, participants).catch(()=>null);
         }
 
