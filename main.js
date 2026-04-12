@@ -43,7 +43,7 @@ setInterval(() => {
 }, 3 * 60 * 60 * 1000);
 
 // ==========================================
-// 3. IMPORTS (ALL FEATURES INCLUDED)
+// 3. IMPORTS (ALL FEATURES INCLUDED & FIXED)
 // ==========================================
 const settings = require('./settings');
 require('./config.js');
@@ -58,17 +58,17 @@ const { autotypingCommand, handleAutotypingForMessage, showTypingAfterCommand } 
 const { autoreadCommand, handleAutoread } = require('./commands/autoread');
 const { autoStatusCommand, handleStatusUpdate } = require('./commands/autostatus');
 
-// Moderation
+// Moderation (FIXED ANTILINK IMPORTS)
 const { antistickerCommand, checkAntiSticker } = require('./commands/antisticker');
 const { antiphotoCommand, checkAntiPhoto } = require('./commands/antiphoto');
 const { antifakeCommand, checkFakeLinks } = require('./commands/antifake'); 
 const { antibotCommand, checkAntiBot } = require('./commands/antibot'); 
 const { handleAntiBadwordCommand, handleBadwordDetection } = require('./lib/antibadword');
-const { Antilink, handleAntilinkCommand } = require('./lib/antilink'); 
+const { Antilink } = require('./lib/antilink'); 
+const { handleAntilinkCommand } = require('./commands/antilink'); // <== FIXED IMPORT PATH
 const { antimentionCommand, checkAntiMention } = require('./commands/antimention'); 
 
 // Commands
-const antilinkCommand = require('./commands/antilink');
 const pingCommand = require('./commands/ping');
 const helpCommand = require('./commands/help');
 const ownerCommand = require('./commands/owner');
