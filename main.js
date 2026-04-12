@@ -68,6 +68,7 @@ const { Antilink, handleAntilinkCommand } = require('./lib/antilink');
 const { antimentionCommand, checkAntiMention } = require('./commands/antimention'); 
 
 // Commands
+const antilinkCommand = require('./commands/antilink');
 const pingCommand = require('./commands/ping');
 const helpCommand = require('./commands/help');
 const ownerCommand = require('./commands/owner');
