@@ -189,6 +189,9 @@ const setMenuImageCommand = require('./commands/setmenuimage');
 const linkCommand = require('./commands/link');
 const pairCommand = require('./commands/pair');
 const systemCommand = require('./commands/system');
+const { paymentCommand, setPaymentCommand } = require('./commands/payment');
+const { designCommand } = require('./commands/design');
+
 
 // ==========================================
 // 4. GLOBAL SETTINGS
@@ -407,7 +410,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', '.setprefix'];
+        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', 'setpayment', '.setprefix'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         if (isGroup && isAdminCommand) {
@@ -1375,6 +1378,28 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     const parts = userMessage.trim().split(/\s+/);
                     const args = parts.slice(1);
                     await animeCommand(sock, chatId, message, args);
+                }
+                commandExecuted = true;
+                break;
+            case userMessage === '.payment' || userMessage === '.pay':
+                await paymentCommand(sock, chatId, message);
+                commandExecuted = true;
+                break;
+                
+            case userMessage.startsWith('.setpayment'):
+                {
+                    const args = rawText.split(' ').slice(1); // Use rawText to keep your line breaks and emojis!
+                    await setPaymentCommand(sock, chatId, message, args, isOwnerOrSudoCheck);
+                }
+                commandExecuted = true;
+                break;
+
+            // AI Image/Logo Generator
+            case userMessage.startsWith('.design') || userMessage.startsWith('.imagine'):
+                {
+                    // Use rawText to capture exactly what the user typed (preserves line breaks/emojis for the AI)
+                    const args = rawText.split(' ').slice(1);
+                    await designCommand(sock, chatId, message, args);
                 }
                 commandExecuted = true;
                 break;
