@@ -410,7 +410,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', 'setpayment', '.setprefix'];
+        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', '.update', '.setpayment', '.setprefix'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         if (isGroup && isAdminCommand) {
