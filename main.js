@@ -603,7 +603,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
              case userMessage === '.link' || userMessage === '.grouplink':
-                await linkCommand(sock, chatId, message, isGroup, isBotAdmin);
+                await linkCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
                 commandExecuted = true;
                 break;
 
