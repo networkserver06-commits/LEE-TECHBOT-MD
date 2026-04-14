@@ -38,7 +38,7 @@ Click the button below to fork the LEE TECH BOT repository to your GitHub accoun
 
 ### Step 2: Get Pair Code
 
-Deploy the bot and easily connect it to your WhatsApp account by pair code. Click the button below to deploy the bot on Replit.
+Deploy the bot and easily connect it to your WhatsApp account by pair code. Click the button below to pair your WhatsApp.
 
 <div align="center">
   <a href="https://lee-techbot-pair.onrender.com" target="_blank">
