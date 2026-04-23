@@ -87,7 +87,8 @@ const warnCommand = require('./commands/warn');
 const warningsCommand = require('./commands/warnings');
 const ttsCommand = require('./commands/tts');
 const { tictactoeCommand, handleTicTacToeMove } = require('./commands/tictactoe');
-const { incrementMessageCount, topMembers } = require('./commands/topmembers');
+const { topMembers, onlineMembers, incrementMessageCount } = require('./commands/groupCheck');
+const decryptCommand = require('./commands/decrypt.js'); 
 const deleteCommand = require('./commands/delete');
 const { handleAntitagCommand, handleTagDetection } = require('./commands/antitag');
 const { handleMentionDetection, mentionToggleCommand, setMentionCommand } = require('./commands/mention');
@@ -410,7 +411,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.demote', '.kick', "antifake", '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.some(cmd => userMessage.startsWith(cmd));
 
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.autotyping', '.autoread', '.pmblocker', '.update', '.setpayment', '.setprefix'];
+        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.areact', '.autoreact', '.decrypt', '.autotyping', '.autoread', '.pmblocker', '.update', '.setpayment', '.setprefix'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         if (isGroup && isAdminCommand) {
@@ -671,6 +672,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await attpCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
+              // 🔓 Universal VPN File Decrypter/Unpacker
+        case 'decrypt':
+        case 'unpack':
+            await universalDecryptCommand(sock, chatId, message, isOwnerOrSudoCheck, args);
+            break;  
+                
 
             case userMessage === '.settings':
                 await settingsCommand(sock, chatId, message);
@@ -819,6 +826,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage === '.topmembers':
                 topMembers(sock, chatId, isGroup);
+                commandExecuted = true;
+                break;
+            case userMessage === '.onlinemembers':
+                case 'online':
+                onlineMembers(sock, chatId, isGroup);
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.hangman'):

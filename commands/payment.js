@@ -17,7 +17,7 @@ const channelInfo = {
 };
 
 // Default fallback text if you haven't set anything yet
-const defaultPayment = `💳 *LEE TECH PAYMENT METHODS* 💳
+const defaultPayment = `💳 *PAYMENT METHODS* 💳
 ──────────────────
 🟢 *M-PESA (Kenya)*
 ➤ *Number:* 0116553618
