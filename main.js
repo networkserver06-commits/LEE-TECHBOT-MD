@@ -673,12 +673,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
               // 🔓 Universal VPN File Decrypter/Unpacker
-        case 'decrypt':
-        case 'unpack':
+            case usermessage.startwith'.decrypt':
+            case usermessage'unpack':
             await universalDecryptCommand(sock, chatId, message, isOwnerOrSudoCheck, args);
             break;  
                 
-
             case userMessage === '.settings':
                 await settingsCommand(sock, chatId, message);
                 commandExecuted = true;
