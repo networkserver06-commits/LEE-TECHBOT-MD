@@ -672,6 +672,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await attpCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
+              // 🔓 Universal VPN File Decrypter/Unpacker
+        case 'decrypt':
+        case 'unpack':
+            await universalDecryptCommand(sock, chatId, message, isOwnerOrSudoCheck, args);
+            break;  
                 
 
             case userMessage === '.settings':
