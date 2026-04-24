@@ -820,11 +820,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 commandExecuted = true;
                 break;
-            case userMessage === '.creategroup':
-                    case ".cg": 
-                    creategroup(sock, isOwnerOrSudo, chatId) 
-                    commandExecuted = true
-                    break;
+            case userMessage === '.creategroup': 
+                case userMessage === '.cg':
+                creategroup(sock, isOwnerOrSudo, chatId) 
+                commandExecuted = true
+                break;
             case userMessage === '.topmembers':
                 topMembers(sock, chatId, isGroup);
                 commandExecuted = true;
