@@ -87,7 +87,7 @@ const warnCommand = require('./commands/warn');
 const warningsCommand = require('./commands/warnings');
 const ttsCommand = require('./commands/tts');
 const { tictactoeCommand, handleTicTacToeMove } = require('./commands/tictactoe');
-const { topMembers, onlineMembers, incrementMessageCount } = require('./commands/groupCheck');
+const { topMembers, onlineMembers, incrementMessageCount } = require('./commands/groupcheck');
 const decryptCommand = require('./commands/decrypt.js'); 
 const deleteCommand = require('./commands/delete');
 const { handleAntitagCommand, handleTagDetection } = require('./commands/antitag');
@@ -672,11 +672,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await attpCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
-              // 🔓 Universal VPN File Decrypter/Unpacker
-        case 'decrypt':
-        case 'unpack':
-            await universalDecryptCommand(sock, chatId, message, isOwnerOrSudoCheck, args);
-            break;  
                 
 
             case userMessage === '.settings':
@@ -824,15 +819,28 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 commandExecuted = true;
                 break;
+            case userMessage === '.creategroup':
+                    case ".cg": 
+                    creategroup(sock, isOwnerOrSudo, chatId) 
+                    commandExecuted = true
+                    break;
             case userMessage === '.topmembers':
                 topMembers(sock, chatId, isGroup);
                 commandExecuted = true;
                 break;
+            
             case userMessage === '.onlinemembers':
-                case 'online':
+                case userMessage === '.online':
                 onlineMembers(sock, chatId, isGroup);
                 commandExecuted = true;
                 break;
+            case userMessage.startsWith('.decrypt'):
+            // Parse arguments (passwords)
+            const decryptArgs = userMessage.split(' ').slice(1);
+            // Pass the correct parameters so the decrypt function works
+            await decrypt(sock, chatId, message, isOwnerOrSudoCheck, decryptArgs);
+            commandExecuted = true;
+            break;
             case userMessage.startsWith('.hangman'):
                 startHangman(sock, chatId);
                 commandExecuted = true;
