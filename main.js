@@ -645,10 +645,20 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await setMenuImageCommand(sock, chatId, message, isOwnerOrSudoCheck);
                 commandExecuted = true;
                 break;
-             case userMessage === '.creategroup' ||  userMessage === '.cg':
-                await createGroupCommand(sock, chatId, message, isOwnerOrSudoCheck) 
-                commandExecuted = true
-                break;
+             case userMessage.startsWith('.creategroup') || userMessage.startsWith('.cg'):
+    // 1. Split the message to get the name (everything after the command)
+    const groupName = userMessage.split(' ').slice(1).join(' ');
+    
+    // 2. Validate that a name was actually provided
+    if (!groupName) {
+        await sock.sendMessage(chatId, { text: '❌ Please provide a name for the group. \nExample: *.cg MyNewGroup*' }, { quoted: message });
+    } else {
+        // 3. Pass the groupName as an argument
+        await createGroupCommand(sock, chatId, message, isOwnerOrSudoCheck, groupName);
+    }
+    
+    commandExecuted = true;
+    break;
             case userMessage === '.sticker' || userMessage === '.s':
                 await stickerCommand(sock, chatId, message);
                 commandExecuted = true;
