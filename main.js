@@ -646,17 +646,15 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
              case userMessage.startsWith('.creategroup') || userMessage.startsWith('.cg'):
-    // 1. Split the message to get the name (everything after the command)
+    // Split the message at the first space to get the name
     const groupName = userMessage.split(' ').slice(1).join(' ');
-    
-    // 2. Validate that a name was actually provided
+
     if (!groupName) {
-        await sock.sendMessage(chatId, { text: '❌ Please provide a name for the group. \nExample: *.cg MyNewGroup*' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '❌ *Usage Error!*\nYou must provide a name.\nExample: *.cg My Cool Group*' }, { quoted: message });
     } else {
-        // 3. Pass the groupName as an argument
+        // Only call the function if a name was provided
         await createGroupCommand(sock, chatId, message, isOwnerOrSudoCheck, groupName);
     }
-    
     commandExecuted = true;
     break;
             case userMessage === '.sticker' || userMessage === '.s':

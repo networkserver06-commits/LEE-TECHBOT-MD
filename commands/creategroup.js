@@ -1,25 +1,25 @@
-const creategroupCommand = async (sock, chatId, message, isOwnerOrSudoCheck, rawText) => {
+const createGroupCommand = async (sock, chatId, message, isOwnerOrSudoCheck, groupName) => {
     if (!isOwnerOrSudoCheck) {
-        return await sock.sendMessage(chatId, { text: '❌ Only the bot owner can create groups.' }, { quoted: message });
+        return await sock.sendMessage(chatId, { text: '❌ Only the owner can create groups.' }, { quoted: message });
     }
 
-    // Command format: .creategroup Group Name | @user
-    const groupArgs = rawText.slice(12).trim().split('|');
-    const groupName = groupArgs[0].trim() || "LEE TECH Bot Group";
-    const membersToAdd = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-
     try {
-        await sock.sendMessage(chatId, { text: '⏳ Creating group...' }, { quoted: message });
-        
-        const group = await sock.groupCreate(groupName, membersToAdd);
-        const inviteCode = await sock.groupInviteCode(group.id);
+        await sock.sendMessage(chatId, { text: `⏳ *Creating group: "${groupName}"...*` }, { quoted: message });
+
+        // Creating the group (Note: You must invite at least one other participant or yourself)
+        // Usually, the bot uses the sender's ID as the participant
+        const response = await sock.groupCreate(groupName, [message.key.participant || message.key.remoteJid]);
+
+        await sock.sendMessage(chatId, { text: `✅ *Success!*\nGroup *"${groupName}"* has been created.` }, { quoted: message });
+
+    } catch (error) {
+        // This catches the error so your bot doesn't crash!
+        console.error('Group Creation Error:', error);
         
         await sock.sendMessage(chatId, { 
-            text: `✅ Group *${groupName}* created successfully!\n\n🔗 Invite link: https://chat.whatsapp.com/${inviteCode}` 
+            text: `❌ *Failed to create group.*\nReason: ${error.message || 'Unknown permission error'}` 
         }, { quoted: message });
-    } catch (error) {
-        await sock.sendMessage(chatId, { text: `❌ Failed to create group. Error: ${error.message}` }, { quoted: message });
     }
 };
 
-module.exports = creategroupCommand;
+module.exports = createGroupCommand;
