@@ -248,9 +248,24 @@ async function restartProcess(sock) {
         setTimeout(() => process.exit(0), 1800);
         return;
     }
-    // Direct Node deployments should use a process supervisor. Do not spawn a
-    // second bot process, which can duplicate WhatsApp connections.
-    console.warn('[update] No process supervisor configured; restart skipped.');
+    // Direct Node deployments have no supervisor to bring the bot back. Start
+    // the replacement first, then exit this process so only one WhatsApp
+    // connection remains active. The short delay lets the old socket finish
+    // closing before the replacement initializes its session.
+    try {
+        const entry = path.resolve(process.argv[1] || 'index.js');
+        const child = require('child_process').spawn(process.execPath, [entry], {
+            cwd: process.cwd(),
+            env: { ...process.env, BOT_RESTARTED_AFTER_UPDATE: '1' },
+            detached: true,
+            stdio: 'ignore'
+        });
+        child.unref();
+        setTimeout(() => process.exit(0), 1800);
+    } catch (error) {
+        console.error('[update] Direct restart failed:', error.message || error);
+        setTimeout(() => process.exit(0), 1800);
+    }
 }
 
 async function updateCommand(sock, chatId, message, zipOverride) {
