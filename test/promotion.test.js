@@ -25,3 +25,19 @@ test('promotion notification setting can be enabled and disabled', () => {
         else fs.writeFileSync(promotion.SETTINGS_PATH, original);
     }
 });
+
+test('default promotion setting applies when a group has no override', () => {
+    const groupId = 'test-promotion-default-setting@g.us';
+    const original = fs.existsSync(promotion.SETTINGS_PATH)
+        ? fs.readFileSync(promotion.SETTINGS_PATH, 'utf8')
+        : null;
+    try {
+        promotion.setPromotionNotificationsDefault(true);
+        assert.equal(promotion.isPromotionNotificationsEnabled(groupId), true);
+        promotion.setPromotionNotificationsDefault(false);
+        assert.equal(promotion.isPromotionNotificationsEnabled(groupId), false);
+    } finally {
+        if (original === null) fs.rmSync(promotion.SETTINGS_PATH, { force: true });
+        else fs.writeFileSync(promotion.SETTINGS_PATH, original);
+    }
+});

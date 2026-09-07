@@ -3,6 +3,7 @@
 const path = require('path');
 const { readJson, atomicWriteJson } = require('../lib/runtime');
 const { isAdmin } = require('../lib/isAdmin');
+const isOwnerOrSudo = require('../lib/isOwner');
 
 const SETTINGS_PATH = path.join(process.cwd(), 'data', 'userGroupData.json');
 
@@ -12,7 +13,11 @@ function readGroupData() {
 
 function isPromotionNotificationsEnabled(groupId) {
     const data = readGroupData();
-    return data.promotionNotifications?.[groupId] === true;
+    const groupSettings = data.promotionNotifications || {};
+    if (Object.prototype.hasOwnProperty.call(groupSettings, groupId)) {
+        return groupSettings[groupId] === true;
+    }
+    return data.promotionNotificationsDefault === true;
 }
 
 function setPromotionNotifications(groupId, enabled) {
@@ -23,9 +28,33 @@ function setPromotionNotifications(groupId, enabled) {
     return Boolean(enabled);
 }
 
+function setPromotionNotificationsDefault(enabled) {
+    const data = readGroupData();
+    data.promotionNotificationsDefault = Boolean(enabled);
+    atomicWriteJson(SETTINGS_PATH, data);
+    return Boolean(enabled);
+}
+
 async function promotionCommand(sock, chatId, message, action = '') {
+    const value = String(action || '').trim().toLowerCase();
+
+    // In DM, only the owner/sudo can change the default for groups that do
+    // not have their own explicit setting.
     if (!chatId.endsWith('@g.us')) {
-        return sock.sendMessage(chatId, { text: '❌ This command can only be used in a group.' }, { quoted: message });
+        const owner = await isOwnerOrSudo(message.key.participant || message.key.remoteJid, sock, chatId).catch(() => false);
+        if (!message.key.fromMe && !owner) {
+            return sock.sendMessage(chatId, { text: '❌ Only the owner or sudo can change the default promotion setting from DM.' }, { quoted: message });
+        }
+        if (['on', 'enable', 'enabled', 'true'].includes(value)) {
+            setPromotionNotificationsDefault(true);
+            return sock.sendMessage(chatId, { text: '✅ Promotion and demotion notifications are now *ON by default* for groups without their own setting.' }, { quoted: message });
+        }
+        if (['off', 'disable', 'disabled', 'false'].includes(value)) {
+            setPromotionNotificationsDefault(false);
+            return sock.sendMessage(chatId, { text: '✅ Promotion and demotion notifications are now *OFF by default* for groups without their own setting.' }, { quoted: message });
+        }
+        const state = readGroupData().promotionNotificationsDefault === true ? 'ON' : 'OFF';
+        return sock.sendMessage(chatId, { text: `⚙️ *Default promotion notifications:* ${state}\n\nUse *.promotions on* or *.promotions off* in DM.` }, { quoted: message });
     }
 
     let admin = false;
@@ -36,7 +65,6 @@ async function promotionCommand(sock, chatId, message, action = '') {
         return sock.sendMessage(chatId, { text: '❌ Only group admins can change promotion notification settings.' }, { quoted: message });
     }
 
-    const value = String(action || '').trim().toLowerCase();
     if (['on', 'enable', 'enabled', 'true'].includes(value)) {
         setPromotionNotifications(chatId, true);
         return sock.sendMessage(chatId, { text: '✅ Automatic promotion and demotion notifications are now *ON* in this group.' }, { quoted: message });
@@ -51,4 +79,10 @@ async function promotionCommand(sock, chatId, message, action = '') {
     }, { quoted: message });
 }
 
-module.exports = { promotionCommand, isPromotionNotificationsEnabled, setPromotionNotifications, SETTINGS_PATH };
+module.exports = {
+    promotionCommand,
+    isPromotionNotificationsEnabled,
+    setPromotionNotifications,
+    setPromotionNotificationsDefault,
+    SETTINGS_PATH
+};

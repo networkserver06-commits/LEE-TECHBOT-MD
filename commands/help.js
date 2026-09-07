@@ -135,6 +135,7 @@ function buildMenu() {
         '',
         section('⚙ OWNER CONTROL', [
             `*${p}settings*  •  *${p}ownerstatus*  •  *${p}setprefix <one symbol>*`,
+            `In DM: *${p}promotions on/off* sets the default for groups`,
             `*${p}mode public/private*  •  *${p}hidechannel on/off*`,
             `*${p}maintenance on/off*  •  *${p}autotyping*  •  *${p}autoread*`,
             `*${p}anticall*  •  *${p}backup*  •  *${p}cleartmp*  •  *${p}update*`,
