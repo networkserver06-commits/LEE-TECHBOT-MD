@@ -22,3 +22,10 @@ test('archive safety allows the destination root but rejects traversal', () => {
     assert.doesNotThrow(() => updater.assertInside('/tmp/update-root', '/tmp/update-root/project/file.js'));
     assert.throws(() => updater.assertInside('/tmp/update-root', '/tmp/update-root/../outside'));
 });
+
+test('runtime settings are treated as preserved paths', () => {
+    assert.equal(updater.isPreservedPath('.env'), true);
+    assert.equal(updater.isPreservedPath('data/userGroupData.json'), true);
+    assert.equal(updater.isPreservedPath('session/creds.json'), true);
+    assert.equal(updater.isPreservedPath('commands/update.js'), false);
+});

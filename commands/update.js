@@ -18,6 +18,7 @@ const PRESERVED_NAMES = new Set([
     '.git', '.env', 'node_modules', 'session', 'sessions', 'auth', 'auth_info',
     'tmp', 'temp', 'data', 'baileys_store.json', 'package-lock.json'
 ]);
+const PRESERVED_PATHS = ['.env', 'data/', 'session/', 'sessions/', 'auth/', 'auth_info/', 'package-lock.json'];
 
 function shellCommand(command, args, options = {}) {
     return execFileAsync(command, args, {
@@ -26,6 +27,39 @@ function shellCommand(command, args, options = {}) {
         maxBuffer: 4 * 1024 * 1024,
         ...options
     }).then(({ stdout = '' }) => String(stdout));
+}
+
+function isPreservedPath(filePath) {
+    const normalized = String(filePath || '').replace(/\\/g, '/').replace(/^\.\//, '');
+    return PRESERVED_PATHS.some(prefix => prefix.endsWith('/') ? normalized.startsWith(prefix) : normalized === prefix);
+}
+
+function snapshotPreservedFiles() {
+    const snapshotRoot = fs.mkdtempSync(path.join(require('os').tmpdir(), 'lee-update-preserve-'));
+    const copied = [];
+    for (const relative of PRESERVED_PATHS) {
+        const source = path.join(process.cwd(), relative);
+        if (!fs.existsSync(source)) continue;
+        const target = path.join(snapshotRoot, relative);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.cpSync(source, target, { recursive: true, force: true });
+        copied.push(relative);
+    }
+    return { snapshotRoot, copied };
+}
+
+function restorePreservedFiles(snapshot) {
+    if (!snapshot) return;
+    try {
+        for (const relative of snapshot.copied) {
+            const source = path.join(snapshot.snapshotRoot, relative);
+            const target = path.join(process.cwd(), relative);
+            fs.mkdirSync(path.dirname(target), { recursive: true });
+            fs.cpSync(source, target, { recursive: true, force: true });
+        }
+    } finally {
+        removeFile(snapshot.snapshotRoot);
+    }
 }
 
 function isSafeUpdateUrl(value) {
@@ -44,14 +78,12 @@ function removeFile(file) {
 function downloadFile(url, destination, options = {}, redirects = 0, visited = new Set()) {
     const timeout = options.timeout || REQUEST_TIMEOUT_MS;
     const maxBytes = options.maxBytes || MAX_UPDATE_BYTES;
-
     return new Promise((resolve, reject) => {
         let parsed;
         try { parsed = new URL(url); } catch { return reject(new Error('Invalid update URL')); }
         if (parsed.protocol !== 'https:') return reject(new Error('Updates must use HTTPS'));
         if (redirects > MAX_REDIRECTS || visited.has(parsed.href)) return reject(new Error('Too many redirects'));
         visited.add(parsed.href);
-
         const client = parsed.protocol === 'https:' ? https : http;
         const request = client.get(parsed, {
             headers: { 'User-Agent': 'LEE-TECHBot-Updater/2.1', Accept: 'application/zip,application/octet-stream;q=0.9,*/*;q=0.1' },
@@ -62,20 +94,11 @@ function downloadFile(url, destination, options = {}, redirects = 0, visited = n
                 const location = response.headers.location;
                 response.resume();
                 if (!location) return reject(new Error(`HTTP ${status} without redirect location`));
-                return downloadFile(new URL(location, parsed).href, destination, options, redirects + 1, visited)
-                    .then(resolve, reject);
+                return downloadFile(new URL(location, parsed).href, destination, options, redirects + 1, visited).then(resolve, reject);
             }
-            if (status !== 200) {
-                response.resume();
-                return reject(new Error(`Update download failed with HTTP ${status}`));
-            }
-
+            if (status !== 200) { response.resume(); return reject(new Error(`Update download failed with HTTP ${status}`)); }
             const declaredLength = Number(response.headers['content-length'] || 0);
-            if (declaredLength > maxBytes) {
-                response.resume();
-                return reject(new Error(`Update archive is too large (maximum ${maxBytes} bytes)`));
-            }
-
+            if (declaredLength > maxBytes) { response.resume(); return reject(new Error(`Update archive is too large (maximum ${maxBytes} bytes)`)); }
             const temporary = `${destination}.part`;
             removeFile(temporary);
             const output = fs.createWriteStream(temporary, { flags: 'wx' });
@@ -84,27 +107,15 @@ function downloadFile(url, destination, options = {}, redirects = 0, visited = n
             const fail = error => {
                 if (settled) return;
                 settled = true;
-                response.destroy();
-                output.destroy();
-                removeFile(temporary);
-                reject(error);
+                response.destroy(); output.destroy(); removeFile(temporary); reject(error);
             };
-            response.on('data', chunk => {
-                received += chunk.length;
-                if (received > maxBytes) fail(new Error(`Update archive is too large (maximum ${maxBytes} bytes)`));
-            });
-            response.on('error', fail);
-            output.on('error', fail);
+            response.on('data', chunk => { received += chunk.length; if (received > maxBytes) fail(new Error(`Update archive is too large (maximum ${maxBytes} bytes)`)); });
+            response.on('error', fail); output.on('error', fail);
             output.on('finish', () => {
                 if (settled) return;
                 settled = true;
-                try {
-                    fs.renameSync(temporary, destination);
-                    resolve({ bytes: received });
-                } catch (error) {
-                    removeFile(temporary);
-                    reject(error);
-                }
+                try { fs.renameSync(temporary, destination); resolve({ bytes: received }); }
+                catch (error) { removeFile(temporary); reject(error); }
             });
             response.pipe(output);
         });
@@ -113,23 +124,20 @@ function downloadFile(url, destination, options = {}, redirects = 0, visited = n
     });
 }
 
-async function runGit(args) {
-    return shellCommand('git', args);
-}
+async function runGit(args) { return shellCommand('git', args); }
 
 async function hasGitRepo() {
-    try {
-        return fs.existsSync(path.join(process.cwd(), '.git')) && (await runGit(['--version']));
-    } catch {
-        return false;
-    }
+    try { return fs.existsSync(path.join(process.cwd(), '.git')) && (await runGit(['--version'])); }
+    catch { return false; }
 }
 
 async function updateViaGit() {
     const oldRev = (await runGit(['rev-parse', 'HEAD'])).trim();
-    const status = (await runGit(['status', '--porcelain', '--untracked-files=no'])).trim();
-    if (status && process.env.UPDATE_ALLOW_DIRTY !== 'true') {
-        throw new Error('Working tree has local changes. Commit or back them up first, or set UPDATE_ALLOW_DIRTY=true.');
+    const rawStatus = (await runGit(['status', '--porcelain', '--untracked-files=no'])).trim();
+    const localChanges = rawStatus ? rawStatus.split('\n').map(line => line.slice(3).trim()).filter(Boolean) : [];
+    const blockingChanges = localChanges.filter(filePath => !isPreservedPath(filePath));
+    if (blockingChanges.length && process.env.UPDATE_ALLOW_DIRTY !== 'true') {
+        throw new Error(`Working tree has source changes: ${blockingChanges.slice(0, 5).join(', ')}. Commit or set UPDATE_ALLOW_DIRTY=true.`);
     }
 
     await runGit(['fetch', '--all', '--prune']);
@@ -141,9 +149,15 @@ async function updateViaGit() {
 
     if (!alreadyUpToDate) {
         const backupRef = `refs/lee-techbot/backup-${Date.now()}`;
-        await runGit(['branch', backupRef, oldRev]);
-        await runGit(['reset', '--hard', newRev]);
-        // Never delete untracked files during a remote update.
+        const snapshot = snapshotPreservedFiles();
+        try {
+            await runGit(['branch', backupRef, oldRev]);
+            await runGit(['reset', '--hard', newRev]);
+            restorePreservedFiles(snapshot);
+        } catch (error) {
+            restorePreservedFiles(snapshot);
+            throw error;
+        }
         return { oldRev, newRev, alreadyUpToDate, commits, files, backupRef };
     }
     return { oldRev, newRev, alreadyUpToDate, commits, files, backupRef: '' };
@@ -152,9 +166,7 @@ async function updateViaGit() {
 function assertInside(root, candidate) {
     const resolvedRoot = path.resolve(root);
     const resolvedCandidate = path.resolve(candidate);
-    if (resolvedCandidate !== resolvedRoot && !resolvedCandidate.startsWith(`${resolvedRoot}${path.sep}`)) {
-        throw new Error('Unsafe archive entry detected');
-    }
+    if (resolvedCandidate !== resolvedRoot && !resolvedCandidate.startsWith(`${resolvedRoot}${path.sep}`)) throw new Error('Unsafe archive entry detected');
 }
 
 function copyRecursive(src, dest, relative = '', outList = []) {
@@ -180,21 +192,14 @@ async function extractZip(zipPath, outDir) {
         await shellCommand('powershell', ['-NoProfile', '-Command', `Expand-Archive -LiteralPath '${zipPath.replace(/'/g, "''")}' -DestinationPath '${outDir.replace(/'/g, "''")}' -Force`]);
         return;
     }
-    try {
-        await shellCommand('unzip', ['-oq', zipPath, '-d', outDir]);
-        return;
-    } catch {}
-    try {
-        await shellCommand('7z', ['x', '-y', zipPath, `-o${outDir}`]);
-        return;
-    } catch {}
+    try { await shellCommand('unzip', ['-oq', zipPath, '-d', outDir]); return; } catch {}
+    try { await shellCommand('7z', ['x', '-y', zipPath, `-o${outDir}`]); return; } catch {}
     throw new Error('No supported archive extractor found (unzip or 7z)');
 }
 
 async function updateViaZip(zipOverride) {
     const zipUrl = String(zipOverride || settings.updateZipUrl || process.env.UPDATE_ZIP_URL || DEFAULT_UPDATE_ZIP_URL).trim();
     if (!isSafeUpdateUrl(zipUrl)) throw new Error('Update URL must be a valid HTTPS URL');
-
     const tmpDir = path.join(process.cwd(), 'tmp');
     const zipPath = path.join(tmpDir, `update-${process.pid}-${Date.now()}.zip`);
     const extractTo = path.join(tmpDir, `update-extract-${process.pid}-${Date.now()}`);
@@ -209,74 +214,35 @@ async function updateViaZip(zipOverride) {
         copyRecursive(srcRoot, process.cwd(), '', copied);
         return { copiedFiles: copied, source: zipUrl };
     } finally {
-        removeFile(zipPath);
-        removeFile(`${zipPath}.part`);
-        removeFile(extractTo);
+        removeFile(zipPath); removeFile(`${zipPath}.part`); removeFile(extractTo);
     }
 }
 
 async function restartProcess(sock) {
     global.__updateRestarting = true;
-    try {
-        sock?.ev?.removeAllListeners?.();
-        sock?.ws?.close?.();
-        sock?.end?.(new Error('Update restart handoff'));
-    } catch (error) {
-        console.warn('[update] Socket close warning:', error.message || error);
-    }
+    try { sock?.ev?.removeAllListeners?.(); sock?.ws?.close?.(); sock?.end?.(new Error('Update restart handoff')); }
+    catch (error) { console.warn('[update] Socket close warning:', error.message || error); }
     const mode = String(process.env.RESTART_MODE || 'auto').toLowerCase();
     if (mode === 'none') return;
-    if (process.env.RESTART_COMMAND) {
-        await shellCommand(process.env.SHELL || '/bin/sh', ['-c', process.env.RESTART_COMMAND]);
-        setTimeout(() => process.exit(0), 1500);
-        return;
-    }
+    if (process.env.RESTART_COMMAND) { await shellCommand(process.env.SHELL || '/bin/sh', ['-c', process.env.RESTART_COMMAND]); setTimeout(() => process.exit(0), 1500); return; }
     const isPanel = Boolean(process.env.P_SERVER_UUID || process.env.PTERODACTYL_SERVER_UUID || process.env.KATABUMP_SERVER_ID || process.env.KATABUMP);
     if (mode !== 'panel' && (process.env.pm_id || process.env.PM2_HOME || mode === 'pm2' || process.env.PM2_APP_NAME)) {
         const appName = String(process.env.PM2_APP_NAME || 'leetechbot').replace(/[^a-zA-Z0-9_.-]/g, '');
-        try {
-            await shellCommand('pm2', ['restart', appName]);
-            setTimeout(() => process.exit(0), 1500);
-            return;
-        } catch (error) {
-            if (mode === 'pm2' || process.env.pm_id || process.env.PM2_HOME) {
-                console.warn('[update] PM2 restart unavailable:', error.message || error);
-                setTimeout(() => process.exit(0), 1800);
-                return;
-            }
-        }
+        try { await shellCommand('pm2', ['restart', appName]); setTimeout(() => process.exit(0), 1500); return; }
+        catch (error) { if (mode === 'pm2' || process.env.pm_id || process.env.PM2_HOME) { console.warn('[update] PM2 restart unavailable:', error.message || error); setTimeout(() => process.exit(0), 1800); return; } }
     }
-    if (mode === 'panel' || isPanel) {
-        setTimeout(() => process.exit(0), 1800);
-        return;
-    }
-    // Direct Node deployments have no supervisor to bring the bot back. Start
-    // the replacement first, then exit this process so only one WhatsApp
-    // connection remains active. The short delay lets the old socket finish
-    // closing before the replacement initializes its session.
+    if (mode === 'panel' || isPanel) { setTimeout(() => process.exit(0), 1800); return; }
     try {
         const entry = path.resolve(process.argv[1] || 'index.js');
-        const child = require('child_process').spawn(process.execPath, [entry], {
-            cwd: process.cwd(),
-            env: { ...process.env, BOT_RESTARTED_AFTER_UPDATE: '1' },
-            detached: true,
-            stdio: 'ignore'
-        });
-        child.unref();
-        setTimeout(() => process.exit(0), 1800);
-    } catch (error) {
-        console.error('[update] Direct restart failed:', error.message || error);
-        setTimeout(() => process.exit(0), 1800);
-    }
+        const child = require('child_process').spawn(process.execPath, [entry], { cwd: process.cwd(), env: { ...process.env, BOT_RESTARTED_AFTER_UPDATE: '1' }, detached: true, stdio: 'ignore' });
+        child.unref(); setTimeout(() => process.exit(0), 1800);
+    } catch (error) { console.error('[update] Direct restart failed:', error.message || error); setTimeout(() => process.exit(0), 1800); }
 }
 
 async function updateCommand(sock, chatId, message, zipOverride) {
     const senderId = message.key.participant || message.key.remoteJid;
     const owner = await isOwnerOrSudo(senderId, sock, chatId);
-    if (!message.key.fromMe && !owner) {
-        await sock.sendMessage(chatId, { text: 'Only bot owner or sudo can use .update' }, { quoted: message });
-        return;
-    }
+    if (!message.key.fromMe && !owner) { await sock.sendMessage(chatId, { text: 'Only bot owner or sudo can use .update' }, { quoted: message }); return; }
     try {
         await sock.sendMessage(chatId, { text: '🔄 *Update started*\nChecking the latest repository revision…' }, { quoted: message });
         let result;
@@ -285,19 +251,16 @@ async function updateCommand(sock, chatId, message, zipOverride) {
             catch (error) { console.warn('[update] Git update unavailable:', error.message); }
         }
         if (!result) {
-            await sock.sendMessage(chatId, { text: '📦 Git is unavailable or the working tree is busy; downloading a safe archive fallback…' }, { quoted: message }).catch(() => {});
+            await sock.sendMessage(chatId, { text: '📦 Git update unavailable; using the safe HTTPS archive fallback…' }, { quoted: message }).catch(() => {});
             result = await updateViaZip(zipOverride);
         }
-        if (result.alreadyUpToDate) {
-            await sock.sendMessage(chatId, { text: `ℹ️ Already up to date.\nRevision: *${result.newRev.slice(0, 12)}*\nNo files changed and no restart was needed.` }, { quoted: message });
-            return;
-        }
+        if (result.alreadyUpToDate) { await sock.sendMessage(chatId, { text: `ℹ️ Already up to date.\nRevision: *${result.newRev.slice(0, 12)}*\nNo files changed and no restart was needed.` }, { quoted: message }); return; }
         await sock.sendMessage(chatId, { text: '✅ Source updated. Installing dependencies and validating the installation…' }, { quoted: message });
         await shellCommand('npm', ['install', '--no-audit', '--no-fund', '--ignore-scripts']);
         const packagePath = path.join(process.cwd(), 'package.json');
         let version = settings.version || 'unknown';
         try { version = JSON.parse(fs.readFileSync(packagePath, 'utf8')).version || version; } catch {}
-        await sock.sendMessage(chatId, { text: `✅ *Update completed*\nVersion: *${version}*\nRevision: *${result.newRev ? result.newRev.slice(0, 12) : 'archive'}*\nRestarting only if a supervisor is configured.` }, { quoted: message });
+        await sock.sendMessage(chatId, { text: `✅ *Update completed*\nVersion: *${version}*\nRevision: *${result.newRev ? result.newRev.slice(0, 12) : 'archive'}*\nRestarting now; send *.ping* after reconnect.` }, { quoted: message });
         await new Promise(resolve => setTimeout(resolve, 1200));
         await restartProcess(sock);
     } catch (error) {
@@ -313,3 +276,4 @@ module.exports.updateViaGit = updateViaGit;
 module.exports.updateViaZip = updateViaZip;
 module.exports.copyRecursive = copyRecursive;
 module.exports.assertInside = assertInside;
+module.exports.isPreservedPath = isPreservedPath;
