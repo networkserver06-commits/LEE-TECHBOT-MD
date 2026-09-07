@@ -121,7 +121,8 @@ function buildMenu() {
             `*${p}antiphoto*  •  *${p}antiviewonce*  •  *${p}antisticker*`,
             `*${p}antibot*  •  *${p}antifake*  •  *${p}antitag*  •  *${p}antiall*`,
             `*${p}open [minutes]*  •  *${p}close [minutes]*  •  *${p}announce*`,
-            `*${p}welcome on/off*  •  *${p}goodbye on/off*  •  *${p}promotion on/off*`,
+            `*${p}welcome on/off*  •  *${p}goodbye on/off*`,
+            `Group admins: *${p}promotion on/off/status*`,
             `Moderation requires the bot to be a group admin.`
         ]),
         '',
@@ -135,7 +136,7 @@ function buildMenu() {
         '',
         section('⚙ OWNER CONTROL', [
             `*${p}settings*  •  *${p}ownerstatus*  •  *${p}setprefix <one symbol>*`,
-            `In DM: *${p}promotions on/off* sets the default for groups`,
+            `In DM: *${p}promotions on/off/status* sets the group default`,
             `*${p}mode public/private*  •  *${p}hidechannel on/off*`,
             `*${p}maintenance on/off*  •  *${p}autotyping*  •  *${p}autoread*`,
             `*${p}anticall*  •  *${p}backup*  •  *${p}cleartmp*  •  *${p}update*`,
