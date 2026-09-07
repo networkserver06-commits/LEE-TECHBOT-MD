@@ -150,9 +150,11 @@ async function updateViaGit() {
 }
 
 function assertInside(root, candidate) {
-    const resolvedRoot = path.resolve(root) + path.sep;
+    const resolvedRoot = path.resolve(root);
     const resolvedCandidate = path.resolve(candidate);
-    if (!resolvedCandidate.startsWith(resolvedRoot)) throw new Error('Unsafe archive entry detected');
+    if (resolvedCandidate !== resolvedRoot && !resolvedCandidate.startsWith(`${resolvedRoot}${path.sep}`)) {
+        throw new Error('Unsafe archive entry detected');
+    }
 }
 
 function copyRecursive(src, dest, relative = '', outList = []) {
@@ -310,3 +312,4 @@ module.exports.downloadFile = downloadFile;
 module.exports.updateViaGit = updateViaGit;
 module.exports.updateViaZip = updateViaZip;
 module.exports.copyRecursive = copyRecursive;
+module.exports.assertInside = assertInside;
