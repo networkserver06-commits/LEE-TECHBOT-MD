@@ -5,8 +5,17 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const antiDemote = require('../commands/antidemote');
 
-test('anti-demote is disabled by default', () => {
-    assert.equal(antiDemote.isAntiDemoteEnabled('test-antidemote-default@g.us'), false);
+test('anti-demote can be disabled by default', () => {
+    const original = fs.existsSync(antiDemote.SETTINGS_PATH)
+        ? fs.readFileSync(antiDemote.SETTINGS_PATH, 'utf8')
+        : null;
+    try {
+        antiDemote.setAntiDemoteDefault(false);
+        assert.equal(antiDemote.isAntiDemoteEnabled('test-antidemote-default@g.us'), false);
+    } finally {
+        if (original === null) fs.rmSync(antiDemote.SETTINGS_PATH, { force: true });
+        else fs.writeFileSync(antiDemote.SETTINGS_PATH, original);
+    }
 });
 
 test('anti-demote supports default and group-specific settings', () => {

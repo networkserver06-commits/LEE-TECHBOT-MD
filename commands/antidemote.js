@@ -67,6 +67,24 @@ async function isLinkedBotIdentity(sock, groupId, jid) {
     }
 }
 
+async function resolveCanonicalParticipants(sock, groupId, candidates) {
+    const candidateParts = candidates.flatMap(value => [...identityParts(value)]);
+    const linked = [sock?.user?.id, sock?.user?.lid, sock?.user?.jid]
+        .flatMap(value => [...identityParts(value)]);
+    try {
+        const metadata = await sock.groupMetadata(groupId);
+        return (metadata.participants || [])
+            .filter(participant => {
+                const ids = [...identityParts(participant?.id), ...identityParts(participant?.lid)];
+                return ids.some(id => linked.includes(id) || candidateParts.includes(id));
+            })
+            .map(participant => participant.id || participant.lid)
+            .filter(Boolean);
+    } catch {
+        return candidates;
+    }
+}
+
 async function antiDemoteCommand(sock, chatId, message, action = '') {
     const value = String(action || '').trim().toLowerCase();
     const on = ['on', 'enable', 'enabled', 'true'].includes(value);
@@ -128,16 +146,23 @@ async function handleAntiDemote(sock, groupId, participants, author) {
     if (protectedOwners.length === 0) return { enabled: true, restored: [] };
 
     try {
-        await sock.groupParticipantsUpdate(groupId, protectedOwners, 'promote');
+        const canonicalOwners = await resolveCanonicalParticipants(sock, groupId, protectedOwners);
+        await sock.groupParticipantsUpdate(groupId, canonicalOwners, 'promote');
         await sock.sendMessage(groupId, {
-            text: `🛡️ *ANTI-DEMOTE*\n\n${protectedOwners.map(jid => `✅ @${jid.split('@')[0]} was restored as admin.`).join('\n')}\n\nProtected: linked owner, sudo, and super-owner accounts.`,
-            mentions: protectedOwners
+            text: `🛡️ *ANTI-DEMOTE*\n\n${canonicalOwners.map(jid => `✅ @${jid.split('@')[0]} was restored as admin.`).join('\n')}\n\nProtected: linked owner, sudo, and super-owner accounts.`,
+            mentions: canonicalOwners
         });
-        return { enabled: true, restored: protectedOwners };
+        return { enabled: true, restored: canonicalOwners };
     } catch (error) {
         console.error('[antidemote] Failed to restore linked owner:', error.message || error);
         try {
-            await sock.sendMessage(groupId, { text: '⚠️ Anti-demote detected an unauthorized demotion of the linked bot owner but could not restore the admin. Make sure the bot is an admin.' });
+            const ownerIdentityResults = await Promise.all(protectedOwners.map(user => isLinkedBotIdentity(sock, groupId, user)));
+            const botWasDemoted = ownerIdentityResults.some(Boolean);
+            await sock.sendMessage(groupId, {
+                text: botWasDemoted
+                    ? '⚠️ The linked bot account was demoted. WhatsApp does not allow a bot to promote itself after losing admin rights. Another group admin must promote the bot again; anti-demote will then continue protecting the configured accounts.'
+                    : '⚠️ Anti-demote detected an unauthorized demotion but could not restore the protected admin. Make sure the bot is an admin and try again.'
+            });
         } catch {}
         return { enabled: true, restored: [], error };
     }
