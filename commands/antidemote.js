@@ -198,6 +198,20 @@ async function handleAntiDemote(sock, groupId, participants, author) {
     }
     if (protectedOwners.length === 0) return { enabled: true, restored: [] };
 
+    const botWasDemoted = (await Promise.all(
+        protectedOwners.map(user => isLinkedBotIdentity(sock, groupId, user))
+    )).some(Boolean);
+    if (botWasDemoted) {
+        const demoter = typeof author === 'string' ? author : author?.id;
+        const canonicalBot = await resolveCanonicalParticipants(sock, groupId, protectedOwners);
+        const mentions = [...new Set([...(canonicalBot.length ? canonicalBot : protectedOwners), ...(demoter?.includes('@') ? [demoter] : [])])];
+        await sock.sendMessage(groupId, {
+            text: `🚨 *BOT OWNER DEMOTION DETECTED*\n\n⚠️ The linked bot account was demoted by ${demoter?.includes('@') ? `@${demoter.split('@')[0]}` : 'an unknown participant'}.\n\nWhatsApp removed the bot's admin rights, so it cannot promote itself or remove the demoter. A current group admin must promote the bot again. Anti-demote protection will resume automatically after that.`,
+            mentions
+        }).catch(error => console.error('[antidemote] Could not send bot demotion alert:', error.message || error));
+        return { enabled: true, restored: [], botDemoted: true };
+    }
+
     try {
         const canonicalOwners = await resolveCanonicalParticipants(sock, groupId, protectedOwners);
         const demoter = typeof author === 'string' ? author : author?.id;
@@ -225,12 +239,8 @@ async function handleAntiDemote(sock, groupId, participants, author) {
     } catch (error) {
         console.error('[antidemote] Failed to restore linked owner:', error.message || error);
         try {
-            const ownerIdentityResults = await Promise.all(protectedOwners.map(user => isLinkedBotIdentity(sock, groupId, user)));
-            const botWasDemoted = ownerIdentityResults.some(Boolean);
             await sock.sendMessage(groupId, {
-                text: botWasDemoted
-                    ? '⚠️ The linked bot account was demoted. WhatsApp does not allow a bot to promote itself after losing admin rights. Another group admin must promote the bot again; anti-demote will then continue protecting the configured accounts.'
-                    : '⚠️ Anti-demote detected an unauthorized demotion but could not restore the protected admin. Make sure the bot is an admin and try again.'
+                text: '⚠️ Anti-demote detected an unauthorized demotion but could not restore the protected admin. Make sure the bot is an admin and try again.'
             });
         } catch {}
         return { enabled: true, restored: [], error };
