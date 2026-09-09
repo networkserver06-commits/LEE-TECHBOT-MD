@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys'); 
 const { ensureRuntimeDirs, readJson, createMessageGuard, createHealthMetrics } = require('./lib/runtime');
+const { antiBanCommand, isAntiBanEnabled } = require('./commands/antiban');
 
 ensureRuntimeDirs();
 const messageGuard = createMessageGuard({
@@ -12,6 +13,11 @@ const messageGuard = createMessageGuard({
     dedupeTtlMs: Number(process.env.MESSAGE_DEDUPE_TTL_MS || 24 * 60 * 60 * 1000),
     maxCommands: Number(process.env.COMMAND_RATE_LIMIT || 8),
     windowMs: Number(process.env.COMMAND_RATE_WINDOW_MS || 10000)
+});
+const antiBanGuard = createMessageGuard({
+    dedupeTtlMs: Number(process.env.ANTIBAN_DEDUPE_TTL_MS || 24 * 60 * 60 * 1000),
+    maxCommands: Number(process.env.ANTIBAN_COMMAND_RATE_LIMIT || 3),
+    windowMs: Number(process.env.ANTIBAN_COMMAND_RATE_WINDOW_MS || 15000)
 });
 const healthMetrics = createHealthMetrics();
 global.botHealth = healthMetrics;
@@ -311,7 +317,8 @@ async function handleMessages(sock, messageUpdate, printLog) {
         ).toLowerCase().replace(/\.\s+/g, '.').trim();
 
         if (userMessage.startsWith(global.prefix || '.')) {
-            if (!messageGuard.allowCommand(message.key.participant || message.key.remoteJid)) {
+            const commandGuard = isAntiBanEnabled() ? antiBanGuard : messageGuard;
+            if (!commandGuard.allowCommand(message.key.participant || message.key.remoteJid)) {
                 await sock.sendMessage(chatId, { text: '⏳ Please slow down and try again in a moment.' }, { quoted: message }).catch(() => {});
                 return;
             }
@@ -480,7 +487,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.antidemote', '.demote', '.kick', '.antifake', '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.includes(commandToken);
 
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.creategroup', '.areact', '.autoreact', '.decrypt', '.autotyping', '.autoread', '.pmblocker', '.update', '.setpayment', '.setprefix', '.hidechannel', '.maintenance', '.ownerstatus', '.setmenuimage', '.setmenu', '.menumode', '.menustyle', '.menufont'];
+        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.creategroup', '.areact', '.autoreact', '.decrypt', '.autotyping', '.autoread', '.pmblocker', '.update', '.antiban', '.setpayment', '.setprefix', '.hidechannel', '.maintenance', '.ownerstatus', '.setmenuimage', '.setmenu', '.menumode', '.menustyle', '.menufont'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         if (isGroup && isAdminCommand) {
@@ -1007,6 +1014,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage.startsWith('.antidemote'):
                 await antiDemoteCommand(sock, chatId, message, userMessage.split(/\s+/)[1] || 'status');
+                commandExecuted = true;
+                break;
+            case userMessage.startsWith('.antiban'):
+                await antiBanCommand(sock, chatId, message, userMessage.split(/\s+/)[1] || 'status');
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.promote'):

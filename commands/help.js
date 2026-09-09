@@ -141,6 +141,7 @@ function buildMenu() {
             `In DM: *${p}antidemote on/off/status* sets the group default`,
             `*${p}mode public/private*  •  *${p}hidechannel on/off*`,
             `*${p}maintenance on/off*  •  *${p}autotyping*  •  *${p}autoread*`,
+            `Owner DM: *${p}antiban on/off/status* — rate-limit protection`,
             `*${p}anticall*  •  *${p}backup*  •  *${p}cleartmp*  •  *${p}update*`,
             `Reply to an image: *${p}setmenuimage*  •  *${p}menumode image/text*`,
             `*${p}menustyle cyberpunk*  •  *${p}menufont double*`,

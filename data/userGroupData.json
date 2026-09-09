@@ -10,5 +10,7 @@
   "chatbot": {},
   "autoReaction": false,
   "promotionNotifications": {},
-  "antidemote": {}
+  "antidemote": {},
+  "antibanDefault": false,
+  "antidemoteDefault": true
 }
