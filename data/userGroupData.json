@@ -11,7 +11,11 @@
   "autoReaction": false,
   "promotionNotifications": {},
   "promotionNotificationsDefault": false,
-  "antidemote": {},
+  "antidemote": {
+    "test-antidemote-override@g.us": false
+  },
   "antibanDefault": false,
-  "antidemoteDefault": true
+  "antidemoteDefault": true,
+  "antidemoteAction": {},
+  "antidemoteActionDefault": "warn"
 }

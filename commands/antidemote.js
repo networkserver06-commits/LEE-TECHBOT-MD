@@ -1,11 +1,13 @@
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const { readJson, atomicWriteJson } = require('../lib/runtime');
 const { isAdmin } = require('../lib/isAdmin');
 const isOwnerOrSudo = require('../lib/isOwner');
 
 const SETTINGS_PATH = path.join(process.cwd(), 'data', 'userGroupData.json');
+const BANNED_PATH = path.join(process.cwd(), 'data', 'banned.json');
 
 function readData() {
     return readJson(SETTINGS_PATH, {});
@@ -31,6 +33,36 @@ function setAntiDemoteDefault(enabled) {
     data.antidemoteDefault = Boolean(enabled);
     atomicWriteJson(SETTINGS_PATH, data);
     return Boolean(enabled);
+}
+
+function getAntiDemoteAction(groupId) {
+    const data = readData();
+    const overrides = data.antidemoteAction || {};
+    return overrides[groupId] || data.antidemoteActionDefault || 'warn';
+}
+
+function setAntiDemoteAction(groupId, action) {
+    const data = readData();
+    data.antidemoteAction = data.antidemoteAction || {};
+    data.antidemoteAction[groupId] = action;
+    atomicWriteJson(SETTINGS_PATH, data);
+    return action;
+}
+
+function setAntiDemoteActionDefault(action) {
+    const data = readData();
+    data.antidemoteActionDefault = action;
+    atomicWriteJson(SETTINGS_PATH, data);
+    return action;
+}
+
+function addToBanList(jid) {
+    let users = [];
+    try { users = JSON.parse(fs.readFileSync(BANNED_PATH, 'utf8')); } catch {}
+    if (!Array.isArray(users)) users = [];
+    if (!users.includes(jid)) users.push(jid);
+    fs.mkdirSync(path.dirname(BANNED_PATH), { recursive: true });
+    fs.writeFileSync(BANNED_PATH, `${JSON.stringify(users, null, 2)}\n`, { mode: 0o600 });
 }
 
 function normalizeParticipants(participants) {
@@ -76,7 +108,7 @@ async function resolveCanonicalParticipants(sock, groupId, candidates) {
         return (metadata.participants || [])
             .filter(participant => {
                 const ids = [...identityParts(participant?.id), ...identityParts(participant?.lid)];
-                return ids.some(id => linked.includes(id) || candidateParts.includes(id));
+                return ids.some(id => candidateParts.includes(id));
             })
             .map(participant => participant.id || participant.lid)
             .filter(Boolean);
@@ -85,10 +117,23 @@ async function resolveCanonicalParticipants(sock, groupId, candidates) {
     }
 }
 
+async function enforceDemoter(sock, groupId, author, action) {
+    const demoter = typeof author === 'string' ? author : author?.id;
+    if (!demoter || !demoter.includes('@') || action === 'warn') return false;
+    const canonical = await resolveCanonicalParticipants(sock, groupId, [demoter]);
+    const target = canonical[0] || demoter;
+    if (await isLinkedBotIdentity(sock, groupId, target).catch(() => false)) return false;
+    if (await isOwnerOrSudo(target, sock, groupId).catch(() => false)) return false;
+    if (action === 'ban') addToBanList(target);
+    await sock.groupParticipantsUpdate(groupId, [target], 'remove');
+    return true;
+}
+
 async function antiDemoteCommand(sock, chatId, message, action = '') {
     const value = String(action || '').trim().toLowerCase();
     const on = ['on', 'enable', 'enabled', 'true'].includes(value);
     const off = ['off', 'disable', 'disabled', 'false'].includes(value);
+    const selectedAction = ['warn', 'kick', 'ban'].includes(value) ? value : null;
 
     if (!chatId.endsWith('@g.us')) {
         const owner = await isOwnerOrSudo(message.key.participant || message.key.remoteJid, sock, chatId).catch(() => false);
@@ -103,8 +148,12 @@ async function antiDemoteCommand(sock, chatId, message, action = '') {
             setAntiDemoteDefault(false);
             return sock.sendMessage(chatId, { text: '✅ *Anti-demote is now OFF by default* for all groups without a specific setting.' }, { quoted: message });
         }
+        if (selectedAction) {
+            setAntiDemoteActionDefault(selectedAction);
+            return sock.sendMessage(chatId, { text: `✅ Anti-demote action default is now *${selectedAction.toUpperCase()}*.` }, { quoted: message });
+        }
         const state = readData().antidemoteDefault === true ? 'ON' : 'OFF';
-        return sock.sendMessage(chatId, { text: `🛡️ *Anti-demote default:* ${state}\n\nUse *.antidemote on* or *.antidemote off* in DM.` }, { quoted: message });
+        return sock.sendMessage(chatId, { text: `🛡️ *Anti-demote default:* ${state}\n⚔️ *Action:* ${getAntiDemoteAction()}\n\nUse *.antidemote on/off* or *.antidemote warn/kick/ban* in DM.` }, { quoted: message });
     }
 
     let admin = false;
@@ -122,8 +171,12 @@ async function antiDemoteCommand(sock, chatId, message, action = '') {
         setAntiDemote(chatId, false);
         return sock.sendMessage(chatId, { text: '✅ *Anti-demote is now OFF* for this group.' }, { quoted: message });
     }
+    if (selectedAction) {
+        setAntiDemoteAction(chatId, selectedAction);
+        return sock.sendMessage(chatId, { text: `✅ Anti-demote action for this group is now *${selectedAction.toUpperCase()}*.` }, { quoted: message });
+    }
     const state = isAntiDemoteEnabled(chatId) ? 'ON' : 'OFF';
-    return sock.sendMessage(chatId, { text: `🛡️ *Anti-demote:* ${state}\n\nProtected: linked owner, sudo, and super-owner accounts. The owner may demote anyone.\nUse *.antidemote on* or *.antidemote off*.` }, { quoted: message });
+    return sock.sendMessage(chatId, { text: `🛡️ *Anti-demote:* ${state}\n⚔️ *Action:* ${getAntiDemoteAction(chatId)}\n\nProtected: linked owner, sudo, and super-owner accounts.\nUse *.antidemote on/off* or *.antidemote warn/kick/ban*.` }, { quoted: message });
 }
 
 async function handleAntiDemote(sock, groupId, participants, author) {
@@ -156,9 +209,16 @@ async function handleAntiDemote(sock, groupId, participants, author) {
             text: `🚨 *UNAUTHORIZED DEMOTION DETECTED*\n\n👤 *Protected owner:* ${canonicalOwners.map(jid => `@${jid.split('@')[0]}`).join(', ')}\n⚠️ *Demoted by:* ${demoterMention}\n\n🛡️ Anti-demote is attempting to restore the protected account immediately.`,
             mentions: alertMentions
         });
+        const action = getAntiDemoteAction(groupId);
+        let enforcementApplied = false;
+        try {
+            enforcementApplied = await enforceDemoter(sock, groupId, author, action);
+        } catch (enforcementError) {
+            console.error(`[antidemote] ${action} enforcement failed:`, enforcementError.message || enforcementError);
+        }
         await sock.groupParticipantsUpdate(groupId, canonicalOwners, 'promote');
         await sock.sendMessage(groupId, {
-            text: `🛡️ *ANTI-DEMOTE*\n\n${canonicalOwners.map(jid => `✅ @${jid.split('@')[0]} was restored as admin.`).join('\n')}\n\nProtected: linked owner, sudo, and super-owner accounts.`,
+            text: `🛡️ *ANTI-DEMOTE*\n\n${canonicalOwners.map(jid => `✅ @${jid.split('@')[0]} was restored as admin.`).join('\n')}\n\nAction: *${action.toUpperCase()}*${enforcementApplied ? ' — demoter removed.' : ''}\nProtected: linked owner, sudo, and super-owner accounts.`,
             mentions: canonicalOwners
         });
         return { enabled: true, restored: canonicalOwners };
@@ -184,5 +244,8 @@ module.exports = {
     isAntiDemoteEnabled,
     setAntiDemote,
     setAntiDemoteDefault,
+    getAntiDemoteAction,
+    setAntiDemoteAction,
+    setAntiDemoteActionDefault,
     isLinkedBotIdentity
 };

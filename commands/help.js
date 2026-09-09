@@ -124,6 +124,7 @@ function buildMenu() {
             `*${p}welcome on/off*  •  *${p}goodbye on/off*`,
             `Group admins: *${p}promotion on/off/status*  •  *${p}antidemote on/off/status*`,
             `Anti-demote protects the owner, sudo, and super-owner; the owner may demote anyone.`,
+            `Use *${p}antidemote warn/kick/ban* to choose the demoter action.`,
             `Moderation requires the bot to be a group admin.`
         ]),
         '',
