@@ -107,7 +107,7 @@ function buildMenu() {
         ]),
         '',
         section('⇩ DOWNLOAD CENTER', [
-            `*${p}download <public link>*  — YouTube, TikTok, Instagram, Facebook`,
+            `*${p}download <public link>*  — YouTube, TikTok, Instagram, Facebook, X, Reddit, Pinterest, Threads, Snapchat`,
             `*${p}ytmp4 <url|search>*  •  *${p}video <url|search>*`,
             `*${p}tiktok <url>*  •  *${p}instagram <url>*  •  *${p}facebook <url>*`,
             `*${p}play <song>*  •  *${p}song <song>*  •  *${p}spotify <query>*`,

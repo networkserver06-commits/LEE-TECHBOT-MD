@@ -4,6 +4,7 @@ const instagramCommand = require('./instagram');
 const facebookCommand = require('./facebook');
 const tiktokCommand = require('./tiktok');
 const videoCommand = require('./video');
+const socialCommand = require('./social');
 
 const TRAILING_PUNCTUATION = /[\s\]})>,.!?;:'"]+$/g;
 
@@ -51,6 +52,7 @@ function routeFor(value) {
     if (hostIs(host, 'facebook.com') || host === 'fb.watch') return facebookCommand;
     if (hostIs(host, 'tiktok.com')) return tiktokCommand;
     if (hostIs(host, 'youtube.com') || host === 'youtu.be') return videoCommand;
+    if (['x.com', 'twitter.com', 't.co', 'reddit.com', 'redd.it', 'pinterest.com', 'pin.it', 'threads.net', 'snapchat.com'].some(domain => host === domain || host.endsWith(`.${domain}`))) return socialCommand;
     return null;
 }
 
@@ -58,6 +60,7 @@ function commandFor(handler) {
     if (handler === instagramCommand) return '.instagram';
     if (handler === facebookCommand) return '.facebook';
     if (handler === tiktokCommand) return '.tiktok';
+    if (handler === socialCommand) return '.social';
     return '.ytmp4';
 }
 
@@ -66,14 +69,14 @@ async function downloadCommand(sock, chatId, message) {
     const url = extractUrl(text);
     if (!url) {
         return sock.sendMessage(chatId, {
-            text: '╭─〔 📥 UNIVERSAL DOWNLOAD 〕\n│ Send a public YouTube, TikTok, Instagram, or Facebook link.\n│ Example: `.download https://youtu.be/...`\n╰──────────────'
+            text: '╭─〔 📥 UNIVERSAL DOWNLOAD 〕\n│ Send a public YouTube, TikTok, Instagram, Facebook, X/Twitter, Reddit, Pinterest, Threads, or Snapchat link.\n│ Example: `.download https://youtu.be/...`\n╰──────────────'
         }, { quoted: message });
     }
 
     const handler = routeFor(url);
     if (!handler) {
         return sock.sendMessage(chatId, {
-            text: '❌ Supported platforms: YouTube, TikTok, Instagram, and Facebook. Only public links are supported.'
+            text: '❌ Supported platforms: YouTube, TikTok, Instagram, Facebook, X/Twitter, Reddit, Pinterest, Threads, and Snapchat. Only public links are supported.'
         }, { quoted: message });
     }
 
