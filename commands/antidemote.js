@@ -204,9 +204,13 @@ async function handleAntiDemote(sock, groupId, participants, author) {
     if (botWasDemoted) {
         const demoter = typeof author === 'string' ? author : author?.id;
         const canonicalBot = await resolveCanonicalParticipants(sock, groupId, protectedOwners);
+        const ownerJid = canonicalBot[0] || protectedOwners[0];
+        const ownerNumber = ownerJid?.split('@')[0]?.split(':')[0] || 'unknown number';
+        const ownerName = String(sock?.user?.name || sock?.user?.verifiedName || '').trim();
+        const ownerLabel = ownerName ? `${ownerName} (@${ownerNumber})` : `@${ownerNumber}`;
         const mentions = [...new Set([...(canonicalBot.length ? canonicalBot : protectedOwners), ...(demoter?.includes('@') ? [demoter] : [])])];
         await sock.sendMessage(groupId, {
-            text: `🚨 *BOT OWNER DEMOTION DETECTED*\n\n⚠️ The linked bot account was demoted by ${demoter?.includes('@') ? `@${demoter.split('@')[0]}` : 'an unknown participant'}.\n\nWhatsApp removed the bot's admin rights, so it cannot promote itself or remove the demoter. A current group admin must promote the bot again. Anti-demote protection will resume automatically after that.`,
+            text: `🚨 *OWNER DEMOTION DETECTED*\n\n👤 Linked owner: ${ownerLabel}\n⚠️ Demoted by: ${demoter?.includes('@') ? `@${demoter.split('@')[0]}` : 'an unknown participant'}\n\nWhatsApp removed the owner's admin rights, so automatic restoration and removal of the demoter are unavailable. A current group admin must promote ${ownerLabel} again. Anti-demote protection will resume automatically after that.`,
             mentions
         }).catch(error => console.error('[antidemote] Could not send bot demotion alert:', error.message || error));
         return { enabled: true, restored: [], botDemoted: true };
