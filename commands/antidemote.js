@@ -147,6 +147,15 @@ async function handleAntiDemote(sock, groupId, participants, author) {
 
     try {
         const canonicalOwners = await resolveCanonicalParticipants(sock, groupId, protectedOwners);
+        const demoter = typeof author === 'string' ? author : author?.id;
+        const demoterMention = demoter && demoter.includes('@') ? `@${demoter.split('@')[0]}` : 'Unknown participant';
+        const alertMentions = demoter && demoter.includes('@')
+            ? [...new Set([...canonicalOwners, demoter])]
+            : canonicalOwners;
+        await sock.sendMessage(groupId, {
+            text: `🚨 *UNAUTHORIZED DEMOTION DETECTED*\n\n👤 *Protected owner:* ${canonicalOwners.map(jid => `@${jid.split('@')[0]}`).join(', ')}\n⚠️ *Demoted by:* ${demoterMention}\n\n🛡️ Anti-demote is attempting to restore the protected account immediately.`,
+            mentions: alertMentions
+        });
         await sock.groupParticipantsUpdate(groupId, canonicalOwners, 'promote');
         await sock.sendMessage(groupId, {
             text: `🛡️ *ANTI-DEMOTE*\n\n${canonicalOwners.map(jid => `✅ @${jid.split('@')[0]} was restored as admin.`).join('\n')}\n\nProtected: linked owner, sudo, and super-owner accounts.`,
