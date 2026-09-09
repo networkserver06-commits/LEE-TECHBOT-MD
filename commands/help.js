@@ -123,6 +123,7 @@ function buildMenu() {
             `*${p}open [minutes]*  •  *${p}close [minutes]*  •  *${p}announce*`,
             `*${p}welcome on/off*  •  *${p}goodbye on/off*`,
             `Group admins: *${p}promotion on/off/status*  •  *${p}antidemote on/off/status*`,
+            `Anti-demote protects only the owner; the owner may demote anyone.`,
             `Moderation requires the bot to be a group admin.`
         ]),
         '',

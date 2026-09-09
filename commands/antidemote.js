@@ -84,13 +84,25 @@ async function handleAntiDemote(sock, groupId, participants, author) {
     if (!isAntiDemoteEnabled(groupId)) return { enabled: false, restored: [] };
     const users = normalizeParticipants(participants);
     if (users.length === 0) return { enabled: true, restored: [] };
+    // The owner may freely demote anyone. Only protect the configured owner
+    // account when a different actor performs the demotion.
+    const authorizedActor = author
+        ? await isOwnerOrSudo(typeof author === 'string' ? author : author?.id, sock, groupId).catch(() => false)
+        : false;
+    if (authorizedActor) return { enabled: true, restored: [] };
+
+    const ownerParticipants = [];
+    for (const user of users) {
+        if (await isOwnerOrSudo(user, sock, groupId).catch(() => false)) ownerParticipants.push(user);
+    }
+    if (ownerParticipants.length === 0) return { enabled: true, restored: [] };
     try {
-        await sock.groupParticipantsUpdate(groupId, users, 'promote');
+        await sock.groupParticipantsUpdate(groupId, ownerParticipants, 'promote');
         await sock.sendMessage(groupId, {
-            text: `🛡️ *ANTI-DEMOTE*\n\n${users.map(jid => `✅ @${jid.split('@')[0]} was restored as admin.`).join('\n')}\n\nUnauthorized demotion blocked.`,
-            mentions: users
+            text: `🛡️ *ANTI-DEMOTE*\n\n${ownerParticipants.map(jid => `✅ @${jid.split('@')[0]} was restored as admin.`).join('\n')}\n\nOnly the bot owner is protected.`,
+            mentions: ownerParticipants
         });
-        return { enabled: true, restored: users };
+        return { enabled: true, restored: ownerParticipants };
     } catch (error) {
         console.error('[antidemote] Failed to restore admins:', error.message || error);
         try {
