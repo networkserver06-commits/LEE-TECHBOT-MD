@@ -4,7 +4,9 @@
   "description": "Premium, production-ready WhatsApp automation bot",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node scripts/start-with-session-recovery.js",
+    "start:bot": "node index.js",
+    "start:recovery": "node scripts/start-with-session-recovery.js",
     "start:panel": "node --max-old-space-size=512 index.js",
     "start:terminal": "node index.js",
     "start:termux": "node --max-old-space-size=512 index.js",
