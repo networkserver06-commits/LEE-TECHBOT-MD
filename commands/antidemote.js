@@ -5,6 +5,8 @@ const path = require('path');
 const { readJson, atomicWriteJson } = require('../lib/runtime');
 const { isAdmin } = require('../lib/isAdmin');
 const isOwnerOrSudo = require('../lib/isOwner');
+const settings = require('../settings');
+const { getSudoList } = require('../lib/index');
 
 const SETTINGS_PATH = path.join(process.cwd(), 'data', 'userGroupData.json');
 const BANNED_PATH = path.join(process.cwd(), 'data', 'banned.json');
@@ -99,6 +101,26 @@ async function isLinkedBotIdentity(sock, groupId, jid) {
     }
 }
 
+async function isProtectedIdentity(sock, groupId, jid) {
+    if (await isLinkedBotIdentity(sock, groupId, jid).catch(() => false)) return true;
+    const configured = [settings.ownerNumber, settings.superOwnerNumber, ...(await getSudoList().catch(() => []))]
+        .flatMap(value => [...identityParts(value)]);
+    const candidate = identityParts(jid);
+    if ([...candidate].some(value => configured.includes(value))) return true;
+    try {
+        const metadata = await sock.groupMetadata(groupId);
+        const participant = (metadata.participants || []).find(item => {
+            const ids = [...identityParts(item?.id), ...identityParts(item?.lid)];
+            return ids.some(value => candidate.has(value));
+        });
+        if (!participant) return false;
+        const ids = [...identityParts(participant.id), ...identityParts(participant.lid)];
+        return ids.some(value => configured.includes(value));
+    } catch {
+        return false;
+    }
+}
+
 async function resolveCanonicalParticipants(sock, groupId, candidates) {
     const candidateParts = candidates.flatMap(value => [...identityParts(value)]);
     const linked = [sock?.user?.id, sock?.user?.lid, sock?.user?.jid]
@@ -123,7 +145,7 @@ async function enforceDemoter(sock, groupId, author, action) {
     const canonical = await resolveCanonicalParticipants(sock, groupId, [demoter]);
     const target = canonical[0] || demoter;
     if (await isLinkedBotIdentity(sock, groupId, target).catch(() => false)) return false;
-    if (await isOwnerOrSudo(target, sock, groupId).catch(() => false)) return false;
+    if (await isProtectedIdentity(sock, groupId, target)) return false;
     if (action === 'ban') addToBanList(target);
     await sock.groupParticipantsUpdate(groupId, [target], 'remove');
     return true;
@@ -194,7 +216,7 @@ async function handleAntiDemote(sock, groupId, participants, author) {
 
     const protectedOwners = [];
     for (const user of users) {
-        if (await isOwnerOrSudo(user, sock, groupId).catch(() => false)) protectedOwners.push(user);
+        if (await isProtectedIdentity(sock, groupId, user)) protectedOwners.push(user);
     }
     if (protectedOwners.length === 0) return { enabled: true, restored: [] };
 
@@ -261,5 +283,6 @@ module.exports = {
     getAntiDemoteAction,
     setAntiDemoteAction,
     setAntiDemoteActionDefault,
-    isLinkedBotIdentity
+    isLinkedBotIdentity,
+    isProtectedIdentity
 };
