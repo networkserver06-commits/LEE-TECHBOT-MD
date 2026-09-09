@@ -39,6 +39,34 @@ function normalizeParticipants(participants) {
         .filter(jid => typeof jid === 'string' && jid.includes('@'));
 }
 
+function identityParts(value) {
+    const text = String(value || '');
+    return new Set([
+        text,
+        text.split(':')[0],
+        text.split('@')[0].split(':')[0]
+    ].filter(Boolean));
+}
+
+async function isLinkedBotIdentity(sock, groupId, jid) {
+    const candidate = identityParts(jid);
+    const linked = [sock?.user?.id, sock?.user?.lid, sock?.user?.jid]
+        .flatMap(value => [...identityParts(value)]);
+    if ([...candidate].some(value => linked.includes(value))) return true;
+    try {
+        const metadata = await sock.groupMetadata(groupId);
+        const participant = (metadata.participants || []).find(item => {
+            const ids = [...identityParts(item?.id), ...identityParts(item?.lid)];
+            return ids.some(value => candidate.has(value));
+        });
+        if (!participant) return false;
+        const ids = [...identityParts(participant.id), ...identityParts(participant.lid)];
+        return ids.some(value => linked.includes(value));
+    } catch {
+        return false;
+    }
+}
+
 async function antiDemoteCommand(sock, chatId, message, action = '') {
     const value = String(action || '').trim().toLowerCase();
     const on = ['on', 'enable', 'enabled', 'true'].includes(value);
@@ -70,45 +98,45 @@ async function antiDemoteCommand(sock, chatId, message, action = '') {
     }
     if (on) {
         setAntiDemote(chatId, true);
-        return sock.sendMessage(chatId, { text: '✅ *Anti-demote is now ON* for this group.' }, { quoted: message });
+        return sock.sendMessage(chatId, { text: '✅ *Anti-demote is now ON* for this group. Only the linked bot owner is protected.' }, { quoted: message });
     }
     if (off) {
         setAntiDemote(chatId, false);
         return sock.sendMessage(chatId, { text: '✅ *Anti-demote is now OFF* for this group.' }, { quoted: message });
     }
     const state = isAntiDemoteEnabled(chatId) ? 'ON' : 'OFF';
-    return sock.sendMessage(chatId, { text: `🛡️ *Anti-demote:* ${state}\n\nUse *.antidemote on* or *.antidemote off*.` }, { quoted: message });
+    return sock.sendMessage(chatId, { text: `🛡️ *Anti-demote:* ${state}\n\nProtection applies only to the linked bot owner. The owner may demote anyone.\nUse *.antidemote on* or *.antidemote off*.` }, { quoted: message });
 }
 
 async function handleAntiDemote(sock, groupId, participants, author) {
     if (!isAntiDemoteEnabled(groupId)) return { enabled: false, restored: [] };
     const users = normalizeParticipants(participants);
     if (users.length === 0) return { enabled: true, restored: [] };
-    // The owner may freely demote anyone. Only protect the configured owner
-    // account when a different actor performs the demotion.
+
+    // The linked bot owner may freely demote anyone. Sudo numbers and other
+    // admins are not protected and can be demoted normally.
     const authorizedActor = author
-        ? await isOwnerOrSudo(typeof author === 'string' ? author : author?.id, sock, groupId).catch(() => false)
+        ? await isLinkedBotIdentity(sock, groupId, typeof author === 'string' ? author : author?.id)
         : false;
     if (authorizedActor) return { enabled: true, restored: [] };
 
-    const ownerParticipants = [];
+    const protectedOwners = [];
     for (const user of users) {
-        if (await isOwnerOrSudo(user, sock, groupId).catch(() => false)) ownerParticipants.push(user);
+        if (await isLinkedBotIdentity(sock, groupId, user)) protectedOwners.push(user);
     }
-    if (ownerParticipants.length === 0) return { enabled: true, restored: [] };
+    if (protectedOwners.length === 0) return { enabled: true, restored: [] };
+
     try {
-        await sock.groupParticipantsUpdate(groupId, ownerParticipants, 'promote');
+        await sock.groupParticipantsUpdate(groupId, protectedOwners, 'promote');
         await sock.sendMessage(groupId, {
-            text: `🛡️ *ANTI-DEMOTE*\n\n${ownerParticipants.map(jid => `✅ @${jid.split('@')[0]} was restored as admin.`).join('\n')}\n\nOnly the bot owner is protected.`,
-            mentions: ownerParticipants
+            text: `🛡️ *ANTI-DEMOTE*\n\n${protectedOwners.map(jid => `✅ @${jid.split('@')[0]} was restored as admin.`).join('\n')}\n\nOnly the linked bot owner is protected.`,
+            mentions: protectedOwners
         });
-        return { enabled: true, restored: ownerParticipants };
+        return { enabled: true, restored: protectedOwners };
     } catch (error) {
-        console.error('[antidemote] Failed to restore admins:', error.message || error);
+        console.error('[antidemote] Failed to restore linked owner:', error.message || error);
         try {
-            await sock.sendMessage(groupId, {
-                text: '⚠️ Anti-demote detected a demotion but could not restore the admin. Make sure the bot is an admin and the demoted account is eligible for promotion.'
-            });
+            await sock.sendMessage(groupId, { text: '⚠️ Anti-demote detected an unauthorized demotion of the linked bot owner but could not restore the admin. Make sure the bot is an admin.' });
         } catch {}
         return { enabled: true, restored: [], error };
     }
@@ -120,5 +148,6 @@ module.exports = {
     handleAntiDemote,
     isAntiDemoteEnabled,
     setAntiDemote,
-    setAntiDemoteDefault
+    setAntiDemoteDefault,
+    isLinkedBotIdentity
 };
