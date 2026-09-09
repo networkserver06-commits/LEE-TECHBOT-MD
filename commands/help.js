@@ -122,7 +122,7 @@ function buildMenu() {
             `*${p}antibot*  •  *${p}antifake*  •  *${p}antitag*  •  *${p}antiall*`,
             `*${p}open [minutes]*  •  *${p}close [minutes]*  •  *${p}announce*`,
             `*${p}welcome on/off*  •  *${p}goodbye on/off*`,
-            `Group admins: *${p}promotion on/off/status*`,
+            `Group admins: *${p}promotion on/off/status*  •  *${p}antidemote on/off/status*`,
             `Moderation requires the bot to be a group admin.`
         ]),
         '',
@@ -137,6 +137,7 @@ function buildMenu() {
         section('⚙ OWNER CONTROL', [
             `*${p}settings*  •  *${p}ownerstatus*  •  *${p}setprefix <one symbol>*`,
             `In DM: *${p}promotions on/off/status* sets the group default`,
+            `In DM: *${p}antidemote on/off/status* sets the group default`,
             `*${p}mode public/private*  •  *${p}hidechannel on/off*`,
             `*${p}maintenance on/off*  •  *${p}autotyping*  •  *${p}autoread*`,
             `*${p}anticall*  •  *${p}backup*  •  *${p}cleartmp*  •  *${p}update*`,
@@ -202,7 +203,7 @@ function developerButtons() {
 function buildDetails(topic) {
     const p = prefix();
     const topics = {
-        admin: `*ADMIN GUIDE*\n\n${p}adminstatus\n${p}groupstats\n${p}tagall\n${p}hidetag\n${p}kick @user\n${p}promote @user\n${p}demote @user\n${p}promotion on/off/status\n${p}mute @user\n${p}antiall on/off/status\n${p}open [minutes]\n${p}close [minutes]\n\nThe sender and bot must have the required group permissions.`,
+        admin: `*ADMIN GUIDE*\n\n${p}adminstatus\n${p}groupstats\n${p}tagall\n${p}hidetag\n${p}kick @user\n${p}promote @user\n${p}demote @user\n${p}promotion on/off/status\n${p}antidemote on/off/status\n${p}mute @user\n${p}antiall on/off/status\n${p}open [minutes]\n${p}close [minutes]\n\nThe sender and bot must have the required group permissions.`,
         owner: `*OWNER GUIDE*\n\n${p}owner\n${p}mode public/private\n${p}setprefix <symbol|none>\n${p}hidechannel on/off\n${p}maintenance on/off\n${p}backup\n${p}update\n${p}tostatus (reply to media/text)\n${p}togstatus (inside a group)\n${p}savestatus (reply to a Status)\n\nOwner tools are protected by owner or sudo authorization.`,
         download: `*DOWNLOAD GUIDE*\n\n${p}download <public social link>\n${p}tiktok <url>\n${p}instagram <url>\n${p}facebook <url>\n${p}play <song>\n${p}song <song>\n${p}spotify <query>\n${p}ytmp4 <url|search>\n${p}url (reply to image/video)\n\nPrivate, expired, or region-blocked links may fail.`,
         ai: `*AI GUIDE*\n\n${p}gpt <question>\n${p}gemini <question>\n${p}chatbot on/off\n${p}imagine <prompt>\n${p}translate <text> <language>\n${p}tts <text>`,

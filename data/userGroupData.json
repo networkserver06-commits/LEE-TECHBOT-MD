@@ -9,5 +9,6 @@
   "goodbye": {},
   "chatbot": {},
   "autoReaction": false,
-  "promotionNotifications": {}
+  "promotionNotifications": {},
+  "antidemote": {}
 }

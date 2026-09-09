@@ -101,6 +101,7 @@ const banCommand = require('./commands/ban');
 const { promoteCommand } = require('./commands/promote');
 const { demoteCommand } = require('./commands/demote');
 const { promotionCommand, isPromotionNotificationsEnabled } = require('./commands/promotion');
+const { antiDemoteCommand, handleAntiDemote } = require('./commands/antidemote');
 const muteCommand = require('./commands/mute');
 const unmuteCommand = require('./commands/unmute');
 const stickerCommand = require('./commands/sticker');
@@ -476,7 +477,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         const commandToken = userMessage.split(/\s+/)[0].toLowerCase();
-        const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.demote', '.kick', '.antifake', '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
+        const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.antidemote', '.demote', '.kick', '.antifake', '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.includes(commandToken);
 
         const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.creategroup', '.areact', '.autoreact', '.decrypt', '.autotyping', '.autoread', '.pmblocker', '.update', '.setpayment', '.setprefix', '.hidechannel', '.maintenance', '.ownerstatus', '.setmenuimage', '.setmenu', '.menumode', '.menustyle', '.menufont'];
@@ -488,7 +489,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 return;
             }
 
-            if (['.mute', '.unmute', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.demote', '.kickall'].includes(commandToken)) {
+            if (['.mute', '.unmute', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.antidemote', '.demote', '.kickall'].includes(commandToken)) {
                 if (!isSenderAdmin && !isOwnerOrSudoCheck) {
                     await sock.sendMessage(chatId, { text: 'Sorry, only group admins can use this command.', ...channelInfo }, { quoted: message });
                     return;
@@ -1002,6 +1003,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage.startsWith('.promotion') || userMessage.startsWith('.promotions') || userMessage.startsWith('.promotemsg'):
                 await promotionCommand(sock, chatId, message, userMessage.split(/\s+/)[1] || 'status');
+                commandExecuted = true;
+                break;
+            case userMessage.startsWith('.antidemote'):
+                await antiDemoteCommand(sock, chatId, message, userMessage.split(/\s+/)[1] || 'status');
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.promote'):
@@ -1656,6 +1661,7 @@ async function handleGroupParticipantUpdate(sock, update) {
         }
 
         if (action === 'demote') {
+            await handleAntiDemote(sock, id, participants, author).catch(() => null);
             if (!isPublic || !isPromotionNotificationsEnabled(id)) return;
             if (typeof handleDemotionEvent === 'function') await handleDemotionEvent(sock, id, participants, author).catch(()=>null);
             return;
