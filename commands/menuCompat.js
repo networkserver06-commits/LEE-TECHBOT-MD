@@ -1,7 +1,11 @@
 'use strict';
 
 const os = require('os');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 const axios = require('axios');
+const cheerio = require('cheerio');
 const aiCommand = require('./ai');
 const animeCommand = require('./anime').animeCommand;
 const downloadCommand = require('./download');
@@ -17,6 +21,41 @@ const { setGroupDescription, setGroupName, setGroupPhoto } = require('./groupman
 const { lyricsCommand } = require('./lyrics');
 const yts = require('yt-search');
 const { allCommands } = require('../lib/menuCatalog');
+
+const DATA_DIR = path.join(process.cwd(), 'data');
+const NOTES_FILE = path.join(DATA_DIR, 'menuNotes.json');
+const MAIL_API = 'https://api.mail.tm';
+
+function readNotes() {
+    try { return JSON.parse(fs.readFileSync(NOTES_FILE, 'utf8')); } catch (_) { return {}; }
+}
+
+function saveNotes(notes) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(NOTES_FILE, JSON.stringify(notes, null, 2));
+}
+
+async function publicSearch(query) {
+    const response = await axios.get('https://html.duckduckgo.com/html/', {
+        params: { q: query }, timeout: 15000, headers: { 'User-Agent': 'LEE-TECH-BOT/1.0' }
+    });
+    const $ = cheerio.load(response.data);
+    return $('.result').slice(0, 5).map((_, item) => ({
+        title: $(item).find('.result__title').text().trim(),
+        url: $(item).find('.result__a').attr('href'),
+        snippet: $(item).find('.result__snippet').text().trim()
+    })).get().filter((item) => item.title && item.url);
+}
+
+async function mailTmRequest(method, url, data, token) {
+    const headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return axios({ method, url: `${MAIL_API}${url}`, data, headers, timeout: 15000 });
+}
+
+function cryptoRandom() {
+    return crypto.randomBytes(6).toString('hex');
+}
 
 const ANIME_ALIASES = {
     animeavatar: 'nom', animeblush: 'blush', animewave: 'wave', animesmile: 'smile',
@@ -178,6 +217,83 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         } catch (_) { await reply(sock, chatId, message, '❌ YouTube search failed.'); }
         return true;
     }
+    if (command === 'define') {
+        const word = args.join(' ').trim();
+        if (!word) { await reply(sock, chatId, message, 'Usage: `.define <word>`'); return true; }
+        try {
+            const { data } = await axios.get(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, { timeout: 12000 });
+            const entry = data[0];
+            const meaning = entry.meanings?.[0];
+            const definition = meaning?.definitions?.[0];
+            await reply(sock, chatId, message, `📖 *${entry.word}*\n${meaning?.partOfSpeech || ''}\n${definition?.definition || 'No definition found.'}${definition?.example ? `\n\nExample: ${definition.example}` : ''}`);
+        } catch (_) { await reply(sock, chatId, message, '❌ Word definition not found.'); }
+        return true;
+    }
+    if (command === 'country') {
+        const country = args.join(' ').trim();
+        if (!country) { await reply(sock, chatId, message, 'Usage: `.country <country>`'); return true; }
+        try {
+            const { data } = await axios.get(`https://restcountries.com/v3.1/name/${encodeURIComponent(country)}`, { timeout: 12000 });
+            const c = data[0];
+            await reply(sock, chatId, message, `🌍 *${c.name?.common}*\nCapital: ${c.capital?.[0] || 'Unknown'}\nRegion: ${c.region || 'Unknown'}\nPopulation: ${(c.population || 0).toLocaleString()}\nCurrency: ${Object.values(c.currencies || {})[0]?.name || 'Unknown'}`);
+        } catch (_) { await reply(sock, chatId, message, '❌ Country not found.'); }
+        return true;
+    }
+    if (command === 'google' || command === 'search') {
+        const query = args.join(' ').trim();
+        if (!query) { await reply(sock, chatId, message, `Usage: .${command} <search terms>`); return true; }
+        try {
+            const results = await publicSearch(query);
+            await reply(sock, chatId, message, results.length ? results.map((r, i) => `${i + 1}. *${r.title}*\n${r.url}\n${r.snippet}`).join('\n\n') : '❌ No public search results found.');
+        } catch (_) { await reply(sock, chatId, message, '❌ Public search is temporarily unavailable.'); }
+        return true;
+    }
+    if (command === 'note' || command === 'listnote' || command === 'deletenote') {
+        const notes = readNotes();
+        const ownerKey = context.senderId || message.key?.participant || message.key?.remoteJid || chatId;
+        notes[ownerKey] ||= [];
+        if (command === 'note') {
+            const value = args.join(' ').trim();
+            if (!value) { await reply(sock, chatId, message, 'Usage: `.note <text>`'); return true; }
+            notes[ownerKey].push({ text: value, createdAt: new Date().toISOString() });
+            saveNotes(notes);
+            await reply(sock, chatId, message, `✅ Note saved (#${notes[ownerKey].length}).`);
+        } else if (command === 'listnote') {
+            await reply(sock, chatId, message, notes[ownerKey].length ? notes[ownerKey].map((n, i) => `${i + 1}. ${n.text}`).join('\n') : '📝 No saved notes.');
+        } else {
+            const index = Number(args[0]) - 1;
+            if (!Number.isInteger(index) || !notes[ownerKey][index]) { await reply(sock, chatId, message, 'Usage: `.deletenote <note number>`'); return true; }
+            notes[ownerKey].splice(index, 1); saveNotes(notes); await reply(sock, chatId, message, '✅ Note deleted.');
+        }
+        return true;
+    }
+    if (command === 'rate') {
+        const value = args.join(' ').trim() || 'this';
+        await reply(sock, chatId, message, `⭐ I rate *${value}* ${Math.floor(Math.random() * 101)}/100.`);
+        return true;
+    }
+    if (command === 'tempmail' || command === 'tempinbox') {
+        const sessions = global.tempMailSessions ||= {};
+        const ownerKey = context.senderId || message.key?.participant || message.key?.remoteJid || chatId;
+        try {
+            if (command === 'tempmail' || !sessions[ownerKey]) {
+                const domains = (await mailTmRequest('get', '/domains?page=1')).data['hydra:member'] || [];
+                const domain = domains[0]?.domain;
+                if (!domain) throw new Error('No mail domain');
+                const address = `${cryptoRandom()}@${domain}`;
+                const password = `${cryptoRandom()}Lee!9`;
+                await mailTmRequest('post', '/accounts', { address, password });
+                const token = (await mailTmRequest('post', '/token', { address, password })).data.token;
+                sessions[ownerKey] = { address, token };
+                await reply(sock, chatId, message, `📧 Temporary email created:\n*${address}*\n\nUse .tempinbox to check messages.`);
+                if (command === 'tempmail') return true;
+            }
+            const inbox = await mailTmRequest('get', '/messages', undefined, sessions[ownerKey].token);
+            const messages = inbox.data['hydra:member'] || [];
+            await reply(sock, chatId, message, messages.length ? messages.slice(0, 5).map((m, i) => `${i + 1}. *${m.subject || '(no subject)'}*\nFrom: ${m.from?.address || 'unknown'}\nID: ${m.id}`).join('\n\n') : `📭 Inbox empty for ${sessions[ownerKey].address}.`);
+        } catch (_) { await reply(sock, chatId, message, '❌ Temporary mail service unavailable.'); }
+        return true;
+    }
     if (command === 'npm') {
         const packageName = args[0];
         if (!packageName) { await reply(sock, chatId, message, 'Usage: `.npm <package-name>`'); return true; }
@@ -187,7 +303,7 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         } catch (_) { await reply(sock, chatId, message, '❌ NPM package not found or registry unavailable.'); }
         return true;
     }
-    if (['bible', 'quran', 'define', 'country', 'google', 'lyrics', 'yts', 'shazam', 'tempmail', 'tempinbox', 'vocalremover', 'colorize', 'deepfake'].includes(command)) {
+    if (['bible', 'quran', 'shazam', 'vocalremover', 'colorize', 'deepfake'].includes(command)) {
         await reply(sock, chatId, message, `⚠️ .${command} is recognized, but requires a configured provider/API in this deployment. Add the provider credentials, then retry.`);
         return true;
     }

@@ -59,3 +59,14 @@ test('group menu command calls the real group-info handler', async () => {
     assert.equal(handled, true);
     assert.match(sock.sent[0].payload.text || sock.sent[0].payload.caption, /GROUP INFO|SUBJECT/i);
 });
+
+test('local note and rate commands execute without an external provider', async () => {
+    const sock = mockSock();
+    const ownerMessage = { key: { remoteJid: '123@s.whatsapp.net', fromMe: true }, message: { conversation: '.note test item' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', ownerMessage, '.note test item', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /Note saved/i);
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', ownerMessage, '.listnote', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /test item/i);
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', ownerMessage, '.rate music', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /rate/i);
+});
