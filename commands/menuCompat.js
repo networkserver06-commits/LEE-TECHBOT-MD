@@ -13,6 +13,9 @@ const stickerTelegramCommand = require('./stickertelegram');
 const toStatusCommand = require('./tostatus');
 const groupInfoCommand = require('./groupinfo');
 const { autoStatusCommand } = require('./autostatus');
+const { setGroupDescription, setGroupName, setGroupPhoto } = require('./groupmanage');
+const { lyricsCommand } = require('./lyrics');
+const yts = require('yt-search');
 const { allCommands } = require('../lib/menuCatalog');
 
 const ANIME_ALIASES = {
@@ -147,6 +150,32 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     }
     if (command === 'group') {
         await groupInfoCommand(sock, chatId, message);
+        return true;
+    }
+    if (command === 'setdesc') {
+        await setGroupDescription(sock, chatId, context.senderId || message.key?.participant || message.key?.remoteJid, args.join(' '), message);
+        return true;
+    }
+    if (command === 'setgrouppicture') {
+        await setGroupPhoto(sock, chatId, context.senderId || message.key?.participant || message.key?.remoteJid, message);
+        return true;
+    }
+    if (command === 'editinfo') {
+        await setGroupName(sock, chatId, context.senderId || message.key?.participant || message.key?.remoteJid, args.join(' '), message);
+        return true;
+    }
+    if (command === 'lyrics') {
+        await lyricsCommand(sock, chatId, args.join(' '), message);
+        return true;
+    }
+    if (command === 'yts') {
+        const query = args.join(' ').trim();
+        if (!query) { await reply(sock, chatId, message, 'Usage: `.yts <song or video>`'); return true; }
+        try {
+            const results = await yts(query);
+            const top = (results.videos || []).slice(0, 5);
+            await reply(sock, chatId, message, top.length ? top.map((v, i) => `${i + 1}. ${v.title}\n${v.url}\n${v.timestamp || ''}`).join('\n\n') : '❌ No YouTube results found.');
+        } catch (_) { await reply(sock, chatId, message, '❌ YouTube search failed.'); }
         return true;
     }
     if (command === 'npm') {

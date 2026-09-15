@@ -1635,7 +1635,8 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     isGroup,
                     isSenderAdmin,
                     isOwnerOrSudoCheck,
-                    isBotAdmin
+                    isBotAdmin,
+                    senderId
                 });
                 if (!commandExecuted && isGroup) {
                     if (userMessage) {
