@@ -25,4 +25,6 @@ test('catalog commands are unique and menu exposes category navigation', () => {
     assert.match(menu, /menu <category>/);
     assert.match(menu, /SETTINGS|Settings/);
     assert.match(menu, /DOWNLOADS|Downloads/);
+    assert.match(menu, /POWERED BY LEE TECH/);
+    assert.match(menu, /OWNER: LEETECH/);
 });

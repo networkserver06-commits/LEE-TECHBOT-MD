@@ -85,10 +85,10 @@ function buildCatalogMenu() {
     const name = settings.botName || 'LEE TECH BOT';
     const version = settings.version || '3.0.7';
     const privacy = global.ownerControls?.hideChannel ? 'Private' : 'Public';
-    const owner = settings.botOwner || 'LEE TECH';
+    const owner = 'LEETECH';
     const lines = [
         `┏━━━━━━━━━━━━━━━━❍`,
-        `┃ *${name.toUpperCase()}*`,
+        `┃ *${name.toUpperCase()} MENU*`,
         `┗━━━━━━━━━━━━━━━❍`,
         `┏━━━━━━━━━━━━━━━❍`,
         `┣❍ *BOT INFORMATION:*`,
@@ -107,7 +107,7 @@ function buildCatalogMenu() {
         }
         lines.push('┗━━━━━━━━━━━━━━━❍');
     }
-    lines.push('', `┏━━━━━━━━━━━━━━━❍`, `┃ Use *${p}menu <category>* for a focused menu`, `┃ Use *${p}help <command>* for command guidance`, `┗━━━━━━━━━━━━━━━❍`);
+    lines.push('', `┏━━━━━━━━━━━━━━━❍`, `┃ *POWERED BY LEE TECH*`, `┃ *OWNER: LEETECH*`, `┃ Use *${p}menu <category>* for a focused menu`, `┃ Use *${p}help <command>* for command guidance`, `┗━━━━━━━━━━━━━━━❍`);
     return lines.join('\n');
 }
 
