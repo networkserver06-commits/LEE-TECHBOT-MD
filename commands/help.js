@@ -78,7 +78,11 @@ function liveMenuState(context = {}) {
     const chatId = context.chatId || '';
     const message = context.message || {};
     const sender = message.key?.participant || message.key?.remoteJid || 'user';
-    const user = sender.includes('@') ? sender.split('@')[0] : sender;
+    const senderNumber = sender.includes('@') ? sender.split('@')[0].split(':')[0] : sender;
+    const menuSettings = readState('menuSettings.json', {});
+    const linkedName = context.userName || message.pushName || message.key?.pushName;
+    const configuredName = process.env.MENU_USER_NAME || process.env.USER_DISPLAY_NAME || menuSettings.userName;
+    const user = configuredName || linkedName || senderNumber;
     const mode = readState('messageCount.json', { isPublic: true });
     const autoStatus = readState('autoStatus.json', { enabled: false });
     const autoread = readState('autoread.json', { enabled: false });
@@ -91,6 +95,7 @@ function liveMenuState(context = {}) {
     const health = global.botHealth?.snapshot?.() || {};
     return {
         user,
+        userNumber: senderNumber,
         mode: mode.isPublic === false ? 'Private' : 'Public',
         speed: Number(health.lastLatencyMs || global.lastCommandLatencyMs || 0).toFixed(4),
         group,
@@ -150,6 +155,7 @@ function buildCatalogMenu(context = {}) {
         `┏━━━━━━━━━━━━━━━❍`,
         `┣❍ *BOT INFORMATION:*`,
         `┣❍ *USER:* ${live.user}`,
+        `┣❍ *NUMBER:* ${live.userNumber}`,
         `┣❍ *VERSION:* v${version}`,
         `┣❍ *MODE:* ${privacy}`,
         `┣❍ *PREFIX:* [ ${p} ]`,

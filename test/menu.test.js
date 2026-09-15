@@ -40,3 +40,12 @@ test('menu renders live user, mode, speed, and feature status fields', () => {
     assert.match(menu, /AUTOREAD:\* (ON|OFF)/);
     assert.match(menu, /AUTOSTATUS:\* (ON|OFF)/);
 });
+
+test('menu prefers linked WhatsApp name while retaining linked number', () => {
+    const menu = help.buildMenu({
+        chatId: '254700000000@s.whatsapp.net',
+        message: { pushName: 'Lee Tech User', key: { remoteJid: '254700000000@s.whatsapp.net' } }
+    });
+    assert.match(menu, /USER:\* Lee Tech User/);
+    assert.match(menu, /NUMBER:\* 254700000000/);
+});
