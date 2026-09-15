@@ -221,6 +221,7 @@ const systemCommand = require('./commands/system');
 const { paymentCommand, setPaymentCommand } = require('./commands/payment');
 const { designCommand } = require('./commands/design');
 const { speedCommand, uptimeCommand, idCommand, botInfoCommand, healthCommand } = require('./commands/utility');
+const { menuCompatCommand } = require('./commands/menuCompat');
 const downloadCommand = require('./commands/download');
 const adminStatusCommand = require('./commands/adminstatus');
 const groupStatsCommand = require('./commands/groupstats');
@@ -1621,14 +1622,19 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
             default:
-                if (isGroup) {
-                    if (userMessage) {  
+                commandExecuted = await menuCompatCommand(sock, chatId, message, userMessage, {
+                    isGroup,
+                    isSenderAdmin,
+                    isOwnerOrSudoCheck,
+                    isBotAdmin
+                });
+                if (!commandExecuted && isGroup) {
+                    if (userMessage) {
                         await handleChatbotResponse(sock, chatId, message, userMessage, senderId).catch(()=>null);
                     }
                     await handleTagDetection(sock, chatId, message, senderId).catch(()=>null);
                     await handleMentionDetection(sock, chatId, message).catch(()=>null);
                 }
-                commandExecuted = false;
                 break;
         }
 
