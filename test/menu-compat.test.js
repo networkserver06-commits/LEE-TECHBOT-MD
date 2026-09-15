@@ -70,3 +70,13 @@ test('local note and rate commands execute without an external provider', async 
     assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', ownerMessage, '.rate music', {}), true);
     assert.match(sock.sent.at(-1).payload.text, /rate/i);
 });
+
+test('internal general aliases execute real handlers without generic warnings', async () => {
+    const sock = mockSock();
+    const message = { key: { remoteJid: '123@s.whatsapp.net', fromMe: true }, message: { conversation: '.audiospeed' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.audiospeed', { isOwnerOrSudoCheck: true }), true);
+    assert.match(sock.sent.at(-1).payload.text, /Reply to an audio|Speed must/i);
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.lid', {}), true);
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.clearchat', {}), true);
+    assert.ok(sock.sent.length >= 2);
+});

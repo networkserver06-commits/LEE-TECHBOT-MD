@@ -20,6 +20,9 @@ const { autoStatusCommand } = require('./autostatus');
 const { setGroupDescription, setGroupName, setGroupPhoto } = require('./groupmanage');
 const { lyricsCommand } = require('./lyrics');
 const yts = require('yt-search');
+const { clearCommand } = require('./clear');
+const vv2Command = require('./vv2');
+const audioSpeedCommand = require('./audiospeed');
 const { allCommands } = require('../lib/menuCatalog');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -134,6 +137,10 @@ async function handleSimpleLocal(sock, chatId, message, command, args) {
         return sock.sendMessage(chatId, { poll: { name: question, values: options.slice(0, 12), selectableCount: 1 } }, { quoted: message });
     }
     if (command === 'system') return reply(sock, chatId, message, `OS: ${os.platform()}\nNode: ${process.version}\nMemory: ${Math.round(process.memoryUsage().rss / 1024 / 1024)} MB`);
+    if (command === 'clearchat') { await clearCommand(sock, chatId); return true; }
+    if (command === 'vvdm') { await vv2Command(sock, chatId, message, context.isOwnerOrSudoCheck); return true; }
+    if (command === 'lid') return idCommand(sock, chatId, message);
+    if (command === 'audiospeed') { await audioSpeedCommand(sock, chatId, message); return true; }
     return null;
 }
 
