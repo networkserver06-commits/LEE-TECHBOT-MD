@@ -294,6 +294,23 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         } catch (_) { await reply(sock, chatId, message, '❌ Temporary mail service unavailable.'); }
         return true;
     }
+    if (command === 'bible') {
+        const reference = args.join(' ').trim() || 'John 3:16';
+        try {
+            const { data } = await axios.get(`https://bible-api.com/${encodeURIComponent(reference)}`, { timeout: 12000 });
+            await reply(sock, chatId, message, `📖 *${data.reference || reference}*\n\n${data.text || 'No verse found.'}`);
+        } catch (_) { await reply(sock, chatId, message, '❌ Bible reference not found. Try `.bible John 3:16`.'); }
+        return true;
+    }
+    if (command === 'quran') {
+        const reference = args[0] || '1:1';
+        try {
+            const { data } = await axios.get(`https://api.alquran.cloud/v1/ayah/${encodeURIComponent(reference)}/en.asad`, { timeout: 12000 });
+            const ayah = data.data;
+            await reply(sock, chatId, message, `☪️ *${ayah?.surah?.englishName || 'Quran'} ${ayah?.numberInSurah || reference}*\n\n${ayah?.text || 'No ayah found.'}`);
+        } catch (_) { await reply(sock, chatId, message, '❌ Quran reference not found. Try `.quran 1:1`.'); }
+        return true;
+    }
     if (command === 'npm') {
         const packageName = args[0];
         if (!packageName) { await reply(sock, chatId, message, 'Usage: `.npm <package-name>`'); return true; }
@@ -303,7 +320,7 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         } catch (_) { await reply(sock, chatId, message, '❌ NPM package not found or registry unavailable.'); }
         return true;
     }
-    if (['bible', 'quran', 'shazam', 'vocalremover', 'colorize', 'deepfake'].includes(command)) {
+    if (['shazam', 'vocalremover', 'colorize', 'deepfake'].includes(command)) {
         await reply(sock, chatId, message, `⚠️ .${command} is recognized, but requires a configured provider/API in this deployment. Add the provider credentials, then retry.`);
         return true;
     }
