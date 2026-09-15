@@ -97,3 +97,16 @@ test('joingc returns usage instead of a provider warning when link is missing', 
     assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.joingc', { isOwnerOrSudoCheck: true }), true);
     assert.match(sock.sent.at(-1).payload.text, /Usage:/i);
 });
+
+test('joingc extracts the invite link from a quoted message', async () => {
+    const sock = mockSock();
+    let accepted;
+    sock.groupAcceptInvite = async (code) => { accepted = code; return '123@g.us'; };
+    const message = {
+        key: { remoteJid: '123@s.whatsapp.net', fromMe: true },
+        message: { extendedTextMessage: { text: '.joingc', contextInfo: { quotedMessage: { conversation: 'Join us: https://chat.whatsapp.com/REPLIED_456' } } } }
+    };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.joingc', { isOwnerOrSudoCheck: true }), true);
+    assert.equal(accepted, 'REPLIED_456');
+    assert.match(sock.sent.at(-1).payload.text, /Successfully joined/i);
+});

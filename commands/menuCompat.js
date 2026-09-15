@@ -86,7 +86,7 @@ const OWNER_COMMANDS = new Set([
 ]);
 
 function textOf(message) {
-    return message?.message?.conversation || message?.message?.extendedTextMessage?.text || message?.message?.imageMessage?.caption || message?.message?.videoMessage?.caption || '';
+    return message?.conversation || message?.extendedTextMessage?.text || message?.imageMessage?.caption || message?.videoMessage?.caption || message?.message?.conversation || message?.message?.extendedTextMessage?.text || message?.message?.imageMessage?.caption || message?.message?.videoMessage?.caption || '';
 }
 
 function quoted(message) {
@@ -171,7 +171,8 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         return true;
     }
     if (command === 'joingc' || command === 'join') {
-        const value = args.join(' ').trim();
+        const repliedText = textOf(quoted(message));
+        const value = [args.join(' ').trim(), repliedText.trim()].filter(Boolean).join(' ').trim();
         const match = value.match(/chat\.whatsapp\.com\/([A-Za-z0-9_-]+)/i);
         const inviteCode = match?.[1] || value.replace(/[^A-Za-z0-9_-]/g, '');
         if (!inviteCode) {
