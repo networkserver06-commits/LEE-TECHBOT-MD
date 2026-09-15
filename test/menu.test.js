@@ -28,3 +28,15 @@ test('catalog commands are unique and menu exposes category navigation', () => {
     assert.match(menu, /POWERED BY LEE TECH/);
     assert.match(menu, /OWNER: LEETECH/);
 });
+
+test('menu renders live user, mode, speed, and feature status fields', () => {
+    const menu = help.buildMenu({
+        chatId: '254700000000@s.whatsapp.net',
+        message: { key: { remoteJid: '254700000000@s.whatsapp.net' } }
+    });
+    assert.match(menu, /USER:\* 254700000000/);
+    assert.match(menu, /MODE:\* (Public|Private)/);
+    assert.match(menu, /SPEED:\* \d+\.\d{4}ms/);
+    assert.match(menu, /AUTOREAD:\* (ON|OFF)/);
+    assert.match(menu, /AUTOSTATUS:\* (ON|OFF)/);
+});

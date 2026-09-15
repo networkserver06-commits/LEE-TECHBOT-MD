@@ -62,6 +62,62 @@ function prefix() {
     return global.prefix === 'none' ? '.' : (global.prefix || '.');
 }
 
+function readState(fileName, fallback = {}) {
+    try {
+        return JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data', fileName), 'utf8'));
+    } catch (_) {
+        return fallback;
+    }
+}
+
+function enabled(value) {
+    return value === true || value === 'on' || value?.enabled === true;
+}
+
+function liveMenuState(context = {}) {
+    const chatId = context.chatId || '';
+    const message = context.message || {};
+    const sender = message.key?.participant || message.key?.remoteJid || 'user';
+    const user = sender.includes('@') ? sender.split('@')[0] : sender;
+    const mode = readState('messageCount.json', { isPublic: true });
+    const autoStatus = readState('autoStatus.json', { enabled: false });
+    const autoread = readState('autoread.json', { enabled: false });
+    const autotyping = readState('autotyping.json', { enabled: false });
+    const pmblocker = readState('pmblocker.json', { enabled: false });
+    const anticall = readState('anticall.json', { enabled: false });
+    const userGroupData = readState('userGroupData.json', {});
+    const group = chatId.endsWith('@g.us');
+    const groupState = (name) => Boolean(userGroupData[name]?.[chatId]);
+    const health = global.botHealth?.snapshot?.() || {};
+    return {
+        user,
+        mode: mode.isPublic === false ? 'Private' : 'Public',
+        speed: Number(health.lastLatencyMs || global.lastCommandLatencyMs || 0).toFixed(4),
+        group,
+        features: {
+            autoread: enabled(autoread),
+            autotyping: enabled(autotyping),
+            autostatus: enabled(autoStatus),
+            pmblocker: enabled(pmblocker),
+            anticall: enabled(anticall),
+            autoreaction: enabled(userGroupData.autoReaction),
+            chatbot: group && groupState('chatbot'),
+            antilink: group && groupState('antilink'),
+            welcome: group && groupState('welcome'),
+            antistatus: group && enabled(global.antistatusState?.[chatId]),
+            autodl: enabled(global.autodlState),
+            antispam: enabled(global.antispamState),
+            antisticker: group && enabled(global.antistickerState?.[chatId]),
+            antiphoto: group && enabled(global.antiphotoState?.[chatId]),
+            antiviewonce: group && enabled(global.antiviewonceState?.[chatId]),
+            antifake: group && enabled(global.antifakeState?.[chatId]),
+            antibot: group && enabled(global.antibotState?.[chatId]?.status),
+            maintenance: enabled(global.ownerControls?.maintenance),
+            hidechannel: enabled(global.ownerControls?.hideChannel)
+        }
+    };
+}
+
 function section(title, lines) {
     const config = menuConfig();
     const style = STYLE_MAP[config.style] || STYLE_MAP.premium;
@@ -80,11 +136,12 @@ function displayCommand(command) {
     return String(command).replace(/(^|[-_])(\w)/g, (_, separator, character) => `${separator}${character.toUpperCase()}`);
 }
 
-function buildCatalogMenu() {
+function buildCatalogMenu(context = {}) {
     const p = prefix();
     const name = settings.botName || 'LEE TECH BOT';
     const version = settings.version || '3.0.7';
-    const privacy = global.ownerControls?.hideChannel ? 'Private' : 'Public';
+    const live = liveMenuState(context);
+    const privacy = live.mode;
     const owner = 'LEETECH';
     const lines = [
         `┏━━━━━━━━━━━━━━━━❍`,
@@ -92,12 +149,24 @@ function buildCatalogMenu() {
         `┗━━━━━━━━━━━━━━━❍`,
         `┏━━━━━━━━━━━━━━━❍`,
         `┣❍ *BOT INFORMATION:*`,
-        `┣❍ *USER:* user`,
+        `┣❍ *USER:* ${live.user}`,
         `┣❍ *VERSION:* v${version}`,
         `┣❍ *MODE:* ${privacy}`,
         `┣❍ *PREFIX:* [ ${p} ]`,
         `┣❍ *OWNER:* ${owner}`,
-        `┣❍ *SPEED:* ${global.botHealth?.snapshot?.().lastLatencyMs || '0'}ms`,
+        `┣❍ *SPEED:* ${live.speed}ms`,
+        `┣❍ *FEATURES:* ${live.group ? 'GROUP + GLOBAL' : 'GLOBAL'}`,
+        `┣❍ *AUTOREAD:* ${live.features.autoread ? 'ON' : 'OFF'}  *AUTOTYPING:* ${live.features.autotyping ? 'ON' : 'OFF'}`,
+        `┣❍ *AUTOSTATUS:* ${live.features.autostatus ? 'ON' : 'OFF'}  *ANTICALL:* ${live.features.anticall ? 'ON' : 'OFF'}`,
+        `┣❍ *PMBLOCKER:* ${live.features.pmblocker ? 'ON' : 'OFF'}  *AUTODL:* ${live.features.autodl ? 'ON' : 'OFF'}`,
+        `┣❍ *ANTISPAM:* ${live.features.antispam ? 'ON' : 'OFF'}  *MAINTENANCE:* ${live.features.maintenance ? 'ON' : 'OFF'}`,
+        ...(live.group ? [
+            `┣❍ *CHATBOT:* ${live.features.chatbot ? 'ON' : 'OFF'}  *ANTILINK:* ${live.features.antilink ? 'ON' : 'OFF'}`,
+            `┣❍ *WELCOME:* ${live.features.welcome ? 'ON' : 'OFF'}  *AUTOREACTION:* ${live.features.autoreaction ? 'ON' : 'OFF'}`,
+            `┣❍ *ANTISTICKER:* ${live.features.antisticker ? 'ON' : 'OFF'}  *ANTIPHOTO:* ${live.features.antiphoto ? 'ON' : 'OFF'}`,
+            `┣❍ *ANTIVIEWONCE:* ${live.features.antiviewonce ? 'ON' : 'OFF'}  *ANTIFAKE:* ${live.features.antifake ? 'ON' : 'OFF'}`,
+            `┣❍ *ANTIBOT:* ${live.features.antibot ? 'ON' : 'OFF'}  *HIDECHANNEL:* ${live.features.hidechannel ? 'ON' : 'OFF'}`
+        ] : []),
         `┗━━━━━━━━━━━━━━━❍`
     ];
     for (const category of MENU_CATEGORIES) {
@@ -126,8 +195,8 @@ function buildCategoryMenu(categoryKey) {
     ].join('\n');
 }
 
-function buildMenu() {
-    return buildCatalogMenu();
+function buildMenu(context = {}) {
+    return buildCatalogMenu(context);
 }
 
 function buildDeveloperMenu() {
@@ -197,7 +266,7 @@ async function helpCommand(sock, chatId, message) {
     const requestedTopic = words[1]?.toLowerCase()
         || (['.devmenu', '.developermenu', '.devtools', '.tools'].includes(first) ? 'dev' : first === '.groupmenu' ? 'admin' : undefined);
     const categoryMenu = requestedTopic ? buildCategoryMenu(requestedTopic) : null;
-    const helpMessage = categoryMenu || (requestedTopic ? buildDetails(requestedTopic) : buildMenu());
+    const helpMessage = categoryMenu || (requestedTopic ? buildDetails(requestedTopic) : buildMenu({ chatId, message }));
     const image = requestedTopic ? null : menuImage();
 
     try {

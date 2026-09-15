@@ -514,6 +514,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         let commandExecuted = false;
 
+        const commandStartedAt = Date.now();
         switch (true) {
             case userMessage.startsWith('.pair'):
                 {
@@ -1638,6 +1639,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
         }
 
+        global.lastCommandLatencyMs = Date.now() - commandStartedAt;
         if (commandExecuted) {
             await showTypingAfterCommand(sock, chatId).catch(()=>null);
         }
