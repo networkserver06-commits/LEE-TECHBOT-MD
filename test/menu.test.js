@@ -1,0 +1,28 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { MENU_CATEGORIES, getCategory, allCommands } = require('../lib/menuCatalog');
+const help = require('../commands/help');
+
+test('menu catalog contains every requested top-level category', () => {
+    assert.deepEqual(
+        MENU_CATEGORIES.map((category) => category.key),
+        ['settings', 'groups', 'ai', 'anime', 'img-maker', 'convert', 'fun', 'downloads', 'general']
+    );
+});
+
+test('category aliases resolve to focused menus', () => {
+    assert.equal(getCategory('group').key, 'groups');
+    assert.equal(getCategory('image').key, 'img-maker');
+    assert.equal(getCategory('download').key, 'downloads');
+});
+
+test('catalog commands are unique and menu exposes category navigation', () => {
+    const commands = allCommands();
+    assert.equal(new Set(commands).size, commands.length);
+    const menu = help.buildMenu();
+    assert.match(menu, /menu <category>/);
+    assert.match(menu, /settings/);
+    assert.match(menu, /downloads/);
+});

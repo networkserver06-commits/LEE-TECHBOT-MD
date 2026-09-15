@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const settings = require('../settings');
+const { MENU_CATEGORIES, getCategory } = require('../lib/menuCatalog');
 
 const menuImagePath = path.join(process.cwd(), 'menu.jpg');
 const menuSettingsPath = path.join(process.cwd(), 'data', 'menuSettings.json');
@@ -71,89 +72,48 @@ function section(title, lines) {
     ].join('\n');
 }
 
-function buildMenu() {
+function commandLine(commands, p) {
+    return commands.map((command) => `*${p}${command}*`).join('  •  ');
+}
+
+function buildCatalogMenu() {
     const p = prefix();
     const name = settings.botName || 'LEE TECH BOT';
     const version = settings.version || '3.0.7';
-    const channel = global.ytch || '@ServerNetwork-yt';
     const privacy = global.ownerControls?.hideChannel ? 'PRIVATE MODE' : 'PUBLIC MODE';
-
-    return [
+    const lines = [
         `╭━━━〔 *${name}* 〕━━━╮`,
-        `┃  ✦ *PREMIUM COMMAND CENTER*`,
+        `┃  ✦ *ELITE COMMAND CENTER*`,
         `┃  ⚡ v${version}  •  ${privacy}`,
         `┃  Prefix: *${p}*  •  EAT / Africa-Nairobi`,
         `╰━━━━━━━━━━━━━━━━━━━━╯`,
         '',
-        section('⚡ START HERE', [
-            `*${p}ping*  •  *${p}speed*  •  *${p}uptime*`,
-            `*${p}health*  •  *${p}runtime*  •  *${p}botinfo*`,
-            `*${p}id*  •  *${p}jid*  •  *${p}time*  •  *${p}owner*`,
-            `*${p}menu*  •  *${p}commands*  •  *${p}help <command>*`
-        ]),
+        `Use *${p}menu <category>* for a focused list. Available categories:`
+    ];
+    for (const category of MENU_CATEGORIES) {
+        lines.push(`• *${category.key}* — ${category.title} (${category.commands.length})`);
+    }
+    lines.push('', `Use *${p}help <command>* for a focused guide.`);
+    return lines.join('\n');
+}
+
+function buildCategoryMenu(categoryKey) {
+    const category = getCategory(categoryKey);
+    if (!category) return null;
+    const p = prefix();
+    return [
+        `╭━━━〔 *${category.title}* 〕━━━╮`,
+        `┃ Prefix: *${p}*`,
+        `╰━━━━━━━━━━━━━━━━━━━━╯`,
         '',
-        section('✦ AI & SMART TOOLS', [
-            `*${p}gpt <question>*  •  *${p}gemini <question>*`,
-            `*${p}chatbot on/off*  •  *${p}imagine <prompt>*`,
-            `*${p}translate <text> <language>*  •  *${p}tts <text>*`,
-            `*${p}weather <city>*  •  *${p}news*  •  *${p}lyrics <song>*`
-        ]),
+        commandLine(category.commands, p),
         '',
-        section('▣ MEDIA WORKSHOP', [
-            `*${p}sticker*  •  *${p}take <pack|author>*  •  *${p}emojimix*`,
-            `*${p}removebg*  •  *${p}remini*  •  *${p}blur*`,
-            `*${p}meme*  •  *${p}attp <text>*  •  *${p}textmaker*`,
-            `Reply to media: *${p}url*  •  *${p}tourl*  •  *${p}vv*  •  *${p}delete*`
-        ]),
-        '',
-        section('⇩ DOWNLOAD CENTER', [
-            `*${p}download <public link>*  — YouTube, TikTok, Instagram, Facebook, X, Reddit, Pinterest, Threads, Snapchat`,
-            `*${p}ytmp4 <url|search>*  •  *${p}video <url|search>*`,
-            `*${p}tiktok <url>*  •  *${p}instagram <url>*  •  *${p}facebook <url>*`,
-            `*${p}play <song>*  •  *${p}song <song>*  •  *${p}spotify <query>*`,
-            `Use public links; private or expired media cannot be fetched.`
-        ]),
-        '',
-        section('◈ GROUP SHIELD', [
-            `*${p}groupinfo*  •  *${p}groupstats*  •  *${p}adminstatus*`,
-            `*${p}tagall*  •  *${p}hidetag*  •  *${p}tagnotadmin*`,
-            `*${p}antilink*  •  *${p}antispam*  •  *${p}antibadword*`,
-            `*${p}antiphoto*  •  *${p}antiviewonce*  •  *${p}antisticker*`,
-            `*${p}antibot*  •  *${p}antifake*  •  *${p}antitag*  •  *${p}antiall*`,
-            `*${p}open [minutes]*  •  *${p}close [minutes]*  •  *${p}announce*`,
-            `*${p}welcome on/off*  •  *${p}goodbye on/off*`,
-            `Group admins: *${p}promotion on/off/status*  •  *${p}antidemote on/off/status*`,
-            `Anti-demote protects the owner, sudo, and super-owner; the owner may demote anyone.`,
-            `Use *${p}antidemote warn/kick/ban* to choose the demoter action.`,
-            `Moderation requires the bot to be a group admin.`
-        ]),
-        '',
-        section('◉ STATUS & FUN', [
-            `Reply to media/text: *${p}tostatus*  •  *${p}togstatus*`,
-            `Reply to a WhatsApp Status: *${p}savestatus*  •  *${p}statusdl*`,
-            `*${p}tictactoe*  •  *${p}trivia*  •  *${p}hangman*  •  *${p}8ball*`,
-            `*${p}truth*  •  *${p}dare*  •  *${p}joke*  •  *${p}quote*  •  *${p}fact*`,
-            `*${p}compliment*  •  *${p}flirt*  •  *${p}ship*  •  *${p}shayari*`
-        ]),
-        '',
-        section('⚙ OWNER CONTROL', [
-            `*${p}settings*  •  *${p}ownerstatus*  •  *${p}setprefix <one symbol>*`,
-            `In DM: *${p}promotions on/off/status* sets the group default`,
-            `In DM: *${p}antidemote on/off/status* sets the group default`,
-            `*${p}mode public/private*  •  *${p}hidechannel on/off*`,
-            `*${p}maintenance on/off*  •  *${p}autotyping*  •  *${p}autoread*`,
-            `Owner DM: *${p}antiban on/off/status* — rate-limit protection`,
-            `*${p}anticall*  •  *${p}backup*  •  *${p}cleartmp*  •  *${p}update*`,
-            `Reply to an image: *${p}setmenuimage*  •  *${p}menumode image/text*`,
-            `*${p}menustyle cyberpunk*  •  *${p}menufont double*`,
-            `*${p}devmenu*  — protected developer toolkit`
-        ]),
-        '',
-        `╭─〔 *SUPPORT* 〕`,
-        `│ ${channel}`,
-        '│ Fast • Secure • Organized • Premium',
-        '╰────────────────────'
+        `Use *${p}menu* for all categories or *${p}help <command>* for guidance.`
     ].join('\n');
+}
+
+function buildMenu() {
+    return buildCatalogMenu();
 }
 
 function buildDeveloperMenu() {
@@ -222,7 +182,8 @@ async function helpCommand(sock, chatId, message) {
     const first = words[0]?.toLowerCase();
     const requestedTopic = words[1]?.toLowerCase()
         || (['.devmenu', '.developermenu', '.devtools', '.tools'].includes(first) ? 'dev' : first === '.groupmenu' ? 'admin' : undefined);
-    const helpMessage = requestedTopic ? buildDetails(requestedTopic) : buildMenu();
+    const categoryMenu = requestedTopic ? buildCategoryMenu(requestedTopic) : null;
+    const helpMessage = categoryMenu || (requestedTopic ? buildDetails(requestedTopic) : buildMenu());
     const image = requestedTopic ? null : menuImage();
 
     try {

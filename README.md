@@ -199,3 +199,13 @@ Copyright (c) 2025 LEE TECH. All rights reserved.
 This project contains code from various open source projects:
 - Baileys (MIT License)
 - Other libraries as listed in package.json
+
+## Upgraded command menu
+
+The bot now exposes the supplied command families through a structured menu catalog. Use `.menu` to view the category index, then use `.menu settings`, `.menu groups`, `.menu ai`, `.menu anime`, `.menu img-maker`, `.menu convert`, `.menu fun`, `.menu downloads`, or `.menu general` for a focused view. The configured prefix is applied automatically.
+
+The menu catalog is intentionally separate from command execution so existing handlers remain stable while additional commands can be implemented incrementally. Commands that are not implemented by the current checkout should not be enabled in production until their handler and permissions are added.
+
+## Environment safety
+
+Runtime credentials and deployment values belong in a local `.env` file or hosting-panel secrets, never in Git. Start from `.env.example`; the repository ignores `.env` and session credentials.
