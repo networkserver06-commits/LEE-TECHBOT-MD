@@ -23,6 +23,6 @@ test('catalog commands are unique and menu exposes category navigation', () => {
     assert.equal(new Set(commands).size, commands.length);
     const menu = help.buildMenu();
     assert.match(menu, /menu <category>/);
-    assert.match(menu, /settings/);
-    assert.match(menu, /downloads/);
+    assert.match(menu, /SETTINGS|Settings/);
+    assert.match(menu, /DOWNLOADS|Downloads/);
 });

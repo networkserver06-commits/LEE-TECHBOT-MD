@@ -76,24 +76,38 @@ function commandLine(commands, p) {
     return commands.map((command) => `*${p}${command}*`).join('  •  ');
 }
 
+function displayCommand(command) {
+    return String(command).replace(/(^|[-_])(\w)/g, (_, separator, character) => `${separator}${character.toUpperCase()}`);
+}
+
 function buildCatalogMenu() {
     const p = prefix();
     const name = settings.botName || 'LEE TECH BOT';
     const version = settings.version || '3.0.7';
-    const privacy = global.ownerControls?.hideChannel ? 'PRIVATE MODE' : 'PUBLIC MODE';
+    const privacy = global.ownerControls?.hideChannel ? 'Private' : 'Public';
+    const owner = settings.botOwner || 'LEE TECH';
     const lines = [
-        `╭━━━〔 *${name}* 〕━━━╮`,
-        `┃  ✦ *ELITE COMMAND CENTER*`,
-        `┃  ⚡ v${version}  •  ${privacy}`,
-        `┃  Prefix: *${p}*  •  EAT / Africa-Nairobi`,
-        `╰━━━━━━━━━━━━━━━━━━━━╯`,
-        '',
-        `Use *${p}menu <category>* for a focused list. Available categories:`
+        `┏━━━━━━━━━━━━━━━━❍`,
+        `┃ *${name.toUpperCase()}*`,
+        `┗━━━━━━━━━━━━━━━❍`,
+        `┏━━━━━━━━━━━━━━━❍`,
+        `┣❍ *BOT INFORMATION:*`,
+        `┣❍ *USER:* user`,
+        `┣❍ *VERSION:* v${version}`,
+        `┣❍ *MODE:* ${privacy}`,
+        `┣❍ *PREFIX:* [ ${p} ]`,
+        `┣❍ *OWNER:* ${owner}`,
+        `┣❍ *SPEED:* ${global.botHealth?.snapshot?.().lastLatencyMs || '0'}ms`,
+        `┗━━━━━━━━━━━━━━━❍`
     ];
     for (const category of MENU_CATEGORIES) {
-        lines.push(`• *${category.key}* — ${category.title} (${category.commands.length})`);
+        lines.push('', '┏━━━━━━━━━━━━━━━❍', `┗┳❍ 「 *${category.title}* 」❍`, '┏┻━━━━━━━━━━━━━━❍');
+        for (const command of category.commands) {
+            lines.push(`│𖥟╾ ${displayCommand(command)}`);
+        }
+        lines.push('┗━━━━━━━━━━━━━━━❍');
     }
-    lines.push('', `Use *${p}help <command>* for a focused guide.`);
+    lines.push('', `┏━━━━━━━━━━━━━━━❍`, `┃ Use *${p}menu <category>* for a focused menu`, `┃ Use *${p}help <command>* for command guidance`, `┗━━━━━━━━━━━━━━━❍`);
     return lines.join('\n');
 }
 
