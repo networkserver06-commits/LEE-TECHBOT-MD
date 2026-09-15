@@ -4,6 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const { toAudio } = require('../lib/converter');
 
+const KENYAN_MUSIC_HINTS = [
+    'sauti sol', 'bien', 'nviiri', 'nyashinski', 'khaligraph jones', 'nadia mukami',
+    'otile brown', 'bahati', 'mejja', 'femi one', 'wakadinali', 'bensoul', 'savara',
+    'sanaipei tande', 'nameless', 'amani', 'h_art the band', 'nikita kering', 'ayrosh',
+    'ethic', 'matata', 'gengetone', 'genge', 'kapuka', 'benga', 'arbantone', 'kenyan'
+];
+
 const AXIOS_DEFAULTS = {
 	timeout: 60000,
 	headers: {
@@ -25,6 +32,33 @@ async function tryRequest(getter, attempts = 3) {
 		}
 	}
 	throw lastError;
+}
+
+function normalizePlayQuery(text = '') {
+    return String(text).trim().replace(/^\.(?:play|song|mp3|ytmp3)\b\s*/i, '').trim();
+}
+
+function buildSearchQueries(query) {
+    const clean = normalizePlayQuery(query);
+    if (!clean) return [];
+    const lower = clean.toLowerCase();
+    const alreadyKenyan = KENYAN_MUSIC_HINTS.some((hint) => lower.includes(hint));
+    return alreadyKenyan ? [clean] : [clean, `${clean} Kenyan music official audio`];
+}
+
+function scoreMusicResult(video = {}, query = '') {
+    const text = `${video.title || ''} ${video.author?.name || ''} ${video.description || ''}`.toLowerCase();
+    let score = query && text.includes(query) ? 12 : 0;
+    for (const hint of KENYAN_MUSIC_HINTS) if (text.includes(hint)) score += 5;
+    if (/official\s*(audio|music video)|official audio/.test(text)) score += 3;
+    if (/lyrics|lyric video/.test(text)) score += 1;
+    if (/instrumental|karaoke|reaction|cover|sped up|slowed/.test(text)) score -= 4;
+    return score;
+}
+
+function rankMusicResults(videos = [], query = '') {
+    const lowerQuery = normalizePlayQuery(query).toLowerCase();
+    return [...videos].sort((a, b) => scoreMusicResult(b, lowerQuery) - scoreMusicResult(a, lowerQuery));
 }
 
 // EliteProTech API - Primary
@@ -70,27 +104,32 @@ async function getOkatsuDownloadByUrl(youtubeUrl) {
 async function songCommand(sock, chatId, message) {
     try {
         const text = message.message?.conversation || message.message?.extendedTextMessage?.text || '';
-        if (!text) {
+		const query = normalizePlayQuery(text);
+		if (!query) {
             await sock.sendMessage(chatId, { text: 'Usage: .song <song name or YouTube link>' }, { quoted: message });
             return;
         }
 
         let video;
-        if (text.includes('youtube.com') || text.includes('youtu.be')) {
-			video = { url: text };
-        } else {
-			const search = await yts(text);
-			if (!search || !search.videos.length) {
+		if (query.includes('youtube.com') || query.includes('youtu.be')) {
+				video = { url: query };
+		} else {
+				const searches = await Promise.all(buildSearchQueries(query).map((searchQuery) => yts(searchQuery).catch(() => ({ videos: [] }))));
+				const uniqueVideos = new Map();
+				for (const search of searches) for (const result of search.videos || []) {
+					if (result.url && !uniqueVideos.has(result.url)) uniqueVideos.set(result.url, result);
+				}
+				const rankedVideos = rankMusicResults([...uniqueVideos.values()], query);
+				if (!rankedVideos.length) {
                 await sock.sendMessage(chatId, { text: 'No results found.' }, { quoted: message });
                 return;
             }
-			video = search.videos[0];
-        }
+				video = rankedVideos[0];
+		}
 
-        // Inform user
+	        // Inform user with text only; the final response is the audio file.
         await sock.sendMessage(chatId, {
-            image: { url: video.thumbnail },
-            caption: `🎵 Downloading: *${video.title}*\n⏱ Duration: ${video.timestamp}`
+	            text: `🎵 Downloading: *${video.title || query}*\n⏱ Duration: ${video.timestamp || 'unknown'}\n🇰🇪 Kenyan music search enabled`
         }, { quoted: message });
 
 		// Try multiple APIs with fallback chain: EliteProTech -> Yupra -> Okatsu
@@ -317,3 +356,7 @@ async function songCommand(sock, chatId, message) {
 }
 
 module.exports = songCommand;
+module.exports.normalizePlayQuery = normalizePlayQuery;
+module.exports.buildSearchQueries = buildSearchQueries;
+module.exports.rankMusicResults = rankMusicResults;
+module.exports.scoreMusicResult = scoreMusicResult;
