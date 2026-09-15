@@ -12,6 +12,7 @@ const eightBallCommand = require('./eightball').eightBallCommand;
 const stickerTelegramCommand = require('./stickertelegram');
 const toStatusCommand = require('./tostatus');
 const { groupInfoCommand } = require('./groupinfo');
+const { autoStatusCommand } = require('./autostatus');
 const { allCommands } = require('../lib/menuCatalog');
 
 const ANIME_ALIASES = {
@@ -116,6 +117,14 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     const local = await handleSimpleLocal(sock, chatId, message, command, args);
     if (local) return true;
 
+    if (command === 'autoviewstatus') {
+        await autoStatusCommand(sock, chatId, message, args);
+        return true;
+    }
+    if (command === 'autoreact' || command === 'autolikestatus') {
+        await autoStatusCommand(sock, chatId, message, ['react', args[0] || 'status']);
+        return true;
+    }
     if (ANIME_ALIASES[command]) {
         await animeCommand(sock, chatId, message, [ANIME_ALIASES[command], ...args]);
         return true;

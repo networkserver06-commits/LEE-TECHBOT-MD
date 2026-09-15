@@ -41,3 +41,11 @@ test('local poll command produces a native WhatsApp poll payload', async () => {
     assert.equal(handled, true);
     assert.deepEqual(sock.sent[0].payload.poll.values, ['A', 'B']);
 });
+
+test('autoviewstatus uses the persistent auto-status handler instead of a provider warning', async () => {
+    const sock = mockSock();
+    const ownerMessage = { key: { remoteJid: '123@s.whatsapp.net', fromMe: true }, message: { conversation: '.autoviewstatus' } };
+    const handled = await menuCompatCommand(sock, '123@s.whatsapp.net', ownerMessage, '.autoviewstatus', { isOwnerOrSudoCheck: true });
+    assert.equal(handled, true);
+    assert.match(sock.sent[0].payload.text, /AUTO STATUS SETTINGS|Auto-View/i);
+});

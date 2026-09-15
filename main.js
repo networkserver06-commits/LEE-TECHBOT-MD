@@ -488,7 +488,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.antidemote', '.demote', '.kick', '.antifake', '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.includes(commandToken);
 
-        const ownerCommands = ['.mode', '.autostatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.creategroup', '.areact', '.autoreact', '.decrypt', '.autotyping', '.autoread', '.pmblocker', '.update', '.antiban', '.setpayment', '.setprefix', '.hidechannel', '.maintenance', '.ownerstatus', '.setmenuimage', '.setmenu', '.menumode', '.menustyle', '.menufont'];
+        const ownerCommands = ['.mode', '.autostatus', '.autoviewstatus', '.autolikestatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.creategroup', '.areact', '.autoreact', '.decrypt', '.autotyping', '.autoread', '.pmblocker', '.update', '.antiban', '.setpayment', '.setprefix', '.hidechannel', '.maintenance', '.ownerstatus', '.setmenuimage', '.setmenu', '.menumode', '.menustyle', '.menufont'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         if (isGroup && isAdminCommand) {
@@ -1216,6 +1216,14 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage === '.clearsession' || userMessage === '.clearsesi':
                 await clearSessionCommand(sock, chatId, message);
+                commandExecuted = true;
+                break;
+            case userMessage.startsWith('.autoviewstatus'):
+                await autoStatusCommand(sock, chatId, message, userMessage.split(' ').slice(1));
+                commandExecuted = true;
+                break;
+            case userMessage.startsWith('.autoreact') || userMessage.startsWith('.autolikestatus'):
+                await autoStatusCommand(sock, chatId, message, ['react', userMessage.split(' ')[1] || 'status']);
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.autostatus'):
