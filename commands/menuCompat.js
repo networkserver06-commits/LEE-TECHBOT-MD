@@ -11,7 +11,7 @@ const factCommand = require('./fact');
 const eightBallCommand = require('./eightball').eightBallCommand;
 const stickerTelegramCommand = require('./stickertelegram');
 const toStatusCommand = require('./tostatus');
-const { groupInfoCommand } = require('./groupinfo');
+const groupInfoCommand = require('./groupinfo');
 const { autoStatusCommand } = require('./autostatus');
 const { allCommands } = require('../lib/menuCatalog');
 

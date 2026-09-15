@@ -49,3 +49,13 @@ test('autoviewstatus uses the persistent auto-status handler instead of a provid
     assert.equal(handled, true);
     assert.match(sock.sent[0].payload.text, /AUTO STATUS SETTINGS|Auto-View/i);
 });
+
+test('group menu command calls the real group-info handler', async () => {
+    const sock = mockSock();
+    sock.user = { id: '254700000000:1@s.whatsapp.net' };
+    sock.groupMetadata = async () => ({ id: '123@g.us', subject: 'Test Group', participants: [], announce: false, restrict: false });
+    const ownerMessage = { key: { remoteJid: '123@g.us', fromMe: true }, message: { conversation: '.group' } };
+    const handled = await menuCompatCommand(sock, '123@g.us', ownerMessage, '.group', { isGroup: true, isSenderAdmin: true, isOwnerOrSudoCheck: true });
+    assert.equal(handled, true);
+    assert.match(sock.sent[0].payload.text || sock.sent[0].payload.caption, /GROUP INFO|SUBJECT/i);
+});
