@@ -106,7 +106,7 @@ async function profilePicture(sock, chatId, message, targetJid) {
     }
 }
 
-async function handleSimpleLocal(sock, chatId, message, command, args) {
+async function handleSimpleLocal(sock, chatId, message, command, args, context = {}) {
     if (command === 'test') return reply(sock, chatId, message, '✅ LEE TECH BOT command router is working.');
     if (command === 'runtime') return uptimeCommand(sock, chatId, message);
     if (command === 'jid' || command === 'group-id' || command === 'channel-id') return idCommand(sock, chatId, message);
@@ -163,11 +163,28 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         return true;
     }
 
-    const local = await handleSimpleLocal(sock, chatId, message, command, args);
+    const local = await handleSimpleLocal(sock, chatId, message, command, args, context);
     if (local) return true;
 
     if (command === 'autoviewstatus') {
         await autoStatusCommand(sock, chatId, message, args);
+        return true;
+    }
+    if (command === 'joingc' || command === 'join') {
+        const value = args.join(' ').trim();
+        const match = value.match(/chat\.whatsapp\.com\/([A-Za-z0-9_-]+)/i);
+        const inviteCode = match?.[1] || value.replace(/[^A-Za-z0-9_-]/g, '');
+        if (!inviteCode) {
+            await reply(sock, chatId, message, `Usage: .${command} <WhatsApp group invite link or code>`);
+            return true;
+        }
+        try {
+            const groupId = await sock.groupAcceptInvite(inviteCode);
+            await reply(sock, chatId, message, `✅ Successfully joined the group.\nGroup ID: ${groupId || 'accepted'}`);
+        } catch (error) {
+            console.error(`[${command}]`, error.message || error);
+            await reply(sock, chatId, message, '❌ Could not join the group. The invite may be expired, revoked, or invalid.');
+        }
         return true;
     }
     if (command === 'autoreact' || command === 'autolikestatus') {

@@ -80,3 +80,20 @@ test('internal general aliases execute real handlers without generic warnings', 
     assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.clearchat', {}), true);
     assert.ok(sock.sent.length >= 2);
 });
+
+test('joingc accepts an invite link and calls groupAcceptInvite', async () => {
+    const sock = mockSock();
+    let accepted;
+    sock.groupAcceptInvite = async (code) => { accepted = code; return '123@g.us'; };
+    const message = { key: { remoteJid: '123@s.whatsapp.net', fromMe: true }, message: { conversation: '.joingc https://chat.whatsapp.com/ABC_123' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, message.message.conversation, { isOwnerOrSudoCheck: true }), true);
+    assert.equal(accepted, 'ABC_123');
+    assert.match(sock.sent.at(-1).payload.text, /Successfully joined/i);
+});
+
+test('joingc returns usage instead of a provider warning when link is missing', async () => {
+    const sock = mockSock();
+    const message = { key: { remoteJid: '123@s.whatsapp.net', fromMe: true }, message: { conversation: '.joingc' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.joingc', { isOwnerOrSudoCheck: true }), true);
+    assert.match(sock.sent.at(-1).payload.text, /Usage:/i);
+});
