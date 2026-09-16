@@ -24,6 +24,7 @@ const yts = require('yt-search');
 const { clearCommand } = require('./clear');
 const vv2Command = require('./vv2');
 const audioSpeedCommand = require('./audiospeed');
+const setProfilePicture = require('./setpp');
 const { allCommands } = require('../lib/menuCatalog');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -239,6 +240,14 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
             console.error('[listgroup]', error.message || error);
             await reply(sock, chatId, message, '❌ Could not fetch the bot group list.');
         }
+        return true;
+    }
+    if (command === 'setfullpp') {
+        await setProfilePicture(sock, chatId, message);
+        return true;
+    }
+    if (command === 'reveal') {
+        await vv2Command(sock, chatId, message, context.isOwnerOrSudoCheck);
         return true;
     }
     if (command === 'promoteall' || command === 'demoteall') {

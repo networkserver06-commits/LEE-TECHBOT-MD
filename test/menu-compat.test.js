@@ -156,3 +156,14 @@ test('listgroup uses native participating-group metadata', async () => {
     assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.listgroup', { isOwnerOrSudoCheck: true }), true);
     assert.match(sock.sent.at(-1).payload.text, /LEE TECH GROUP/);
 });
+
+test('setfullpp and reveal use real owner-protected handlers', async () => {
+    const sock = mockSock();
+    sock.user = { id: '999@s.whatsapp.net' };
+    const message = { key: { remoteJid: '123@s.whatsapp.net', fromMe: true }, message: { conversation: '.setfullpp' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.setfullpp', { isOwnerOrSudoCheck: true }), true);
+    assert.match(sock.sent.at(-1).payload.text, /reply to an image/i);
+    const reveal = { key: { remoteJid: '123@s.whatsapp.net', fromMe: true }, message: { conversation: '.reveal' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', reveal, '.reveal', { isOwnerOrSudoCheck: true }), true);
+    assert.match(sock.sent.at(-1).payload.text, /View Once/i);
+});
