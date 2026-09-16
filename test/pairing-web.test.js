@@ -32,6 +32,7 @@ test('pairing website serves health and generates a code through the socket', as
         });
         assert.equal(page.status, 200);
         assert.match(page.text, /Generate pairing code/);
+        assert.match(page.text, /Copy code/);
         const result = await request(server, 'POST', '/api/pairing-code', { phoneNumber: '254700000000' });
         assert.equal(result.status, 200);
         assert.equal(result.body.code, 'ABCD-EFGH');

@@ -477,6 +477,11 @@ async function startXeonBotInc() {
         }
     })
 
+    // Terminal input may have blocked startup long enough for the socket's
+    // first connection.update event to fire before the listener was attached.
+    // Trigger once here as a fallback; the request lock prevents duplicates.
+    if (pairingCode && !pairingWebOnly && requestedPhoneNumber) requestTerminalPairingCode()
+
     // Track recently-notified callers to avoid spamming messages
     const antiCallNotified = new Set();
 
