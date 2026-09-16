@@ -25,7 +25,7 @@ const { clearCommand } = require('./clear');
 const vv2Command = require('./vv2');
 const audioSpeedCommand = require('./audiospeed');
 const setProfilePicture = require('./setpp');
-const { setPaymentCommand } = require('./payment');
+const { paymentCommand, setPaymentCommand } = require('./payment');
 const simageCommand = require('./simage');
 const { allCommands } = require('../lib/menuCatalog');
 
@@ -86,7 +86,7 @@ const OWNER_COMMANDS = new Set([
     'addowner', 'delowner', 'listowner', 'block', 'unblock', 'blocklist', 'joingc', 'join', 'restart',
     'mode', 'edit', 'clearall', 'autorecording', 'autorecordtype', 'autoviewstatus', 'autoreact',
     'autolikestatus', 'getsession', 'setfullpp', 'reveal', 'listgroup', 'listonline', 'setpaypoint',
-    'reportcommand', 'donate', 'panel', 'eval'
+    'reportcommand', 'panel', 'eval'
 ]);
 
 function textOf(message) {
@@ -250,6 +250,10 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     }
     if (command === 'setpaypoint') {
         await setPaymentCommand(sock, chatId, message, args, context.isOwnerOrSudoCheck);
+        return true;
+    }
+    if (command === 'donate') {
+        await paymentCommand(sock, chatId, message);
         return true;
     }
     if (command === 'toimage') {

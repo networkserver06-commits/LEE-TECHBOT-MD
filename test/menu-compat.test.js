@@ -188,3 +188,10 @@ test('toimage routes to local sticker-to-image conversion validation', async () 
     assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.toimage', {}), true);
     assert.match(sock.sent.at(-1).payload.text, /reply to a sticker/i);
 });
+
+test('donate uses the persistent payment information handler', async () => {
+    const sock = mockSock();
+    const message = { key: { remoteJid: '123@s.whatsapp.net' }, message: { conversation: '.donate' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.donate', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /PAYMENT METHODS|M-PESA/i);
+});
