@@ -28,6 +28,9 @@ const setProfilePicture = require('./setpp');
 const { paymentCommand, setPaymentCommand } = require('./payment');
 const simageCommand = require('./simage');
 const { allCommands } = require('../lib/menuCatalog');
+const { fetchParticipatingGroups } = require('../lib/groupTarget');
+const { groupSettingsCommand } = require('./groupSettings');
+const { groqCommand } = require('./groq');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const NOTES_FILE = path.join(DATA_DIR, 'menuNotes.json');
@@ -86,7 +89,7 @@ const OWNER_COMMANDS = new Set([
     'addowner', 'delowner', 'listowner', 'block', 'unblock', 'blocklist', 'joingc', 'join', 'restart',
     'mode', 'edit', 'clearall', 'autorecording', 'autorecordtype', 'autoviewstatus', 'autoreact',
     'autolikestatus', 'getsession', 'setfullpp', 'reveal', 'listgroup', 'listonline', 'setpaypoint',
-    'reportcommand', 'panel', 'eval'
+    'reportcommand', 'panel', 'eval', 'gsettings', 'groupsettings'
 ]);
 
 function textOf(message) {
@@ -229,19 +232,21 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     }
     if (command === 'listgroup') {
         try {
-            if (typeof sock.groupFetchAllParticipating !== 'function') throw new Error('group metadata API unavailable');
-            const groups = await sock.groupFetchAllParticipating();
-            const entries = Object.entries(groups || {});
-            if (!entries.length) {
+            const groups = await fetchParticipatingGroups(sock);
+            if (!groups.length) {
                 await reply(sock, chatId, message, 'ℹ️ The bot is not currently participating in any groups.');
                 return true;
             }
-            const lines = entries.map(([jid, group], index) => `${index + 1}. *${group.subject || 'Unnamed group'}*\n   ${jid}\n   Members: ${(group.participants || []).length}`);
-            await reply(sock, chatId, message, `📋 *GROUPS (${entries.length})*\n\n${lines.join('\n\n')}`);
+            const lines = groups.map((group) => `${group.index}. *${group.subject}*\n   ${group.jid}\n   Members: ${group.participants.length}`);
+            await reply(sock, chatId, message, `📋 *GROUPS (${groups.length})*\n\n${lines.join('\n\n')}\n\nUse .settings <number> to view or .gsettings <number> <feature> <on|off> to change settings.`);
         } catch (error) {
             console.error('[listgroup]', error.message || error);
             await reply(sock, chatId, message, '❌ Could not fetch the bot group list.');
         }
+        return true;
+    }
+    if (command === 'gsettings' || command === 'groupsettings') {
+        await groupSettingsCommand(sock, chatId, message, args);
         return true;
     }
     if (command === 'setfullpp') {
@@ -297,6 +302,10 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     }
     if (ANIME_ALIASES[command]) {
         await animeCommand(sock, chatId, message, [ANIME_ALIASES[command], ...args]);
+        return true;
+    }
+    if (command === 'groq' || command === 'grok') {
+        await groqCommand(sock, chatId, message, args);
         return true;
     }
     if (['ai', 'aivoice', 'chatgpt', 'analyze', 'search', 'gemini', 'elevenlab'].includes(command)) {

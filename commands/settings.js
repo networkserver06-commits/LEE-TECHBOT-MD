@@ -10,8 +10,9 @@ function readJsonSafe(path, fallback) {
 }
 
 const isOwnerOrSudo = require('../lib/isOwner');
+const { resolveGroupTarget, targetHelp } = require('../lib/groupTarget');
 
-async function settingsCommand(sock, chatId, message) {
+async function settingsCommand(sock, chatId, message, targetArg = '') {
     try {
         const senderId = message.key.participant || message.key.remoteJid;
         const isOwner = await isOwnerOrSudo(senderId, sock, chatId);
@@ -21,7 +22,13 @@ async function settingsCommand(sock, chatId, message) {
             return;
         }
 
-        const isGroup = chatId.endsWith('@g.us');
+        const target = targetArg ? await resolveGroupTarget(sock, chatId, targetArg) : { jid: chatId, source: 'current' };
+        if (target.error) {
+            await sock.sendMessage(chatId, { text: `❌ ${target.error}\n\n${targetHelp('.settings')}` }, { quoted: message });
+            return;
+        }
+        const targetChatId = target.jid;
+        const isGroup = targetChatId.endsWith('@g.us');
         const dataDir = './data';
 
         // Read saved JSON files for base features
@@ -54,12 +61,12 @@ async function settingsCommand(sock, chatId, message) {
             lines.push('──────────────────');
             
             // From saved JSON data
-            const antilinkOn = Boolean(userGroupData.antilink && userGroupData.antilink[chatId]);
-            const antibadwordOn = Boolean(userGroupData.antibadword && userGroupData.antibadword[chatId]);
-            const welcomeOn = Boolean(userGroupData.welcome && userGroupData.welcome[chatId]);
-            const goodbyeOn = Boolean(userGroupData.goodbye && userGroupData.goodbye[chatId]);
-            const chatbotOn = Boolean(userGroupData.chatbot && userGroupData.chatbot[chatId]);
-            const antitagCfg = userGroupData.antitag && userGroupData.antitag[chatId];
+            const antilinkOn = Boolean(userGroupData.antilink && userGroupData.antilink[targetChatId]?.enabled);
+            const antibadwordOn = Boolean(userGroupData.antibadword && userGroupData.antibadword[targetChatId]?.enabled);
+            const welcomeOn = Boolean(userGroupData.welcome && userGroupData.welcome[targetChatId]?.enabled);
+            const goodbyeOn = Boolean(userGroupData.goodbye && userGroupData.goodbye[targetChatId]?.enabled);
+            const chatbotOn = Boolean(userGroupData.chatbot && userGroupData.chatbot[targetChatId]?.enabled);
+            const antitagCfg = userGroupData.antitag && userGroupData.antitag[targetChatId];
 
             lines.push(`🔗 *Antilink:* ${antilinkOn ? 'ON' : 'OFF'}`);
             lines.push(`🤬 *Antibadword:* ${antibadwordOn ? 'ON' : 'OFF'}`);
@@ -68,17 +75,15 @@ async function settingsCommand(sock, chatId, message) {
             lines.push(`🚪 *Goodbye:* ${goodbyeOn ? 'ON' : 'OFF'}`);
             lines.push(`🤖 *Chatbot:* ${chatbotOn ? 'ON' : 'OFF'}`);
 
-            // Function to safely check our new dynamic memory objects
-            const getGroupState = (stateObj) => (stateObj && stateObj[chatId] === 'on') ? 'ON' : 'OFF';
-
             // New Features from Live Global Memory
-            lines.push(`🚫 *Anti-Sticker:* ${getGroupState(global.antistickerState)}`);
-            lines.push(`🖼️ *Anti-Photo:* ${getGroupState(global.antiphotoState)}`);
-            lines.push(`👁️ *Anti-ViewOnce:* ${getGroupState(global.antiviewonceState)}`);
-            lines.push(`🛡️ *Anti-Fake / Links:* ${getGroupState(global.antifakeState)}`);
+            const getTargetGroupState = (stateObj) => (stateObj && stateObj[targetChatId] === 'on') ? 'ON' : 'OFF';
+            lines.push(`🚫 *Anti-Sticker:* ${getTargetGroupState(global.antistickerState)}`);
+            lines.push(`🖼️ *Anti-Photo:* ${getTargetGroupState(global.antiphotoState)}`);
+            lines.push(`👁️ *Anti-ViewOnce:* ${getTargetGroupState(global.antiviewonceState)}`);
+            lines.push(`🛡️ *Anti-Fake / Links:* ${getTargetGroupState(global.antifakeState)}`);
             
             // Anti-Bot is now a group-specific object, so we extract the status and action!
-            const botState = global.antibotState && global.antibotState[chatId];
+            const botState = global.antibotState && global.antibotState[targetChatId];
             const botStatus = (botState && botState.status === 'on') ? `ON (${botState.action.toUpperCase()})` : 'OFF';
             lines.push(`🤖 *Anti-Bot:* ${botStatus}`);
             
@@ -87,6 +92,7 @@ async function settingsCommand(sock, chatId, message) {
             lines.push(`🛑 *Anti-Spam:* ${global.antispamState === 'on' ? 'ON' : 'OFF'}`);
             lines.push(`📥 *Auto-DL:* ${global.autodlState === 'on' ? 'ON' : 'OFF'}`);
 
+            lines.push(`\n🎯 *Target:* ${target.subject || targetChatId}\n🆔 ${targetChatId}`);
         } else {
             lines.push('──────────────────');
             lines.push('ℹ️ *Note:* Use this command inside a group chat to view Group-Specific protections (Anti-Link, Anti-Sticker, Anti-Fake, Anti-Bot, etc).');

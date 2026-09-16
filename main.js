@@ -770,8 +770,8 @@ async function handleMessages(sock, messageUpdate, printLog) {
               
                 
 
-            case userMessage === '.settings':
-                await settingsCommand(sock, chatId, message);
+            case userMessage === '.settings' || userMessage.startsWith('.settings '):
+                await settingsCommand(sock, chatId, message, userMessage.trim().split(/\s+/)[1] || '');
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.hidechannel') || userMessage.startsWith('.maintenance') || userMessage.startsWith('.ownerstatus'):

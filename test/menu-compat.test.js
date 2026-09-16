@@ -157,6 +157,27 @@ test('listgroup uses native participating-group metadata', async () => {
     assert.match(sock.sent.at(-1).payload.text, /LEE TECH GROUP/);
 });
 
+test('gsettings resolves a numbered participating group from owner DM', async () => {
+    const sock = mockSock();
+    sock.groupFetchAllParticipating = async () => ({
+        '123@g.us': { subject: 'LEE TECH GROUP', participants: [] }
+    });
+    const message = { key: { remoteJid: '999@s.whatsapp.net', fromMe: true }, message: { conversation: '.gsettings 1' } };
+    assert.equal(await menuCompatCommand(sock, '999@s.whatsapp.net', message, '.gsettings 1', { isOwnerOrSudoCheck: true }), true);
+    assert.match(sock.sent.at(-1).payload.text, /LEE TECH GROUP/);
+    assert.match(sock.sent.at(-1).payload.text, /Usage: .gsettings/);
+});
+
+test('gsettings rejects non-owner remote targeting before fetching groups', async () => {
+    const sock = mockSock();
+    let fetched = false;
+    sock.groupFetchAllParticipating = async () => { fetched = true; return {}; };
+    const message = { key: { remoteJid: '999@s.whatsapp.net' }, message: { conversation: '.gsettings 1 antilink on' } };
+    assert.equal(await menuCompatCommand(sock, '999@s.whatsapp.net', message, '.gsettings 1 antilink on', { isOwnerOrSudoCheck: false }), true);
+    assert.equal(fetched, false);
+    assert.match(sock.sent.at(-1).payload.text, /owner or sudo/i);
+});
+
 test('setfullpp and reveal use real owner-protected handlers', async () => {
     const sock = mockSock();
     sock.user = { id: '999@s.whatsapp.net' };
@@ -194,4 +215,15 @@ test('donate uses the persistent payment information handler', async () => {
     const message = { key: { remoteJid: '123@s.whatsapp.net' }, message: { conversation: '.donate' } };
     assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.donate', {}), true);
     assert.match(sock.sent.at(-1).payload.text, /PAYMENT METHODS|M-PESA/i);
+});
+
+test('groq alias gives a configuration message without an API key', async () => {
+    const sock = mockSock();
+    const previous = process.env.GROQ_API_KEY;
+    delete process.env.GROQ_API_KEY;
+    const message = { key: { remoteJid: '123@s.whatsapp.net' }, message: { conversation: '.grok say hello' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.grok say hello', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /GROQ_API_KEY/i);
+    if (previous === undefined) delete process.env.GROQ_API_KEY;
+    else process.env.GROQ_API_KEY = previous;
 });
