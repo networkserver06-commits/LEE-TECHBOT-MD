@@ -51,7 +51,7 @@ function routeFor(value) {
     if (hostIs(host, 'instagram.com') || host === 'instagr.am') return instagramCommand;
     if (hostIs(host, 'facebook.com') || host === 'fb.watch') return facebookCommand;
     if (hostIs(host, 'tiktok.com')) return tiktokCommand;
-    if (hostIs(host, 'youtube.com') || host === 'youtu.be') return videoCommand;
+    if (hostIs(host, 'youtube.com') || hostIs(host, 'youtube-nocookie.com') || host === 'youtu.be') return videoCommand;
     if (['x.com', 'twitter.com', 't.co', 'reddit.com', 'redd.it', 'pinterest.com', 'pin.it', 'threads.net', 'snapchat.com'].some(domain => host === domain || host.endsWith(`.${domain}`))) return socialCommand;
     return null;
 }

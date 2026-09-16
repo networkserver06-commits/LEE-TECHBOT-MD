@@ -1,6 +1,8 @@
 const axios = require('axios');
 const yts = require('yt-search');
-const ytdl = require('ytdl-core');
+// @distube/ytdl-core is the maintained extractor; the older ytdl-core
+// package frequently times out when YouTube changes its player responses.
+const ytdl = require('@distube/ytdl-core');
 
 const CONFIGURED_VIDEO_API = String(process.env.YOUTUBE_DOWNLOAD_API_URL || '').trim();
 
@@ -33,7 +35,7 @@ function normalizeYouTubeUrl(value) {
     try {
         const url = new URL(candidate);
         const host = url.hostname.toLowerCase().replace(/^www\./, '');
-        if (host === 'youtu.be' || host.endsWith('youtube.com') || host === 'youtube-nocookie.com') return url.href;
+        if (host === 'youtu.be' || host.endsWith('youtube.com') || host.endsWith('youtube-nocookie.com')) return url.href;
     } catch (_) { /* invalid URL */ }
     return '';
 }
@@ -146,7 +148,7 @@ async function videoCommand(sock, chatId, message) {
         
 
         // Validate YouTube URL
-        let urls = videoUrl.match(/(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|v\/|embed\/|shorts\/|playlist\?list=)?)([a-zA-Z0-9_-]{11})/gi);
+        let urls = videoUrl.match(/(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.|music\.)?youtube\.com\/(?:watch\?v=|v\/|embed\/|shorts\/|playlist\?list=)?|(?:www\.)?youtube-nocookie\.com\/(?:embed\/|v\/)?)([a-zA-Z0-9_-]{11})/gi);
         if (!urls) {
             await sock.sendMessage(chatId, { text: 'This is not a valid YouTube link!' }, { quoted: message });
             return;

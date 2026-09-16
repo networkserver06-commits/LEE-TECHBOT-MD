@@ -15,6 +15,7 @@ test('universal downloader routes all supported platforms and subdomains', () =>
     assert.equal(universal.routeFor('https://vm.tiktok.com/example/'), tiktok);
     assert.equal(universal.routeFor('https://m.youtube.com/watch?v=dQw4w9WgXcQ'), video);
     assert.equal(universal.routeFor('https://music.youtube.com/watch?v=dQw4w9WgXcQ'), video);
+    assert.equal(universal.routeFor('https://youtube-nocookie.com/embed/dQw4w9WgXcQ'), video);
     assert.equal(universal.routeFor('https://youtu.be/dQw4w9WgXcQ'), video);
     assert.equal(universal.routeFor('https://example.com/file.mp4'), null);
     assert.equal(universal.routeFor('javascript:alert(1)'), null);
