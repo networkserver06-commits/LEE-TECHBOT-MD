@@ -172,6 +172,7 @@ function buildCatalogMenu(context = {}) {
         `┣❍ *VERSION:* v${version}`,
         `┣❍ *COMMANDS:* ${allCommands().length}`,
         `┣❍ *MENU:* ${config.style || 'premium'} / ${config.font || 'clean'}`,
+        `┣❍ *MENU CONTROLS:* ${p}menustyle • ${p}menufont • ${p}menumode`,
         `┣❍ *MODE:* ${privacy}`,
         `┣❍ *PREFIX:* [ ${p} ]`,
         `┣❍ *OWNER:* ${owner}`,
@@ -197,7 +198,7 @@ function buildCatalogMenu(context = {}) {
         }
         lines.push('┗━━━━━━━━━━━━━━━❍');
     }
-    lines.push('', `┏━━━━━━━━━━━━━━━❍`, `┃ *POWERED BY LEE TECH*`, `┃ *OWNER: LEETECH*`, `┃ Use *${p}menu <category>* for a focused menu`, `┃ Use *${p}help <command>* for command guidance`, `┗━━━━━━━━━━━━━━━❍`);
+    lines.push('', `┏━━━━━━━━━━━━━━━❍`, `┃ *MENU CONTROLS*`, `┃ ${p}menustyle premium|neon|cyberpunk|minimal|terminal|royal`, `┃ ${p}menufont clean|bold|double|mono`, `┃ ${p}menumode image|text|status`, `┃ *POWERED BY LEE TECH*`, `┃ *OWNER: LEETECH*`, `┃ Use *${p}menu <category>* for a focused menu`, `┃ Use *${p}help <command>* for command guidance`, `┗━━━━━━━━━━━━━━━❍`);
     return lines.join('\n');
 }
 

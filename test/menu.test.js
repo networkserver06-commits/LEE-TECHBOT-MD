@@ -28,6 +28,10 @@ test('catalog commands are unique and menu exposes category navigation', () => {
     assert.match(menu, /DOWNLOADS|Downloads/);
     assert.match(menu, /POWERED BY LEE TECH/);
     assert.match(menu, /OWNER: LEETECH/);
+    assert.match(menu, /MENU CONTROLS/);
+    assert.match(menu, /menustyle premium\|neon\|cyberpunk\|minimal\|terminal\|royal/);
+    assert.match(menu, /menufont clean\|bold\|double\|mono/);
+    assert.match(menu, /menumode image\|text\|status/);
 });
 
 test('full menu numbers every catalog command in stable catalog order', () => {
