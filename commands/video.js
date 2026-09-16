@@ -2,6 +2,8 @@ const axios = require('axios');
 const yts = require('yt-search');
 const ytdl = require('ytdl-core');
 
+const CONFIGURED_VIDEO_API = String(process.env.YOUTUBE_DOWNLOAD_API_URL || '').trim();
+
 const AXIOS_DEFAULTS = {
     timeout: 9000,
     headers: {
@@ -44,6 +46,21 @@ async function getDirectYouTubeVideoByUrl(youtubeUrl) {
     const format = ytdl.chooseFormat(info.formats, { quality: '18', filter: 'audioandvideo' });
     if (!format?.url) throw new Error('No compatible public YouTube format');
     return { download: format.url, title: info.videoDetails?.title };
+}
+
+async function getConfiguredVideoByUrl(youtubeUrl) {
+    if (!CONFIGURED_VIDEO_API) throw new Error('No configured public-video API');
+    const headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
+    if (process.env.YOUTUBE_DOWNLOAD_API_KEY) headers.Authorization = `Bearer ${process.env.YOUTUBE_DOWNLOAD_API_KEY}`;
+    const response = await axios.post(CONFIGURED_VIDEO_API, {
+        url: youtubeUrl,
+        downloadMode: 'auto',
+        videoQuality: process.env.YOUTUBE_VIDEO_QUALITY || '720'
+    }, { timeout: 9000, headers });
+    const data = response.data || {};
+    const candidate = data.url || data.downloadURL || data.download_url || data.download || data.data?.url || data.data?.download_url;
+    if (!/^https?:\/\//i.test(candidate || '')) throw new Error(data.error?.code || 'Configured provider returned no public media URL');
+    return { download: candidate, title: data.filename || data.title || data.data?.title };
 }
 
 // EliteProTech API - Primary
@@ -135,7 +152,7 @@ async function videoCommand(sock, chatId, message) {
             return;
         }
 
-        // Try multiple APIs with fallback chain: EliteProTech -> Yupra -> Okatsu
+        // Try multiple public providers, then local/direct fallbacks.
         let videoData;
         let downloadSuccess = false;
         
@@ -144,6 +161,7 @@ async function videoCommand(sock, chatId, message) {
             { name: 'EliteProTech', method: () => getEliteProTechVideoByUrl(videoUrl) },
             { name: 'Yupra', method: () => getYupraVideoByUrl(videoUrl) },
             { name: 'Okatsu', method: () => getOkatsuVideoByUrl(videoUrl) },
+            { name: 'Configured public-video API', method: () => getConfiguredVideoByUrl(videoUrl) },
             { name: 'Direct YouTube', method: () => getDirectYouTubeVideoByUrl(videoUrl) }
         ];
         

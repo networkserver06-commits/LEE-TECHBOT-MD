@@ -157,17 +157,21 @@ function buildCatalogMenu(context = {}) {
     const name = settings.botName || 'LEE TECH BOT';
     const version = settings.version || '3.0.7';
     const live = liveMenuState(context);
+    const config = menuConfig();
+    const style = STYLE_MAP[config.style] || STYLE_MAP.premium;
     const privacy = live.mode;
     const owner = live.user || settings.botOwner || 'LEETECH';
     const lines = [
         `┏━━━━━━━━━━━━━━━━❍`,
-        `┃ *${name.toUpperCase()} MENU*`,
+        `┃ *${stylizeHeading(name.toUpperCase(), config.font)} MENU*`,
         `┗━━━━━━━━━━━━━━━❍`,
         `┏━━━━━━━━━━━━━━━❍`,
         `┣❍ *BOT INFORMATION:*`,
         `┣❍ *USER:* ${live.user}`,
         ...(live.userNumber ? [`┣❍ *NUMBER:* ${live.userNumber}`] : []),
         `┣❍ *VERSION:* v${version}`,
+        `┣❍ *COMMANDS:* ${allCommands().length}`,
+        `┣❍ *MENU:* ${config.style || 'premium'} / ${config.font || 'clean'}`,
         `┣❍ *MODE:* ${privacy}`,
         `┣❍ *PREFIX:* [ ${p} ]`,
         `┣❍ *OWNER:* ${owner}`,
@@ -187,7 +191,7 @@ function buildCatalogMenu(context = {}) {
         `┗━━━━━━━━━━━━━━━❍`
     ];
     for (const category of MENU_CATEGORIES) {
-        lines.push('', '┏━━━━━━━━━━━━━━━❍', `┗┳❍ 「 *${category.title}* 」❍`, '┏┻━━━━━━━━━━━━━━❍');
+        lines.push('', `${style.open} ${stylizeHeading(category.title, config.font)} ${style.close}`, `${style.bullet} Command list`, style.footer);
         for (const command of category.commands) {
             lines.push(`│𖥟╾ ${numberedCommand(command)}`);
         }

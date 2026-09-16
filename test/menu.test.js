@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { MENU_CATEGORIES, getCategory, allCommands } = require('../lib/menuCatalog');
 const help = require('../commands/help');
+const { botInfoCommand } = require('../commands/utility');
 
 test('menu catalog contains every requested top-level category', () => {
     assert.deepEqual(
@@ -66,4 +67,11 @@ test('menu omits the number when only a long WhatsApp LID is available', () => {
         message: { key: { remoteJid: '174719890415834@s.whatsapp.net' } }
     });
     assert.doesNotMatch(menu, /NUMBER:\* 174719890415834/);
+});
+
+test('bot information reports the live catalog command count', async () => {
+    const sent = [];
+    const sock = { async sendMessage(chatId, payload) { sent.push(payload); } };
+    await botInfoCommand(sock, '123@s.whatsapp.net', { key: { remoteJid: '123@s.whatsapp.net' } });
+    assert.match(sent[0].text, new RegExp(`Commands: \\*${allCommands().length}\\*`));
 });

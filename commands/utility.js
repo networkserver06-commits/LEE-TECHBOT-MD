@@ -2,6 +2,13 @@
 
 const os = require('os');
 const settings = require('../settings');
+const { allCommands } = require('../lib/menuCatalog');
+const menuSettingsPath = require('path').join(process.cwd(), 'data', 'menuSettings.json');
+
+function menuSettings() {
+    try { return JSON.parse(require('fs').readFileSync(menuSettingsPath, 'utf8')); }
+    catch (_) { return {}; }
+}
 
 function formatUptime(seconds) {
     const total = Math.max(0, Math.floor(seconds));
@@ -38,7 +45,8 @@ async function idCommand(sock, chatId, message) {
 
 async function botInfoCommand(sock, chatId, message) {
     const mem = process.memoryUsage();
-    return sock.sendMessage(chatId, { text: `╭━━〔 🤖 ${settings.botName} 〕━━╮\n┃ Version: *${settings.version}*\n┃ Owner: *${settings.botOwner}*\n┃ Platform: *${os.platform()}*\n┃ Memory: *${formatBytes(mem.rss)}*\n┃ Uptime: *${formatUptime(process.uptime())}*\n╰━━━━━━━━━━━━━━━━╯\n\n⚡ Premium • Fast • Reliable` }, { quoted: message });
+    const menu = menuSettings();
+    return sock.sendMessage(chatId, { text: `╭━━〔 🤖 ${settings.botName} 〕━━╮\n┃ Version: *${settings.version}*\n┃ Owner: *${settings.botOwner}*\n┃ Platform: *${os.platform()}*\n┃ Commands: *${allCommands().length}*\n┃ Menu style: *${menu.style || 'premium'}*\n┃ Menu font: *${menu.font || 'clean'}*\n┃ Memory: *${formatBytes(mem.rss)}*\n┃ Uptime: *${formatUptime(process.uptime())}*\n╰━━━━━━━━━━━━━━━━╯\n\n⚡ Premium • Fast • Reliable` }, { quoted: message });
 }
 
 async function healthCommand(sock, chatId, message) {
