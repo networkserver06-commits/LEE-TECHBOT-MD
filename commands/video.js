@@ -1,15 +1,16 @@
 const axios = require('axios');
 const yts = require('yt-search');
+const ytdl = require('ytdl-core');
 
 const AXIOS_DEFAULTS = {
-    timeout: 60000,
+    timeout: 9000,
     headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*'
     }
 };
 
-async function tryRequest(getter, attempts = 3) {
+async function tryRequest(getter, attempts = 1) {
     let lastError;
     for (let attempt = 1; attempt <= attempts; attempt++) {
         try {
@@ -22,6 +23,27 @@ async function tryRequest(getter, attempts = 3) {
         }
     }
     throw lastError;
+}
+
+function normalizeYouTubeUrl(value) {
+    const candidate = String(value || '').trim();
+    if (!/^https?:\/\//i.test(candidate)) return '';
+    try {
+        const url = new URL(candidate);
+        const host = url.hostname.toLowerCase().replace(/^www\./, '');
+        if (host === 'youtu.be' || host.endsWith('youtube.com') || host === 'youtube-nocookie.com') return url.href;
+    } catch (_) { /* invalid URL */ }
+    return '';
+}
+
+async function getDirectYouTubeVideoByUrl(youtubeUrl) {
+    const info = await Promise.race([
+        ytdl.getInfo(youtubeUrl, { requestOptions: { timeout: 8000 } }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Direct YouTube lookup timed out')), 9000))
+    ]);
+    const format = ytdl.chooseFormat(info.formats, { quality: '18', filter: 'audioandvideo' });
+    if (!format?.url) throw new Error('No compatible public YouTube format');
+    return { download: format.url, title: info.videoDetails?.title };
 }
 
 // EliteProTech API - Primary
@@ -76,10 +98,13 @@ async function videoCommand(sock, chatId, message) {
         let videoTitle = '';
         let videoThumbnail = '';
         if (searchQuery.startsWith('http://') || searchQuery.startsWith('https://')) {
-            videoUrl = searchQuery;
+            videoUrl = normalizeYouTubeUrl(searchQuery);
         } else {
             // Search YouTube for the video
-            const { videos } = await yts(searchQuery);
+            const { videos } = await Promise.race([
+                yts(searchQuery),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('YouTube search timed out')), 9000))
+            ]);
             if (!videos || videos.length === 0) {
                 await sock.sendMessage(chatId, { text: 'No videos found!' }, { quoted: message });
                 return;
@@ -118,7 +143,8 @@ async function videoCommand(sock, chatId, message) {
         const apiMethods = [
             { name: 'EliteProTech', method: () => getEliteProTechVideoByUrl(videoUrl) },
             { name: 'Yupra', method: () => getYupraVideoByUrl(videoUrl) },
-            { name: 'Okatsu', method: () => getOkatsuVideoByUrl(videoUrl) }
+            { name: 'Okatsu', method: () => getOkatsuVideoByUrl(videoUrl) },
+            { name: 'Direct YouTube', method: () => getDirectYouTubeVideoByUrl(videoUrl) }
         ];
         
         // Try each API until we successfully get video data
@@ -143,7 +169,7 @@ async function videoCommand(sock, chatId, message) {
         
         // If all APIs failed, throw error
         if (!downloadSuccess || !videoData) {
-            throw new Error('All download sources failed. The content may be unavailable or blocked in your region.');
+            throw new Error('All public download sources failed');
         }
 
         // Send video directly using the download URL
@@ -160,12 +186,12 @@ async function videoCommand(sock, chatId, message) {
         
         // Provide more specific error messages
         let errorMessage = '❌ Failed to download video.';
-        if (error.message && error.message.includes('blocked')) {
-            errorMessage = '❌ Download blocked. The content may be unavailable in your region or due to legal restrictions.';
-        } else if (error.response?.status === 451 || error.status === 451) {
+        if (error.response?.status === 451 || error.status === 451) {
             errorMessage = '❌ Content unavailable (451). This may be due to legal restrictions or regional blocking.';
-        } else if (error.message && error.message.includes('All download sources failed')) {
-            errorMessage = '❌ All download sources failed. The content may be unavailable or blocked.';
+        } else if (error.message && error.message.includes('blocked')) {
+            errorMessage = '❌ Download blocked. The content may be unavailable in your region or due to legal restrictions.';
+        } else if (error.message && error.message.includes('All public download sources failed')) {
+            errorMessage = '❌ Download providers are temporarily unavailable, or this public video cannot be fetched right now. Please try again later.';
         } else if (error.message) {
             errorMessage = '❌ Download failed: ' + error.message;
         }
