@@ -29,8 +29,9 @@ const { paymentCommand, setPaymentCommand } = require('./payment');
 const simageCommand = require('./simage');
 const { allCommands } = require('../lib/menuCatalog');
 const { fetchParticipatingGroups } = require('../lib/groupTarget');
-const { groupSettingsCommand } = require('./groupSettings');
+const { groupSettingsCommand } = require('../commands/groupSettings');
 const { groqCommand } = require('./groq');
+const { legacyCommand } = require('./legacyCommands');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const NOTES_FILE = path.join(DATA_DIR, 'menuNotes.json');
@@ -76,6 +77,10 @@ const ANIME_ALIASES = {
 const DOWNLOAD_ALIASES = new Set([
     'ytmp3', 'ytmp4', 'mediafire', 'wallpaper', 'hdwallpaper', 'pinterest', 'img', 'aio',
     'fdroid', 'imgsearch', 'twitter', 'apk', 'spotifysearch', 'splay', 'knackvideo'
+]);
+
+const LEGACY_COMMANDS = new Set([
+    'addpdf', 'brat', 'carbon', 'catbox', 'clearpdf', 'ephoto', 'ephotolist', 'fakechannel', 'fakedana', 'fakeigstory', 'firelogo', 'fliptext', 'img2pdf', 'img2txt', 'imgbb', 'ocr', 'pickupline', 'predict', 'qrscan', 'roast', 'stickkill', 'story', 'tiktokstalk', 'tiny', 'toanime', 'toaudio', 'togif', 'tomp3', 'toqr', 'tovideo', 'tovideonote', 'tovn'
 ]);
 
 const GROUP_COMMANDS = new Set([
@@ -306,6 +311,10 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     }
     if (command === 'groq' || command === 'grok') {
         await groqCommand(sock, chatId, message, args);
+        return true;
+    }
+    if (LEGACY_COMMANDS.has(command)) {
+        await legacyCommand(sock, chatId, message, command, args);
         return true;
     }
     if (['ai', 'aivoice', 'chatgpt', 'analyze', 'search', 'gemini', 'elevenlab'].includes(command)) {

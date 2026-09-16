@@ -227,3 +227,18 @@ test('groq alias gives a configuration message without an API key', async () => 
     if (previous === undefined) delete process.env.GROQ_API_KEY;
     else process.env.GROQ_API_KEY = previous;
 });
+
+test('restored legacy commands use explicit handlers instead of the generic fallback', async () => {
+    const sock = mockSock();
+    const message = { key: { remoteJid: '123@s.whatsapp.net' }, message: { conversation: '.toqr hello' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.toqr hello', {}), true);
+    assert.ok(sock.sent.at(-1).payload.image, 'toqr should generate an image payload');
+
+    const flip = { key: { remoteJid: '123@s.whatsapp.net' }, message: { conversation: '.fliptext hello' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', flip, '.fliptext hello', {}), true);
+    assert.equal(sock.sent.at(-1).payload.text, 'olleh');
+
+    const media = { key: { remoteJid: '123@s.whatsapp.net' }, message: { conversation: '.tomp3' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', media, '.tomp3', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /Reply to an image, video, or audio/i);
+});
