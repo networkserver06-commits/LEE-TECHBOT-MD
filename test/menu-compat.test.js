@@ -181,3 +181,10 @@ test('gitclone validates GitHub repository input before downloading', async () =
     assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.gitclone', {}), true);
     assert.match(sock.sent.at(-1).payload.text, /Usage:.*github.com/i);
 });
+
+test('toimage routes to local sticker-to-image conversion validation', async () => {
+    const sock = mockSock();
+    const message = { key: { remoteJid: '123@s.whatsapp.net' }, message: { conversation: '.toimage' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.toimage', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /reply to a sticker/i);
+});

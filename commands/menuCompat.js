@@ -26,6 +26,7 @@ const vv2Command = require('./vv2');
 const audioSpeedCommand = require('./audiospeed');
 const setProfilePicture = require('./setpp');
 const { setPaymentCommand } = require('./payment');
+const simageCommand = require('./simage');
 const { allCommands } = require('../lib/menuCatalog');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -249,6 +250,15 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     }
     if (command === 'setpaypoint') {
         await setPaymentCommand(sock, chatId, message, args, context.isOwnerOrSudoCheck);
+        return true;
+    }
+    if (command === 'toimage') {
+        const quotedMessage = quoted(message);
+        if (!quotedMessage?.stickerMessage) {
+            await reply(sock, chatId, message, 'Please reply to a sticker with `.toimage` to convert it to an image.');
+            return true;
+        }
+        await simageCommand(sock, quotedMessage, chatId);
         return true;
     }
     if (command === 'reveal') {
