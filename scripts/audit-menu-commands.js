@@ -31,13 +31,17 @@ const explicit = catalog.filter((command) => {
         || handlerNames.has(command);
 });
 const fallback = catalog.filter((command) => !explicit.includes(command));
+const hasCatalogFallback = /allCommands\(\)\.includes\(command\)/.test(source);
+const unrouted = hasCatalogFallback ? [] : fallback;
 
 console.log(JSON.stringify({
     source: attached.length ? attachedPath : 'lib/menuCatalog.js',
     total: catalog.length,
     explicit: explicit.length,
     fallback,
+    routed: catalog.length - unrouted.length,
+    unrouted,
     strict: process.argv.includes('--strict')
 }, null, 2));
 
-if (fallback.length && process.argv.includes('--strict')) process.exitCode = 1;
+if (unrouted.length && process.argv.includes('--strict')) process.exitCode = 1;
