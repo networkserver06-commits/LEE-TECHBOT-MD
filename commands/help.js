@@ -6,6 +6,7 @@ const settings = require('../settings');
 const { MENU_CATEGORIES, getCategory } = require('../lib/menuCatalog');
 const { loadBotMode } = require('../lib/mode');
 const { loadIdentity } = require('../lib/identity');
+const { normalizeWhatsAppNumber } = require('../lib/phone');
 
 const menuImagePath = path.join(process.cwd(), 'menu.jpg');
 const menuSettingsPath = path.join(process.cwd(), 'data', 'menuSettings.json');
@@ -86,6 +87,7 @@ function liveMenuState(context = {}) {
     const linkedName = context.userName || message.pushName || message.key?.pushName;
     const configuredName = identity.userName || process.env.MENU_USER_NAME || process.env.USER_DISPLAY_NAME || menuSettings.userName;
     const user = configuredName || linkedName || senderNumber;
+    const configuredNumber = normalizeWhatsAppNumber(identity.ownerNumber || process.env.OWNER_NUMBER || process.env.PHONE_NUMBER || process.env.PAIRING_NUMBER || '');
     const mode = loadBotMode();
     const autoStatus = readState('autoStatus.json', { enabled: false });
     const autoread = readState('autoread.json', { enabled: false });
@@ -98,7 +100,7 @@ function liveMenuState(context = {}) {
     const health = global.botHealth?.snapshot?.() || {};
     return {
         user,
-        userNumber: identity.ownerNumber || senderNumber,
+        userNumber: configuredNumber || (senderNumber.length < 15 ? senderNumber : ''),
         mode: mode.isPublic === false ? 'Private' : 'Public',
         speed: Number(health.lastLatencyMs || global.lastCommandLatencyMs || 0).toFixed(4),
         group,
@@ -158,7 +160,7 @@ function buildCatalogMenu(context = {}) {
         `┏━━━━━━━━━━━━━━━❍`,
         `┣❍ *BOT INFORMATION:*`,
         `┣❍ *USER:* ${live.user}`,
-        `┣❍ *NUMBER:* ${live.userNumber}`,
+        ...(live.userNumber ? [`┣❍ *NUMBER:* ${live.userNumber}`] : []),
         `┣❍ *VERSION:* v${version}`,
         `┣❍ *MODE:* ${privacy}`,
         `┣❍ *PREFIX:* [ ${p} ]`,

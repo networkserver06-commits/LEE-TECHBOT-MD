@@ -49,3 +49,11 @@ test('menu prefers linked WhatsApp name while retaining linked number', () => {
     assert.match(menu, /USER:\* Lee Tech User/);
     assert.match(menu, /NUMBER:\* 254700000000/);
 });
+
+test('menu omits the number when only a long WhatsApp LID is available', () => {
+    const menu = help.buildMenu({
+        chatId: '174719890415834@s.whatsapp.net',
+        message: { key: { remoteJid: '174719890415834@s.whatsapp.net' } }
+    });
+    assert.doesNotMatch(menu, /NUMBER:\* 174719890415834/);
+});
