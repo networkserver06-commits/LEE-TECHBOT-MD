@@ -2,7 +2,8 @@
 
 const Groq = require('groq-sdk');
 
-const DEFAULT_FREE_MODEL = 'llama-3.1-8b-instant';
+const DEFAULT_FREE_MODEL = 'openai/gpt-oss-20b';
+const FREE_MODEL_FALLBACKS = ['openai/gpt-oss-120b', 'qwen/qwen3-32b'];
 
 function configured() {
     return Boolean(String(process.env.GROQ_API_KEY || process.env.GROK_API_KEY || '').trim());
@@ -16,15 +17,16 @@ function getClient() {
 function modelCandidates() {
     return [...new Set([
         process.env.GROQ_MODEL || DEFAULT_FREE_MODEL,
-        process.env.GROQ_FALLBACK_MODEL || DEFAULT_FREE_MODEL
-    ])];
+        process.env.GROQ_FALLBACK_MODEL || '',
+        ...FREE_MODEL_FALLBACKS
+    ].filter(Boolean))];
 }
 
 function providerError(error) {
     const status = error?.status || error?.statusCode || error?.response?.status;
-    if (status === 401 || status === 403) return '❌ Groq API key was rejected. Check GROQ_API_KEY, then restart the bot.';
+    if (status === 401 || status === 403) return '❌ Groq API key was rejected. Add a valid GROQ_API_KEY, then restart the bot.';
     if (status === 429) return '❌ Groq free-tier quota or rate limit reached. Please wait and try again later.';
-    if (status === 400 || status === 404) return '❌ The selected Groq model is unavailable. The bot tried the free fallback model; check GROQ_MODEL if this continues.';
+    if (status === 400 || status === 404) return '❌ Groq could not find a supported model. The bot tried current free models; check the Groq model list or remove GROQ_MODEL to use the automatic default.';
     return '❌ Groq could not answer right now. Check the API key, free-tier quota, model, and network connection.';
 }
 
@@ -68,7 +70,7 @@ async function groqCommand(sock, chatId, message, args = []) {
             } catch (error) {
                 lastError = error;
                 const status = error?.status || error?.statusCode || error?.response?.status;
-                if (![400, 404].includes(status)) throw error;
+                if (status === 401 || status === 403 || status === 429) throw error;
             }
         }
         if (!completion) throw lastError || new Error('Groq returned no completion');
@@ -81,4 +83,4 @@ async function groqCommand(sock, chatId, message, args = []) {
     }
 }
 
-module.exports = { groqCommand, configured, modelCandidates, providerError, DEFAULT_FREE_MODEL };
+module.exports = { groqCommand, configured, modelCandidates, providerError, DEFAULT_FREE_MODEL, FREE_MODEL_FALLBACKS };
