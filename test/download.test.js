@@ -8,6 +8,7 @@ const facebook = require('../commands/facebook');
 const tiktok = require('../commands/tiktok');
 const video = require('../commands/video');
 const social = require('../commands/social');
+const spotify = require('../commands/spotify');
 
 test('universal downloader routes all supported platforms and subdomains', () => {
     assert.equal(universal.routeFor('https://www.instagram.com/reel/example/'), instagram);
@@ -55,4 +56,10 @@ test('universal downloader extracts and normalizes clean URLs from command text'
 
 test('universal downloader reads captions as well as text messages', () => {
     assert.equal(universal.messageText({ message: { imageMessage: { caption: '.download https://youtu.be/dQw4w9WgXcQ' } } }), '.download https://youtu.be/dQw4w9WgXcQ');
+});
+
+test('Spotify media URLs accept only HTTP(S) URLs', () => {
+    assert.match(spotify.mediaUrl('https://cdn.example/audio.mp3'), /^https:\/\//);
+    assert.equal(spotify.mediaUrl('javascript:alert(1)'), '');
+    assert.equal(spotify.mediaUrl('not-a-url'), '');
 });

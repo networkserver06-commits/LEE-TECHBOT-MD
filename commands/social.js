@@ -11,6 +11,17 @@ const SUPPORTED_HOSTS = new Set([
     'pin.it', 'threads.net', 'snapchat.com'
 ]);
 
+async function retryRequest(request, attempts = 2) {
+    let lastError;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        try { return await request(); } catch (error) {
+            lastError = error;
+            if (attempt < attempts) await new Promise(resolve => setTimeout(resolve, attempt * 750));
+        }
+    }
+    throw lastError;
+}
+
 function extractUrl(text = '') {
     return String(text).match(/https?:\/\/[^\s<>]+/i)?.[0]?.replace(/[),.!?]+$/, '') || '';
 }
@@ -50,14 +61,19 @@ async function socialCommand(sock, chatId, message) {
         }
         await sock.sendMessage(chatId, { react: { text: '🔄', key: message.key } }).catch(() => {});
         const apiBase = String(process.env.SOCIAL_DOWNLOAD_API_URL || settings.socialDownloadApiUrl || DEFAULT_API).trim();
-        const response = await axios.get(apiBase, { params: { url }, timeout: 30000, maxContentLength: 2 * 1024 * 1024 });
+        const response = await retryRequest(() => axios.get(apiBase, { params: { url }, timeout: 30000, maxContentLength: 2 * 1024 * 1024 }));
         const media = collectMedia(response.data);
         if (!media.length) throw new Error('The provider returned no public media');
         const tmpDir = path.join(process.cwd(), 'tmp');
         fs.mkdirSync(tmpDir, { recursive: true });
         for (const item of media.slice(0, 10)) {
-            const mediaResponse = await axios.get(item.url, { responseType: 'arraybuffer', timeout: 60000, maxContentLength: 100 * 1024 * 1024 });
+            const mediaResponse = await retryRequest(() => axios.get(item.url, {
+                responseType: 'arraybuffer', timeout: 60000,
+                maxContentLength: 100 * 1024 * 1024,
+                validateStatus: status => status >= 200 && status < 400
+            }));
             const contentType = String(mediaResponse.headers['content-type'] || '').toLowerCase();
+            if (!mediaResponse.data?.length || contentType.includes('text/html')) throw new Error('Provider returned invalid media');
             const isVideo = contentType.includes('video') || /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(item.url);
             const isAudio = contentType.includes('audio') || /\.(mp3|m4a)(?:[?#].*)?$/i.test(item.url);
             const extension = isVideo ? 'mp4' : isAudio ? 'mp3' : 'jpg';
