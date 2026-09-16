@@ -3,6 +3,29 @@ const store = require('../lib/lightweight_store');
 
 async function deleteCommand(sock, chatId, message, senderId) {
     try {
+        const ctxInfo = message.message?.extendedTextMessage?.contextInfo || {};
+        const repliedParticipant = ctxInfo.participant || null;
+        const repliedMsgId = ctxInfo.stanzaId || null;
+        const normalizeJid = value => String(value || '').split(':')[0].split('/')[0];
+        const isOwnReply = Boolean(
+            repliedMsgId &&
+            repliedParticipant &&
+            normalizeJid(repliedParticipant) === normalizeJid(senderId)
+        );
+
+        // WhatsApp allows a user to revoke their own message without admin
+        // privileges. Keep this path limited to one explicitly quoted message.
+        if (isOwnReply) {
+            await sock.sendMessage(chatId, {
+                delete: {
+                    remoteJid: chatId,
+                    fromMe: true,
+                    id: repliedMsgId
+                }
+            });
+            return;
+        }
+
         const { isSenderAdmin, isBotAdmin } = await isAdmin(sock, chatId, senderId);
 
         if (!isBotAdmin) {
@@ -29,8 +52,6 @@ async function deleteCommand(sock, chatId, message, senderId) {
         }
         
         // Check if user is replying to a message
-        const ctxInfo = message.message?.extendedTextMessage?.contextInfo || {};
-        const repliedParticipant = ctxInfo.participant || null;
         const mentioned = Array.isArray(ctxInfo.mentionedJid) && ctxInfo.mentionedJid.length > 0 ? ctxInfo.mentionedJid[0] : null;
         
         // If no number provided but replying to a message, default to 1
@@ -52,12 +73,12 @@ async function deleteCommand(sock, chatId, message, senderId) {
 
         // Determine target user: replied > mentioned; if neither, delete last N messages from group
         let targetUser = null;
-        let repliedMsgId = null;
+        let repliedMsgIdForAdminDelete = null;
         let deleteGroupMessages = false;
         
         if (repliedParticipant && ctxInfo.stanzaId) {
             targetUser = repliedParticipant;
-            repliedMsgId = ctxInfo.stanzaId;
+            repliedMsgIdForAdminDelete = ctxInfo.stanzaId;
         } else if (mentioned) {
             targetUser = mentioned;
         } else {
@@ -88,8 +109,8 @@ async function deleteCommand(sock, chatId, message, senderId) {
         } else {
             // Original logic for specific user
             // If replying, prioritize deleting the exact replied message first (counts toward N)
-            if (repliedMsgId) {
-                const repliedInStore = chatMessages.find(m => m.key.id === repliedMsgId && (m.key.participant || m.key.remoteJid) === targetUser);
+            if (repliedMsgIdForAdminDelete) {
+                const repliedInStore = chatMessages.find(m => m.key.id === repliedMsgIdForAdminDelete && (m.key.participant || m.key.remoteJid) === targetUser);
                 if (repliedInStore) {
                     toDelete.push(repliedInStore);
                     seenIds.add(repliedInStore.key.id);
@@ -100,7 +121,7 @@ async function deleteCommand(sock, chatId, message, senderId) {
                             delete: {
                                 remoteJid: chatId,
                                 fromMe: false,
-                                id: repliedMsgId,
+                                id: repliedMsgIdForAdminDelete,
                                 participant: repliedParticipant
                             }
                         });
@@ -157,4 +178,3 @@ async function deleteCommand(sock, chatId, message, senderId) {
 }
 
 module.exports = deleteCommand;
-
