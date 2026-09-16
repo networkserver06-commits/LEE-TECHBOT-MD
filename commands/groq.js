@@ -3,12 +3,12 @@
 const Groq = require('groq-sdk');
 
 function configured() {
-    return Boolean(String(process.env.GROQ_API_KEY || '').trim());
+    return Boolean(String(process.env.GROQ_API_KEY || process.env.GROK_API_KEY || '').trim());
 }
 
 function getClient() {
     if (!configured()) return null;
-    return new Groq({ apiKey: process.env.GROQ_API_KEY });
+    return new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.GROK_API_KEY });
 }
 
 async function groqCommand(sock, chatId, message, args = []) {
@@ -27,7 +27,7 @@ async function groqCommand(sock, chatId, message, args = []) {
     }
     if (!configured()) {
         return sock.sendMessage(chatId, {
-            text: '❌ Groq is not configured. Add GROQ_API_KEY to the bot environment, then restart the bot.'
+            text: '❌ Groq is not configured. Add GROQ_API_KEY (or GROK_API_KEY) to the bot environment, then restart the bot.'
         }, { quoted: message });
     }
 

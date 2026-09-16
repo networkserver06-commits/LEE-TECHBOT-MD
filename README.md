@@ -134,13 +134,27 @@ It is lightweight and can be easily customized to add more commands as per your 
     npm install
     ```
 
-3. **Run the bot:**
+3. **Configure Groq/Grok AI:**
+
+    The repository includes a `.env` template. Add your provider key to either `GROQ_API_KEY` (preferred) or `GROK_API_KEY`, then restart the bot:
+
+    ```env
+    GROQ_API_KEY=your_api_key_here
+    # GROK_API_KEY=your_api_key_here
+    GROQ_MODEL=llama-3.3-70b-versatile
+    GROQ_TEMPERATURE=0.7
+    GROQ_MAX_TOKENS=700
+    ```
+
+    Use `.groq <question>` or `.grok <question>` in WhatsApp. Keep real API keys private and do not post them in public issues or commits.
+
+4. **Run the bot:**
 
     ```bash
     node index.js
     ```
 
-4. **Scan the QR code:**
+5. **Scan the QR code:**
 
     Once the bot starts, a QR code will appear in the terminal. Scan this QR code using the Linked Devices feature in WhatsApp to connect your WhatsApp account with the bot.
 
