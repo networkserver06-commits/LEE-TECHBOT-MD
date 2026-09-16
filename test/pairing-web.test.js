@@ -47,3 +47,26 @@ test('public pairing website can bind for a host proxy without crashing', async 
     assert.ok(server.address().port > 0);
     await new Promise((resolve) => server.close(resolve));
 });
+
+test('connected account gets a live dashboard instead of the pairing page', async () => {
+    const socket = {
+        authState: { creds: { registered: true } },
+        ws: { readyState: 1 },
+        user: { id: '254700000000:1@s.whatsapp.net', name: 'Connected Bot' }
+    };
+    const server = createPairingWebServer({ host: '127.0.0.1', port: 0, getSocket: () => socket, logger: { log() {}, error() {} } });
+    await new Promise((resolve) => server.once('listening', resolve));
+    try {
+        const status = await request(server, 'GET', '/api/status');
+        assert.deepEqual(status.body, { connected: true, registered: true, state: 'connected', name: 'Connected Bot', number: '254700000000' });
+        const page = await new Promise((resolve, reject) => {
+            http.get(`http://127.0.0.1:${server.address().port}/`, (res) => { let text = ''; res.on('data', (chunk) => { text += chunk; }); res.on('end', () => resolve({ status: res.statusCode, text })); }).on('error', reject);
+        });
+        assert.equal(page.status, 200);
+        assert.match(page.text, /WhatsApp connected/);
+        assert.match(page.text, /Connected Bot/);
+        assert.doesNotMatch(page.text, /Generate pairing code/);
+    } finally {
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
