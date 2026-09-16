@@ -49,6 +49,7 @@ const { join } = require('path')
 const store = require('./lib/lightweight_store')
 const { ensureRuntimeDirs, readJson } = require('./lib/runtime')
 const { normalizeWhatsAppNumber } = require('./lib/phone')
+const { requestPairingCodeWithRetry } = require('./lib/pairing')
 ensureRuntimeDirs()
 
 // Initialize store
@@ -336,25 +337,20 @@ async function startXeonBotInc() {
             if (pairingCode && requestedPhoneNumber && !pairingRequestStarted) {
                 pairingRequestStarted = true
                 setTimeout(async () => {
-                    for (let attempt = 1; attempt <= 3; attempt += 1) {
-                        if (activeSocket !== XeonBotInc || XeonBotInc.authState.creds.registered) return
-                        try {
-                            console.log(chalk.cyan(`Requesting WhatsApp pairing code for ${requestedPhoneNumber} (attempt ${attempt}/3)...`))
-                            let code = await XeonBotInc.requestPairingCode(requestedPhoneNumber)
-                            code = code?.match(/.{1,4}/g)?.join('-') || code
+                    try {
+                        const code = await requestPairingCodeWithRetry({
+                            socket: XeonBotInc,
+                            phoneNumber: requestedPhoneNumber,
+                            isActive: () => activeSocket === XeonBotInc,
+                            logger: chalk
+                        })
+                        if (code) {
                             console.log(chalk.black(chalk.bgGreen('Your Pairing Code : ')), chalk.black(chalk.white(code)))
                             console.log(chalk.yellow(`\nPlease enter this code in your WhatsApp app:\n1. Open WhatsApp\n2. Go to Settings > Linked Devices\n3. Tap \`Link a Device\`\n4. Enter the code shown above`))
-                            return
-                        } catch (error) {
-                            const statusCode = error?.output?.statusCode || error?.statusCode
-                            const transient = statusCode === 428 || /connection closed|precondition required/i.test(String(error?.message || error))
-                            if (!transient || attempt === 3) {
-                                console.error('Error requesting pairing code:', error)
-                                console.log(chalk.red('Failed to get pairing code. Keep the panel running and try again.'))
-                                return
-                            }
-                            await delay(2000)
                         }
+                    } catch (error) {
+                        console.error('Error requesting pairing code:', error)
+                        console.log(chalk.red('Failed to get pairing code. Keep the panel running and try again.'))
                     }
                 }, 1500)
             }
