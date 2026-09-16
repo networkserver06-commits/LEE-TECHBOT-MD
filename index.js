@@ -428,9 +428,10 @@ async function startXeonBotInc() {
                 console.log(chalk.yellow('Update restart requested; suppressing reconnect for the closing socket.'))
                 return
             }
-            const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut
             const statusCode = lastDisconnect?.error?.output?.statusCode
             const disconnectText = String(lastDisconnect?.error?.message || lastDisconnect?.error || '')
+            const needsFreshPairing = statusCode === DisconnectReason.loggedOut || statusCode === 401
+            const shouldReconnect = !needsFreshPairing || (pairingCode && !global.__updateRestarting)
             const isStreamConflict = statusCode === 440 || /stream errored.*conflict|conflict.*stream errored/i.test(disconnectText)
 
             if (isStreamConflict) {
@@ -452,7 +453,11 @@ async function startXeonBotInc() {
                 } catch (error) {
                     console.error('Error deleting session:', error)
                 }
-                console.log(chalk.red('Session logged out. Please re-authenticate.'))
+                if (pairingCode) {
+                    console.log(chalk.yellow('Session logged out. Starting a fresh pairing session automatically.'))
+                } else {
+                    console.log(chalk.red('Session logged out. Please re-authenticate.'))
+                }
             }
             
             if (shouldReconnect) {
