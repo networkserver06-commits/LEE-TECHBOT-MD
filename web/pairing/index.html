@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LEE TECH BOT · Pairing</title>
+  <style>
+    :root{color-scheme:dark;--bg:#08111f;--card:#101d31;--line:#263a58;--text:#edf5ff;--muted:#9eb0c9;--accent:#55d6be;--danger:#ff7f8a}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 20% 0,#183254 0,#08111f 48%);font:16px system-ui,-apple-system,Segoe UI,sans-serif;color:var(--text)}
+    main{width:min(100%,460px)}.brand{letter-spacing:.12em;color:var(--accent);font-weight:800;font-size:.82rem}.card{margin-top:12px;padding:28px;border:1px solid var(--line);border-radius:24px;background:rgba(16,29,49,.92);box-shadow:0 20px 80px #0006}h1{margin:8px 0 10px;font-size:2rem}p{line-height:1.5;color:var(--muted)}label{display:block;margin:24px 0 8px;font-size:.9rem;color:var(--muted)}input{width:100%;padding:14px 15px;border:1px solid var(--line);border-radius:12px;background:#0a1527;color:var(--text);font-size:1rem;outline:none}input:focus{border-color:var(--accent)}button{width:100%;margin-top:16px;padding:14px;border:0;border-radius:12px;background:var(--accent);color:#062019;font-weight:800;font-size:1rem;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.result{display:none;margin-top:20px;padding:18px;border:1px solid #3b6b72;border-radius:14px;background:#0a2930;text-align:center}.result.show{display:block}.code{margin:10px 0;font:800 2rem ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;color:var(--accent)}.status{min-height:24px;margin-top:14px;color:var(--muted);font-size:.92rem}.error{color:var(--danger)}small{display:block;margin-top:18px;color:#7f93af;line-height:1.45}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">LEE TECH BOT</div>
+    <section class="card">
+      <h1>Link WhatsApp</h1>
+      <p>Enter the WhatsApp number with its country code. Do not include <b>+</b>, spaces, or dashes.</p>
+      <form id="form">
+        <label for="phone">Phone number</label>
+        <input id="phone" name="phone" inputmode="numeric" autocomplete="tel" placeholder="254723456789" required pattern="[0-9]{8,15}">
+        <label for="token">Website token <span>(only if your host enabled one)</span></label>
+        <input id="token" name="token" type="password" autocomplete="off" placeholder="Optional pairing website token">
+        <button id="submit" type="submit">Generate pairing code</button>
+      </form>
+      <div id="status" class="status" role="status"></div>
+      <div id="result" class="result"><div>Your pairing code</div><div id="code" class="code"></div><div>Open WhatsApp → Settings → Linked Devices → Link a Device.</div></div>
+      <small>Keep this page private. A pairing code can link the bot to your WhatsApp account.</small>
+    </section>
+  </main>
+  <script>
+    const form=document.querySelector('#form'),button=document.querySelector('#submit'),status=document.querySelector('#status'),result=document.querySelector('#result'),code=document.querySelector('#code');
+    form.addEventListener('submit',async event=>{event.preventDefault();button.disabled=true;result.classList.remove('show');status.className='status';status.textContent='Connecting to WhatsApp…';try{const headers={'content-type':'application/json'},token=document.querySelector('#token').value.trim();if(token)headers['x-pairing-token']=token;const response=await fetch('/api/pairing-code',{method:'POST',headers,body:JSON.stringify({phoneNumber:document.querySelector('#phone').value})});const data=await response.json();if(!response.ok)throw new Error(data.error||'Could not generate a code.');code.textContent=data.code;result.classList.add('show');status.textContent='Code generated. Enter it in WhatsApp now.'}catch(error){status.className='status error';status.textContent=error.message}finally{button.disabled=false}});
+  </script>
+</body>
+</html>

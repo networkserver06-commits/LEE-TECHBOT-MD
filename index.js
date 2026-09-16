@@ -50,6 +50,7 @@ const store = require('./lib/lightweight_store')
 const { ensureRuntimeDirs, readJson } = require('./lib/runtime')
 const { normalizeWhatsAppNumber } = require('./lib/phone')
 const { requestPairingCodeWithRetry } = require('./lib/pairing')
+const { createPairingWebServer } = require('./lib/pairingWeb')
 ensureRuntimeDirs()
 
 // Initialize store
@@ -59,6 +60,16 @@ setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
 let reconnectAttempts = 0
 let activeSocket = null
 let reconnectTimer = null
+const pairingWebEnabled = process.env.PAIRING_WEB_ENABLED !== 'false'
+const pairingWebOnly = pairingWebEnabled && process.env.PAIRING_WEB_ONLY !== 'false'
+const pairingWebServer = createPairingWebServer({
+    enabled: pairingWebEnabled,
+    host: process.env.PAIRING_WEB_HOST || '127.0.0.1',
+    port: Number(process.env.PAIRING_WEB_PORT || process.env.PORT || 3000),
+    token: process.env.PAIRING_WEB_TOKEN || '',
+    getSocket: () => activeSocket,
+    logger: console
+})
 const connectionNoticePath = path.join(process.env.AUTH_DIR || './session', '.connection-notice.json')
 let hasAnnouncedConnection = Boolean(readJson(connectionNoticePath, {}).sent)
 const decryptWarningCache = new Map()
@@ -287,7 +298,7 @@ async function startXeonBotInc() {
     // "Connection Closed / Precondition Required" responses.
     let requestedPhoneNumber = ''
     let pairingRequestStarted = false
-    if (pairingCode && !XeonBotInc.authState.creds.registered) {
+    if (pairingCode && !XeonBotInc.authState.creds.registered && !pairingWebOnly) {
         if (useMobile) throw new Error('Cannot use pairing code with mobile api')
 
         // Re-read panel variables here because some panel launchers inject
@@ -334,7 +345,8 @@ async function startXeonBotInc() {
             if (XeonBotInc.__connectingLogged) return
             XeonBotInc.__connectingLogged = true
             console.log(chalk.yellow('🔄 Connecting to WhatsApp...'))
-            if (pairingCode && requestedPhoneNumber && !pairingRequestStarted) {
+            XeonBotInc.__pairingReady = true
+            if (pairingCode && requestedPhoneNumber && !pairingWebOnly && !pairingRequestStarted) {
                 pairingRequestStarted = true
                 setTimeout(async () => {
                     try {
@@ -342,7 +354,7 @@ async function startXeonBotInc() {
                             socket: XeonBotInc,
                             phoneNumber: requestedPhoneNumber,
                             isActive: () => activeSocket === XeonBotInc,
-                            logger: chalk
+                            logger: console
                         })
                         if (code) {
                             console.log(chalk.black(chalk.bgGreen('Your Pairing Code : ')), chalk.black(chalk.white(code)))

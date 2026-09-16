@@ -154,9 +154,21 @@ It is lightweight and can be easily customized to add more commands as per your 
     node index.js
     ```
 
-5. **Scan the QR code:**
+5. **Link the bot:**
 
-    Once the bot starts, a QR code will appear in the terminal. Scan this QR code using the Linked Devices feature in WhatsApp to connect your WhatsApp account with the bot.
+    For pairing-code login, open the pairing website using your hosting panel's public host link, enter your full international phone number in the website field without `+`, spaces, or dashes, and press **Generate pairing code**. You do not need to type the number in the host terminal. Enter the displayed code in WhatsApp under **Settings → Linked Devices → Link a Device**.
+
+    The website binds to localhost by default. To expose it through a hosting panel or reverse proxy, set these values in the existing `.env` file and use a long random token:
+
+    ```env
+    PAIRING_WEB_ENABLED=true
+    PAIRING_WEB_HOST=0.0.0.0
+    PAIRING_WEB_PORT=3000
+    PAIRING_WEB_TOKEN=replace-with-a-long-random-secret
+    PAIRING_WEB_ONLY=true
+    ```
+
+    With `PAIRING_WEB_ONLY=true`, the bot does not ask for a phone number in the terminal and waits for the number submitted on the website. Send the token as the `X-Pairing-Token` header if calling the API directly. Keep the pairing page and token private because a pairing code can link the bot to a WhatsApp account.
 
 ---
 
