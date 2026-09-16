@@ -15,10 +15,10 @@ const MAX_UPDATE_BYTES = 50 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 45_000;
 const MAX_REDIRECTS = 5;
 const PRESERVED_NAMES = new Set([
-    '.git', '.env', 'node_modules', 'session', 'sessions', 'auth', 'auth_info',
+    '.git', '.env', 'env', 'config.env', 'node_modules', 'session', 'sessions', 'auth', 'auth_info',
     'tmp', 'temp', 'data', 'baileys_store.json', 'package-lock.json'
 ]);
-const PRESERVED_PATHS = ['.env', 'data/', 'session/', 'sessions/', 'auth/', 'auth_info/', 'package-lock.json'];
+const PRESERVED_PATHS = ['.env', 'env', 'config.env', 'data/', 'session/', 'sessions/', 'auth/', 'auth_info/', 'package-lock.json'];
 
 function shellCommand(command, args, options = {}) {
     return execFileAsync(command, args, {
@@ -54,6 +54,7 @@ function restorePreservedFiles(snapshot) {
         for (const relative of snapshot.copied) {
             const source = path.join(snapshot.snapshotRoot, relative);
             const target = path.join(process.cwd(), relative);
+            if (!fs.existsSync(source)) continue;
             fs.mkdirSync(path.dirname(target), { recursive: true });
             fs.cpSync(source, target, { recursive: true, force: true });
         }
@@ -204,6 +205,7 @@ async function updateViaZip(zipOverride) {
     const zipPath = path.join(tmpDir, `update-${process.pid}-${Date.now()}.zip`);
     const extractTo = path.join(tmpDir, `update-extract-${process.pid}-${Date.now()}`);
     fs.mkdirSync(tmpDir, { recursive: true });
+    const snapshot = snapshotPreservedFiles();
     try {
         await downloadFile(zipUrl, zipPath);
         await extractZip(zipPath, extractTo);
@@ -212,7 +214,11 @@ async function updateViaZip(zipOverride) {
         const srcRoot = directories.length === 1 ? directories[0] : extractTo;
         const copied = [];
         copyRecursive(srcRoot, process.cwd(), '', copied);
+        restorePreservedFiles(snapshot);
         return { copiedFiles: copied, source: zipUrl };
+    } catch (error) {
+        restorePreservedFiles(snapshot);
+        throw error;
     } finally {
         removeFile(zipPath); removeFile(`${zipPath}.part`); removeFile(extractTo);
     }
@@ -277,3 +283,5 @@ module.exports.updateViaZip = updateViaZip;
 module.exports.copyRecursive = copyRecursive;
 module.exports.assertInside = assertInside;
 module.exports.isPreservedPath = isPreservedPath;
+module.exports.snapshotPreservedFiles = snapshotPreservedFiles;
+module.exports.restorePreservedFiles = restorePreservedFiles;
