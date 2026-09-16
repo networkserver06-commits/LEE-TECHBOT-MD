@@ -4,6 +4,7 @@ const path = require('path');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys'); 
 const { ensureRuntimeDirs, readJson, createMessageGuard, createHealthMetrics } = require('./lib/runtime');
 const { antiBanCommand, isAntiBanEnabled } = require('./commands/antiban');
+const { loadBotMode, saveBotMode } = require('./lib/mode');
 const { hydrateRuntimeSettings } = require('./lib/runtimeSettings');
 
 ensureRuntimeDirs();
@@ -338,8 +339,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         // Read bot mode safely
         let isPublic = true;
         try {
-            const data = readJson(path.join(__dirname, 'data/messageCount.json'), {});
-            if (typeof data.isPublic === 'boolean') isPublic = data.isPublic;
+            isPublic = loadBotMode().isPublic;
         } catch (error) {}
         const isOwnerOrSudoCheck = message.key.fromMe || senderIsOwnerOrSudo;
         if (global.ownerControls?.maintenance && !isOwnerOrSudoCheck) return;
@@ -787,7 +787,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith('.mode'):
                 let data;
                 try {
-                    data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
+                    data = { ...data, ...loadBotMode() };
                 } catch (error) {
                     await sock.sendMessage(chatId, { text: 'Failed to read bot mode status', ...channelInfo });
                     break;
@@ -805,7 +805,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
                 try {
                     data.isPublic = action === 'public';
-                    fs.writeFileSync('./data/messageCount.json', JSON.stringify(data, null, 2));
+                    saveBotMode(data.isPublic);
                     await sock.sendMessage(chatId, { text: `Bot is now in *${action}* mode`, ...channelInfo });
                 } catch (error) {
                     await sock.sendMessage(chatId, { text: 'Failed to update bot access mode', ...channelInfo });
@@ -1680,8 +1680,7 @@ async function handleGroupParticipantUpdate(sock, update) {
 
         let isPublic = true;
         try {
-            const modeData = JSON.parse(fs.readFileSync('./data/messageCount.json'));
-            if (typeof modeData.isPublic === 'boolean') isPublic = modeData.isPublic;
+            isPublic = loadBotMode().isPublic;
         } catch (e) { }
 
         if (action === 'promote') {

@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const settings = require('../settings');
 const { MENU_CATEGORIES, getCategory } = require('../lib/menuCatalog');
+const { loadBotMode } = require('../lib/mode');
 
 const menuImagePath = path.join(process.cwd(), 'menu.jpg');
 const menuSettingsPath = path.join(process.cwd(), 'data', 'menuSettings.json');
@@ -83,7 +84,7 @@ function liveMenuState(context = {}) {
     const linkedName = context.userName || message.pushName || message.key?.pushName;
     const configuredName = process.env.MENU_USER_NAME || process.env.USER_DISPLAY_NAME || menuSettings.userName;
     const user = configuredName || linkedName || senderNumber;
-    const mode = readState('messageCount.json', { isPublic: true });
+    const mode = loadBotMode();
     const autoStatus = readState('autoStatus.json', { enabled: false });
     const autoread = readState('autoread.json', { enabled: false });
     const autotyping = readState('autotyping.json', { enabled: false });
