@@ -136,7 +136,7 @@ It is lightweight and can be easily customized to add more commands as per your 
 
 3. **Configure Groq/Grok AI:**
 
-    The repository includes a `.env` template. Add your provider key to either `GROQ_API_KEY` (preferred) or `GROK_API_KEY`, then restart the bot:
+    Use the existing `.env` file in the repository. Add your provider key to either `GROQ_API_KEY` (preferred) or `GROK_API_KEY`, then restart the bot:
 
     ```env
     GROQ_API_KEY=your_api_key_here
@@ -222,4 +222,4 @@ The menu catalog is intentionally separate from command execution so existing ha
 
 ## Environment safety
 
-Runtime credentials and deployment values belong in a local `.env` file or hosting-panel secrets, never in Git. Start from `.env.example`; the repository ignores `.env` and session credentials.
+Runtime credentials and deployment values belong in the existing `.env` file or hosting-panel secrets. Keep real API keys private and never post them in public issues or commits.
