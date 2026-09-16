@@ -32,6 +32,15 @@ test('catalog fallback never emits the removed provider warning', async () => {
     assert.doesNotMatch(source, /needs a provider or handler configuration/i);
 });
 
+test('truth command accepts an optional argument without falling into compatibility fallback', async () => {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+    assert.match(source, /userMessage === '\.truth' \|\| userMessage\.startsWith\('\.truth '\)/);
+    const sock = mockSock();
+    const handled = await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.truth and', {});
+    assert.equal(handled, true);
+    assert.doesNotMatch(sock.sent[0].payload.text, /recognized command|primary command dispatcher/i);
+});
+
 test('owner-only missing commands are rejected for non-owners', async () => {
     const sock = mockSock();
     const handled = await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.restart', { isOwnerOrSudoCheck: false });

@@ -882,19 +882,19 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await handleAntitagCommand(sock, chatId, userMessage, senderId, isSenderAdmin, message);
                 commandExecuted = true;
                 break;
-            case userMessage === '.meme':
+            case userMessage === '.meme' || userMessage.startsWith('.meme '):
                 await memeCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
-            case userMessage === '.joke':
+            case userMessage === '.joke' || userMessage.startsWith('.joke '):
                 await jokeCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
-            case userMessage === '.quote':
+            case userMessage === '.quote' || userMessage.startsWith('.quote '):
                 await quoteCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
-            case userMessage === '.fact':
+            case userMessage === '.fact' || userMessage.startsWith('.fact '):
                 await factCommand(sock, chatId, message, message);
                 commandExecuted = true;
                 break;
@@ -907,7 +907,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 commandExecuted = true;
                 break;
-            case userMessage === '.news':
+            case userMessage === '.news' || userMessage.startsWith('.news '):
                 await newsCommand(sock, chatId);
                 commandExecuted = true;
                 break;
@@ -1000,11 +1000,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await stupidCommand(sock, chatId, stupidQuotedMsg, stupidMentionedJid, senderId, stupidArgs);
                 commandExecuted = true;
                 break;
-            case userMessage === '.dare':
+            case userMessage === '.dare' || userMessage.startsWith('.dare '):
                 await dareCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
-            case userMessage === '.truth':
+            case userMessage === '.truth' || userMessage.startsWith('.truth '):
                 await truthCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
@@ -1144,7 +1144,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 commandExecuted = true;
                 break;
-            case userMessage === '.flirt':
+            case userMessage === '.flirt' || userMessage.startsWith('.flirt '):
                 await flirtCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
