@@ -32,6 +32,8 @@ const { fetchParticipatingGroups } = require('../lib/groupTarget');
 const { groupSettingsCommand } = require('../commands/groupSettings');
 const { groqCommand } = require('./groq');
 const { legacyCommand } = require('./legacyCommands');
+const { normalizeWhatsAppNumber } = require('../lib/phone');
+const { saveIdentity } = require('../lib/identity');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const NOTES_FILE = path.join(DATA_DIR, 'menuNotes.json');
@@ -94,7 +96,7 @@ const OWNER_COMMANDS = new Set([
     'addowner', 'delowner', 'listowner', 'block', 'unblock', 'blocklist', 'joingc', 'join', 'restart',
     'mode', 'edit', 'clearall', 'autorecording', 'autorecordtype', 'autoviewstatus', 'autoreact',
     'autolikestatus', 'getsession', 'setfullpp', 'reveal', 'listgroup', 'listonline', 'setpaypoint',
-    'reportcommand', 'panel', 'eval', 'gsettings', 'groupsettings'
+    'reportcommand', 'panel', 'eval', 'gsettings', 'groupsettings', 'setname', 'setownernumber'
 ]);
 
 function textOf(message) {
@@ -249,6 +251,18 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
             await reply(sock, chatId, message, '❌ Could not fetch the bot group list.');
         }
         return true;
+    }
+    if (command === 'setname') {
+        const name = args.join(' ').trim();
+        if (!name) return reply(sock, chatId, message, 'Usage: .setname Your display name');
+        saveIdentity({ userName: name });
+        return reply(sock, chatId, message, `✅ Menu display name saved as *${name}*.`);
+    }
+    if (command === 'setownernumber') {
+        const number = normalizeWhatsAppNumber(args.join(' '));
+        if (!number) return reply(sock, chatId, message, 'Usage: .setownernumber 254712345678\nUse the full international number without a local leading 0.');
+        saveIdentity({ ownerNumber: number });
+        return reply(sock, chatId, message, `✅ Menu owner number saved as *${number}*.`);
     }
     if (command === 'gsettings' || command === 'groupsettings') {
         await groupSettingsCommand(sock, chatId, message, args);

@@ -5,6 +5,7 @@ const path = require('path');
 const settings = require('../settings');
 const { MENU_CATEGORIES, getCategory } = require('../lib/menuCatalog');
 const { loadBotMode } = require('../lib/mode');
+const { loadIdentity } = require('../lib/identity');
 
 const menuImagePath = path.join(process.cwd(), 'menu.jpg');
 const menuSettingsPath = path.join(process.cwd(), 'data', 'menuSettings.json');
@@ -81,8 +82,9 @@ function liveMenuState(context = {}) {
     const sender = message.key?.participant || message.key?.remoteJid || 'user';
     const senderNumber = sender.includes('@') ? sender.split('@')[0].split(':')[0] : sender;
     const menuSettings = readState('menuSettings.json', {});
+    const identity = loadIdentity();
     const linkedName = context.userName || message.pushName || message.key?.pushName;
-    const configuredName = process.env.MENU_USER_NAME || process.env.USER_DISPLAY_NAME || menuSettings.userName;
+    const configuredName = identity.userName || process.env.MENU_USER_NAME || process.env.USER_DISPLAY_NAME || menuSettings.userName;
     const user = configuredName || linkedName || senderNumber;
     const mode = loadBotMode();
     const autoStatus = readState('autoStatus.json', { enabled: false });
@@ -96,7 +98,7 @@ function liveMenuState(context = {}) {
     const health = global.botHealth?.snapshot?.() || {};
     return {
         user,
-        userNumber: senderNumber,
+        userNumber: identity.ownerNumber || senderNumber,
         mode: mode.isPublic === false ? 'Private' : 'Public',
         speed: Number(health.lastLatencyMs || global.lastCommandLatencyMs || 0).toFixed(4),
         group,
@@ -148,7 +150,7 @@ function buildCatalogMenu(context = {}) {
     const version = settings.version || '3.0.7';
     const live = liveMenuState(context);
     const privacy = live.mode;
-    const owner = 'LEETECH';
+    const owner = live.user || settings.botOwner || 'LEETECH';
     const lines = [
         `┏━━━━━━━━━━━━━━━━❍`,
         `┃ *${name.toUpperCase()} MENU*`,
@@ -257,7 +259,7 @@ function buildDetails(topic) {
     const p = prefix();
     const topics = {
         admin: `*ADMIN GUIDE*\n\n${p}adminstatus\n${p}groupstats\n${p}tagall\n${p}hidetag\n${p}kick @user\n${p}promote @user\n${p}demote @user\n${p}promotion on/off/status\n${p}antidemote on/off/status\n${p}mute @user\n${p}antiall on/off/status\n${p}open [minutes]\n${p}close [minutes]\n\nThe sender and bot must have the required group permissions.`,
-        owner: `*OWNER GUIDE*\n\n${p}owner\n${p}mode public/private\n${p}setprefix <symbol|none>\n${p}hidechannel on/off\n${p}maintenance on/off\n${p}backup\n${p}update\n${p}tostatus (reply to media/text)\n${p}togstatus (inside a group)\n${p}savestatus (reply to a Status)\n\nOwner tools are protected by owner or sudo authorization.`,
+        owner: `*OWNER GUIDE*\n\n${p}owner\n${p}mode public/private\n${p}setname <display name>\n${p}setownernumber <full international number>\n${p}setprefix <symbol|none>\n${p}hidechannel on/off\n${p}maintenance on/off\n${p}backup\n${p}update\n${p}tostatus (reply to media/text)\n${p}togstatus (inside a group)\n${p}savestatus (reply to a Status)\n\nOwner tools are protected by owner or sudo authorization.`,
         download: `*DOWNLOAD GUIDE*\n\n${p}download <public social link>\n${p}tiktok <url>\n${p}instagram <url>\n${p}facebook <url>\n${p}play <song>\n${p}song <song>\n${p}spotify <query>\n${p}ytmp4 <url|search>\n${p}url (reply to image/video)\n\nPrivate, expired, or region-blocked links may fail.`,
         ai: `*AI GUIDE*\n\n${p}gpt <question>\n${p}gemini <question>\n${p}groq <question>\n${p}grok <question>\n${p}chatbot on/off\n${p}imagine <prompt>\n${p}translate <text> <language>\n${p}tts <text>`,
         dev: buildDeveloperMenu(),
