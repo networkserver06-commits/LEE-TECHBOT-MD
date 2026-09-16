@@ -202,6 +202,11 @@ async function startXeonBotInc() {
         try {
             const mek = chatUpdate.messages[0]
             if (!mek.message) return
+            // Do not process encrypted updates while Baileys is still opening
+            // or handing off a reconnecting socket. Processing them too early
+            // can create duplicate replies and WhatsApp's "waiting for this
+            // message" placeholders while Signal sessions catch up.
+            if (!XeonBotInc.__connectionOpened || activeSocket !== XeonBotInc) return
             const protocol = mek.message.protocolMessage
             if (protocol?.type === 0 && protocol.key?.id) {
                 rememberDeletedMessage(protocol.key.remoteJid || mek.key?.remoteJid, protocol.key.id)
@@ -385,7 +390,7 @@ async function startXeonBotInc() {
             requestTerminalPairingCode()
         }
         
-        if (connection == "open") {
+        if (connection === "open") {
             if (XeonBotInc.__connectionOpened) return
             XeonBotInc.__connectionOpened = true
             if (reconnectTimer) {
@@ -426,6 +431,7 @@ async function startXeonBotInc() {
                 console.log(chalk.yellow('Ignoring close event from a stale WhatsApp socket.'))
                 return
             }
+            XeonBotInc.__connectionOpened = false
             activeSocket = null
             if (global.__updateRestarting) {
                 console.log(chalk.yellow('Update restart requested; suppressing reconnect for the closing socket.'))

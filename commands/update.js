@@ -267,7 +267,10 @@ async function updateCommand(sock, chatId, message, zipOverride) {
         let version = settings.version || 'unknown';
         try { version = JSON.parse(fs.readFileSync(packagePath, 'utf8')).version || version; } catch {}
         await sock.sendMessage(chatId, { text: `✅ *Update completed*\nVersion: *${version}*\nRevision: *${result.newRev ? result.newRev.slice(0, 12) : 'archive'}*\nRestarting now; send *.ping* after reconnect.` }, { quoted: message });
-        await new Promise(resolve => setTimeout(resolve, 1200));
+        // Give Baileys time to flush the final status message before the
+        // socket handoff. Restarting immediately can leave that message in
+        // WhatsApp's "waiting for this message" state.
+        await new Promise(resolve => setTimeout(resolve, 5000));
         await restartProcess(sock);
     } catch (error) {
         console.error('[update] failed:', error);
