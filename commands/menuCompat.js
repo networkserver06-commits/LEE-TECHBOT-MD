@@ -25,6 +25,7 @@ const { clearCommand } = require('./clear');
 const vv2Command = require('./vv2');
 const audioSpeedCommand = require('./audiospeed');
 const setProfilePicture = require('./setpp');
+const { setPaymentCommand } = require('./payment');
 const { allCommands } = require('../lib/menuCatalog');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -244,6 +245,10 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     }
     if (command === 'setfullpp') {
         await setProfilePicture(sock, chatId, message);
+        return true;
+    }
+    if (command === 'setpaypoint') {
+        await setPaymentCommand(sock, chatId, message, args, context.isOwnerOrSudoCheck);
         return true;
     }
     if (command === 'reveal') {
