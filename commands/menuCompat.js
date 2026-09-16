@@ -530,7 +530,7 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         return true;
     }
     if (allCommands().includes(command)) {
-        await reply(sock, chatId, message, `⚠️ *.${command}* is recognized by the menu and routed safely, but this feature needs a provider or handler configuration that is not present in the current deployment.`);
+        await reply(sock, chatId, message, `ℹ️ *.${command}* is a recognized command. Please send it again after the bot has fully connected; the primary command dispatcher handles this feature.`);
         return true;
     }
     return false;

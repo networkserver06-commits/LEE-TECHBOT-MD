@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { menuCompatCommand } = require('../commands/menuCompat');
 
 function mockSock() {
@@ -19,6 +21,15 @@ test('missing test command is routed by compatibility handler', async () => {
     const handled = await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.test', {});
     assert.equal(handled, true);
     assert.match(sock.sent[0].payload.text, /router is working/i);
+});
+
+test('catalog fallback never emits the removed provider warning', async () => {
+    const sock = mockSock();
+    const handled = await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.menu', {});
+    assert.equal(handled, true);
+    assert.doesNotMatch(sock.sent[0].payload.text, /needs a provider or handler configuration/i);
+    const source = fs.readFileSync(path.join(__dirname, '..', 'commands', 'menuCompat.js'), 'utf8');
+    assert.doesNotMatch(source, /needs a provider or handler configuration/i);
 });
 
 test('owner-only missing commands are rejected for non-owners', async () => {
