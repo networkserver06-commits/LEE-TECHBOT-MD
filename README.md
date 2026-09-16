@@ -166,9 +166,12 @@ It is lightweight and can be easily customized to add more commands as per your 
     PAIRING_WEB_PORT=3000
     PAIRING_WEB_TOKEN=replace-with-a-long-random-secret
     PAIRING_WEB_ONLY=true
+    PAIRING_INPUT_MODE=choose
     ```
 
-    With `PAIRING_WEB_ONLY=true`, the bot does not ask for a phone number in the terminal and waits for the number submitted on the website. Send the token as the `X-Pairing-Token` header if calling the API directly. Keep the pairing page and token private because a pairing code can link the bot to a WhatsApp account.
+    With `PAIRING_INPUT_MODE=choose`, startup asks whether to use **Website** or **Terminal** pairing. Both methods remain available: Website asks for the phone number on the host link, while Terminal asks for it in the host console. Use `PAIRING_INPUT_MODE=web` to skip the choice and use the website, or `PAIRING_INPUT_MODE=terminal` to skip it and use the terminal. Send the token as the `X-Pairing-Token` header if calling the API directly. Keep the pairing page and token private because a pairing code can link the bot to a WhatsApp account.
+
+    To allow both methods, set `PAIRING_WEB_ONLY=false`. The host terminal will then accept a phone number when no valid `PHONE_NUMBER` or `PAIRING_NUMBER` is configured, while the website remains available. To always show the terminal prompt, even when a number is already configured, also set `PAIRING_TERMINAL_PROMPT=true`.
 
 ---
 

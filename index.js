@@ -61,7 +61,7 @@ let reconnectAttempts = 0
 let activeSocket = null
 let reconnectTimer = null
 const pairingWebEnabled = process.env.PAIRING_WEB_ENABLED !== 'false'
-const pairingWebOnly = pairingWebEnabled && process.env.PAIRING_WEB_ONLY !== 'false'
+const configuredPairingInputMode = process.env.PAIRING_INPUT_MODE || (pairingWebEnabled ? 'choose' : 'terminal')
 const pairingWebServer = createPairingWebServer({
     enabled: pairingWebEnabled,
     host: process.env.PAIRING_WEB_HOST || '127.0.0.1',
@@ -161,7 +161,7 @@ async function startXeonBotInc() {
         // Auth files are generated automatically on first pairing. They do not
         // need to be uploaded beforehand; keep AUTH_DIR on persistent panel
         // storage if you want to avoid relinking after a restart.
-        const { state, saveCreds } = await useMultiFileAuthState(authDir)
+    const { state, saveCreds } = await useMultiFileAuthState(authDir)
         const msgRetryCounterCache = new NodeCache()
 
         const XeonBotInc = makeWASocket({
@@ -292,14 +292,28 @@ async function startXeonBotInc() {
 
     XeonBotInc.serializeM = (m) => smsg(XeonBotInc, m, store)
 
-    // Handle pairing code. The phone number is collected before the socket
+        // Handle pairing code. The phone number is collected before the socket
     // reaches its connecting state, but the request itself must wait until
     // the socket is initializing; requesting too early causes Baileys 428
     // "Connection Closed / Precondition Required" responses.
     let requestedPhoneNumber = ''
     let pairingRequestStarted = false
+    let pairingTerminalSelected = false
+    let pairingWebOnly = pairingWebEnabled && process.env.PAIRING_WEB_ONLY !== 'false'
+    if (pairingCode && !XeonBotInc.authState.creds.registered && configuredPairingInputMode === 'choose') {
+        try {
+            const choice = await question(chalk.bgBlack(chalk.greenBright('Choose pairing method:\n1. Website (enter number on host link)\n2. Terminal (enter number here)\nChoose 1 or 2: ')))
+            pairingWebOnly = choice.trim() !== '2'
+            pairingTerminalSelected = !pairingWebOnly
+            console.log(chalk.cyan(pairingWebOnly ? 'Pairing method selected: Website' : 'Pairing method selected: Terminal'))
+        } catch (error) {
+            pairingWebOnly = true
+            console.log(chalk.yellow('Console input is unavailable; using the pairing website.'))
+        }
+    }
     if (pairingCode && !XeonBotInc.authState.creds.registered && !pairingWebOnly) {
         if (useMobile) throw new Error('Cannot use pairing code with mobile api')
+        const forceTerminalPrompt = process.env.PAIRING_TERMINAL_PROMPT === 'true' || pairingTerminalSelected
 
         // Re-read panel variables here because some panel launchers inject
         // environment values after the module bootstrap phase.
@@ -312,7 +326,7 @@ async function startXeonBotInc() {
             .concat(envPairingEntry ? [envPairingEntry] : [])
             .find(([, value]) => Boolean(normalizeWhatsAppNumber(value)))
         const configuredPairingInput = pairingEntry?.[1] || (process.env.PAIRING_CODE !== 'true' && process.env.PAIRING_CODE !== 'false' ? process.env.PAIRING_CODE : '') || phoneNumber
-        requestedPhoneNumber = normalizeWhatsAppNumber(configuredPairingInput)
+        requestedPhoneNumber = forceTerminalPrompt ? '' : normalizeWhatsAppNumber(configuredPairingInput)
         const detectedFrom = pairingEntry?.[0] || (requestedPhoneNumber ? 'bootstrap' : 'none')
         console.log(chalk.cyan(`Pairing configuration: number ${requestedPhoneNumber ? 'detected' : 'missing'} (${detectedFrom}), console input ${rl.closed || process.stdin.readableEnded ? 'closed' : 'available'}`))
         do {
