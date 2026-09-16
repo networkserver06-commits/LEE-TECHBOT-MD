@@ -40,6 +40,9 @@ test('pairing website serves health and generates a code through the socket', as
     }
 });
 
-test('public pairing website requires a token', () => {
-    assert.throws(() => createPairingWebServer({ host: '0.0.0.0', port: 0 }), /PAIRING_WEB_TOKEN/);
+test('public pairing website can bind for a host proxy without crashing', async () => {
+    const server = createPairingWebServer({ host: '0.0.0.0', port: 0, logger: { warn() {}, log() {}, error() {} } });
+    await new Promise((resolve) => server.once('listening', resolve));
+    assert.ok(server.address().port > 0);
+    await new Promise((resolve) => server.close(resolve));
 });

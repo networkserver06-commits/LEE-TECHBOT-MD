@@ -158,12 +158,12 @@ It is lightweight and can be easily customized to add more commands as per your 
 
     For pairing-code login, open the pairing website using your hosting panel's public host link, enter your full international phone number in the website field without `+`, spaces, or dashes, and press **Generate pairing code**. You do not need to type the number in the host terminal. Enter the displayed code in WhatsApp under **Settings → Linked Devices → Link a Device**.
 
-    The website binds to localhost by default. To expose it through a hosting panel or reverse proxy, set these values in the existing `.env` file and use a long random token:
+    The website binds to `0.0.0.0` and uses the host-provided `SERVER_PORT` automatically. To expose it through a hosting panel or reverse proxy, set these values in the existing `.env` file and use a long random token:
 
     ```env
     PAIRING_WEB_ENABLED=true
     PAIRING_WEB_HOST=0.0.0.0
-    PAIRING_WEB_PORT=3000
+    PAIRING_WEB_PORT=
     PAIRING_WEB_TOKEN=replace-with-a-long-random-secret
     PAIRING_WEB_ONLY=true
     PAIRING_INPUT_MODE=choose

@@ -64,8 +64,8 @@ const pairingWebEnabled = process.env.PAIRING_WEB_ENABLED !== 'false'
 const configuredPairingInputMode = process.env.PAIRING_INPUT_MODE || (pairingWebEnabled ? 'choose' : 'terminal')
 const pairingWebServer = createPairingWebServer({
     enabled: pairingWebEnabled,
-    host: process.env.PAIRING_WEB_HOST || '127.0.0.1',
-    port: Number(process.env.PAIRING_WEB_PORT || process.env.PORT || 3000),
+    host: process.env.PAIRING_WEB_HOST || '0.0.0.0',
+    port: Number(process.env.SERVER_PORT || process.env.PORT || process.env.PAIRING_WEB_PORT || 3000),
     token: process.env.PAIRING_WEB_TOKEN || '',
     getSocket: () => activeSocket,
     logger: console
