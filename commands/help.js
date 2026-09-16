@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const settings = require('../settings');
-const { MENU_CATEGORIES, getCategory } = require('../lib/menuCatalog');
+const { MENU_CATEGORIES, getCategory, allCommands } = require('../lib/menuCatalog');
 const { loadBotMode } = require('../lib/mode');
 const { loadIdentity } = require('../lib/identity');
 const { normalizeWhatsAppNumber } = require('../lib/phone');
@@ -146,6 +146,12 @@ function displayCommand(command) {
     return String(command).replace(/(^|[-_])(\w)/g, (_, separator, character) => `${separator}${character.toUpperCase()}`);
 }
 
+const COMMAND_NUMBERS = new Map(allCommands().map((command, index) => [command, index + 1]));
+
+function numberedCommand(command) {
+    return `${String(COMMAND_NUMBERS.get(command) || 0).padStart(3, '0')}. ${displayCommand(command)}`;
+}
+
 function buildCatalogMenu(context = {}) {
     const p = prefix();
     const name = settings.botName || 'LEE TECH BOT';
@@ -183,7 +189,7 @@ function buildCatalogMenu(context = {}) {
     for (const category of MENU_CATEGORIES) {
         lines.push('', '┏━━━━━━━━━━━━━━━❍', `┗┳❍ 「 *${category.title}* 」❍`, '┏┻━━━━━━━━━━━━━━❍');
         for (const command of category.commands) {
-            lines.push(`│𖥟╾ ${displayCommand(command)}`);
+            lines.push(`│𖥟╾ ${numberedCommand(command)}`);
         }
         lines.push('┗━━━━━━━━━━━━━━━❍');
     }

@@ -6,6 +6,8 @@ const webp = require('node-webpmux');
 const crypto = require('crypto');
 
 const ANIMU_BASE = 'https://api.some-random-api.com/animu';
+const API_TIMEOUT_MS = 2500;
+const MEDIA_TIMEOUT_MS = 5000;
 
 function normalizeType(input) {
     const lower = (input || '').toLowerCase();
@@ -16,7 +18,7 @@ function normalizeType(input) {
 
 async function sendAnimu(sock, chatId, message, type) {
     const endpoint = `${ANIMU_BASE}/${type}`;
-    const res = await axios.get(endpoint);
+    const res = await axios.get(endpoint, { timeout: API_TIMEOUT_MS });
     const data = res.data || {};
 
     // Prefer link (gif/image). Send as sticker if applicable; fallback to image
@@ -35,7 +37,8 @@ async function sendAnimu(sock, chatId, message, type) {
             : `ffmpeg -y -i "${input}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000" -c:v libwebp -preset default -loop 0 -vsync 0 -pix_fmt yuva420p -quality 75 -compression_level 6 "${output}"`;
 
         await new Promise((resolve, reject) => {
-            exec(ffmpegCmd, (err) => (err ? reject(err) : resolve()));
+            const child = exec(ffmpegCmd, { timeout: MEDIA_TIMEOUT_MS }, (err) => (err ? reject(err) : resolve()));
+            child.once('error', reject);
         });
 
         let webpBuffer = fs.readFileSync(output);
@@ -127,7 +130,7 @@ async function animeCommand(sock, chatId, message, args) {
         if (!sub) {
             // Fetch supported types from API for dynamic help
             try {
-                const res = await axios.get(ANIMU_BASE);
+                const res = await axios.get(ANIMU_BASE, { timeout: API_TIMEOUT_MS });
                 const apiTypes = res.data && res.data.types ? res.data.types.map(s => s.replace('/animu/', '')).join(', ') : supported.join(', ');
                 await sock.sendMessage(chatId, { text: `Usage: .animu <type>\nTypes: ${apiTypes}` }, { quoted: message });
             } catch {
@@ -149,5 +152,3 @@ async function animeCommand(sock, chatId, message, args) {
 }
 
 module.exports = { animeCommand };
-
-
