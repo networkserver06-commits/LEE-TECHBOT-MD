@@ -12,6 +12,7 @@ const downloadCommand = require('./download');
 const { speedCommand, uptimeCommand, idCommand, botInfoCommand, healthCommand } = require('./utility');
 const quoteCommand = require('./quote');
 const factCommand = require('./fact');
+const { truthCommand } = require('./truth');
 const eightBallCommand = require('./eightball').eightBallCommand;
 const stickerTelegramCommand = require('./stickertelegram');
 const toStatusCommand = require('./tostatus');
@@ -130,6 +131,7 @@ async function handleSimpleLocal(sock, chatId, message, command, args, context =
     if (command === 'health') return healthCommand(sock, chatId, message);
     if (command === 'quotes' || command === 'quote') return quoteCommand(sock, chatId, message);
     if (command === 'fact') return factCommand(sock, chatId, message);
+    if (command === 'truth') return truthCommand(sock, chatId, message);
     if (command === '8ballpool') return eightBallCommand(sock, chatId, args.join(' ').trim());
     if (command === 'readmore') {
         const value = args.join(' ').trim();
