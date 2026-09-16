@@ -425,6 +425,35 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         } catch (_) { await reply(sock, chatId, message, '❌ Quran reference not found. Try `.quran 1:1`.'); }
         return true;
     }
+    if (command === 'gitclone') {
+        const input = args.join(' ').trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/i, '').replace(/\/$/, '');
+        const match = input.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
+        if (!match) {
+            await reply(sock, chatId, message, 'Usage: `.gitclone <github.com/owner/repository>`');
+            return true;
+        }
+        const [, owner, repo] = match;
+        try {
+            const api = await axios.get(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
+                timeout: 15000,
+                headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'LEE-TECH-BOT' }
+            });
+            const data = api.data;
+            const archive = await axios.get(data.zipball_url, {
+                responseType: 'arraybuffer', timeout: 30000, maxContentLength: 25 * 1024 * 1024
+            });
+            await sock.sendMessage(chatId, {
+                document: Buffer.from(archive.data),
+                mimetype: 'application/zip',
+                fileName: `${data.name || repo}.zip`,
+                caption: `📦 *${data.full_name}*\n${data.description || 'GitHub repository archive'}\n⭐ ${data.stargazers_count || 0} stars  |  Branch: ${data.default_branch || 'main'}`
+            }, { quoted: message });
+        } catch (error) {
+            console.error('[gitclone]', error.message || error);
+            await reply(sock, chatId, message, '❌ Repository not found, unavailable, or larger than the 25 MB download limit.');
+        }
+        return true;
+    }
     if (command === 'npm') {
         const packageName = args[0];
         if (!packageName) { await reply(sock, chatId, message, 'Usage: `.npm <package-name>`'); return true; }

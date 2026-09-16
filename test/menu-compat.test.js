@@ -174,3 +174,10 @@ test('setpaypoint uses the persistent payment settings handler', async () => {
     assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.setpaypoint', { isOwnerOrSudoCheck: true }), true);
     assert.match(sock.sent.at(-1).payload.text, /provide the new payment details/i);
 });
+
+test('gitclone validates GitHub repository input before downloading', async () => {
+    const sock = mockSock();
+    const message = { key: { remoteJid: '123@s.whatsapp.net', fromMe: true }, message: { conversation: '.gitclone' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.gitclone', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /Usage:.*github.com/i);
+});
