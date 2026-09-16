@@ -1,3 +1,4 @@
+const { persistRuntimeSettings } = require('../lib/runtimeSettings');
 global.autodlState = global.autodlState || 'off';
 
 const autodlCommand = async (sock, chatId, message, isGroup, isSenderAdmin, isOwnerOrSudoCheck, userMessage) => {
@@ -8,6 +9,7 @@ const autodlCommand = async (sock, chatId, message, isGroup, isSenderAdmin, isOw
     
     if (arg === 'on' || arg === 'off') {
         global.autodlState = arg;
+        persistRuntimeSettings();
         await sock.sendMessage(chatId, { text: `📥 Auto-Downloader is now turned *${arg.toUpperCase()}*` });
     } else {
         await sock.sendMessage(chatId, { text: `Usage: .autodl on/off\nCurrent status: *${global.autodlState}*` });

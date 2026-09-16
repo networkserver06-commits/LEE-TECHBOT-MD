@@ -1,3 +1,4 @@
+const { persistRuntimeSettings } = require('../lib/runtimeSettings');
 // Store settings per group
 global.antibotState = global.antibotState || {};
 global.botWarnCooldown = global.botWarnCooldown || {};
@@ -19,9 +20,11 @@ const antibotCommand = async (sock, chatId, message, isGroup, isSenderAdmin, isB
 
     if (commandArg === 'on' || commandArg === 'off') {
         global.antibotState[chatId].status = commandArg;
+        persistRuntimeSettings();
         await sock.sendMessage(chatId, { text: `🤖 Anti-Bot is now turned *${commandArg.toUpperCase()}* for this group.\nCurrent Action: *${global.antibotState[chatId].action.toUpperCase()}*` });
     } else if (commandArg === 'action' && ['kick', 'warn', 'delete'].includes(actionArg)) {
         global.antibotState[chatId].action = actionArg;
+        persistRuntimeSettings();
         await sock.sendMessage(chatId, { text: `🤖 Anti-Bot action set to *${actionArg.toUpperCase()}* for this group.` });
     } else {
         const currentStatus = global.antibotState[chatId].status;

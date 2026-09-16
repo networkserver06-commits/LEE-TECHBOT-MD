@@ -4,8 +4,10 @@ const path = require('path');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys'); 
 const { ensureRuntimeDirs, readJson, createMessageGuard, createHealthMetrics } = require('./lib/runtime');
 const { antiBanCommand, isAntiBanEnabled } = require('./commands/antiban');
+const { hydrateRuntimeSettings } = require('./lib/runtimeSettings');
 
 ensureRuntimeDirs();
+hydrateRuntimeSettings();
 const messageGuard = createMessageGuard({
     // WhatsApp can redeliver an older update after a delete, reconnect, or
     // temporary stream interruption. Keep message IDs protected long enough

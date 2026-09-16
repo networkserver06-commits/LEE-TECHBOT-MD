@@ -1,3 +1,4 @@
+const { persistRuntimeSettings } = require('../lib/runtimeSettings');
 global.antispamState = global.antispamState || 'off';
 
 const antispamCommand = async (sock, chatId, message, isGroup, isSenderAdmin, isOwnerOrSudoCheck, userMessage) => {
@@ -7,6 +8,7 @@ const antispamCommand = async (sock, chatId, message, isGroup, isSenderAdmin, is
     const arg = userMessage.split(' ')[1];
     if (arg === 'on' || arg === 'off') {
         global.antispamState = arg;
+        persistRuntimeSettings();
         await sock.sendMessage(chatId, { text: `🛡️ Anti-Spam is now turned *${arg.toUpperCase()}*` });
     } else {
         await sock.sendMessage(chatId, { text: `Usage: .antispam on/off\nCurrent status: *${global.antispamState}*` });

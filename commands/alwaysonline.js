@@ -1,3 +1,4 @@
+const { persistRuntimeSettings } = require('../lib/runtimeSettings');
 global.alwaysOnlineState = global.alwaysOnlineState || 'off';
 global.onlineInterval = global.onlineInterval || null;
 
@@ -11,6 +12,7 @@ const alwaysonlineCommand = async (sock, chatId, message, isOwnerOrSudoCheck, us
 
     if (arg === 'on') {
         global.alwaysOnlineState = 'on';
+        persistRuntimeSettings();
         
         // Clear any existing loop just in case
         if (global.onlineInterval) clearInterval(global.onlineInterval);
@@ -31,6 +33,7 @@ const alwaysonlineCommand = async (sock, chatId, message, isOwnerOrSudoCheck, us
         
     } else if (arg === 'off') {
         global.alwaysOnlineState = 'off';
+        persistRuntimeSettings();
         
         // Stop the heartbeat
         if (global.onlineInterval) {

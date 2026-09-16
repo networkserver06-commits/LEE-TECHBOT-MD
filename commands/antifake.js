@@ -1,3 +1,4 @@
+const { persistRuntimeSettings } = require('../lib/runtimeSettings');
 global.antifakeState = global.antifakeState || {};
 global.fakeLinkWarnCooldown = global.fakeLinkWarnCooldown || {};
 
@@ -10,6 +11,7 @@ const antifakeCommand = async (sock, chatId, message, isGroup, isSenderAdmin, is
     
     if (arg === 'on' || arg === 'off') {
         global.antifakeState[chatId] = arg; 
+        persistRuntimeSettings();
         await sock.sendMessage(chatId, { text: `🛡️ Anti-Fake (Fake Numbers & Scam Links) is now turned *${arg.toUpperCase()}* for this group.` });
     } else {
         const currentState = global.antifakeState[chatId] || 'off';

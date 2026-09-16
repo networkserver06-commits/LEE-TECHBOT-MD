@@ -1,3 +1,4 @@
+const { persistRuntimeSettings } = require('../lib/runtimeSettings');
 global.autobioState = global.autobioState || 'off';
 global.autobioInterval = global.autobioInterval || null;
 
@@ -10,6 +11,7 @@ const autobioCommand = async (sock, chatId, message, isOwnerOrSudoCheck, userMes
 
     if (arg === 'on') {
         global.autobioState = 'on';
+        persistRuntimeSettings();
         await sock.sendMessage(chatId, { text: '✅ Auto-Bio is turned *ON*. Your profile status will now update automatically.' });
         
         // Clear any existing interval just in case
@@ -24,6 +26,7 @@ const autobioCommand = async (sock, chatId, message, isOwnerOrSudoCheck, userMes
         
     } else if (arg === 'off') {
         global.autobioState = 'off';
+        persistRuntimeSettings();
         if (global.autobioInterval) {
             clearInterval(global.autobioInterval);
             global.autobioInterval = null;

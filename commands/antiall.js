@@ -3,6 +3,7 @@
 const { setAntilink, getAntilink, setAntitag, getAntitag, setAntiBadword, getAntiBadword, removeAntiBadword } = require('../lib');
 const fs = require('fs');
 const path = require('path');
+const { persistRuntimeSettings } = require('../lib/runtimeSettings');
 
 function setJsonState(file, key, value) {
     const filePath = path.join(__dirname, '../data', file);
@@ -64,6 +65,7 @@ async function antiallCommand(sock, chatId, message, isGroup, isSenderAdmin, isB
     global.antifakeState[chatId] = action;
     global.antibotState[chatId] = { status: action, action: 'delete' };
     global.antispamState = action;
+    persistRuntimeSettings();
 
     const status = await protectionStatus(chatId);
     return sock.sendMessage(chatId, { text: `✅ All group anti-protections turned *${action.toUpperCase()}*.\n\n${formatStatus(status)}` }, { quoted: message });
