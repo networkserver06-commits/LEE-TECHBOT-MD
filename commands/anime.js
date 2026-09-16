@@ -6,8 +6,8 @@ const webp = require('node-webpmux');
 const crypto = require('crypto');
 
 const ANIMU_BASE = 'https://api.some-random-api.com/animu';
-const API_TIMEOUT_MS = 2500;
-const MEDIA_TIMEOUT_MS = 5000;
+const API_TIMEOUT_MS = 1800;
+const MEDIA_TIMEOUT_MS = 1200;
 
 function normalizeType(input) {
     const lower = (input || '').toLowerCase();
@@ -76,7 +76,7 @@ async function sendAnimu(sock, chatId, message, type) {
             try {
                 const resp = await axios.get(link, {
                     responseType: 'arraybuffer',
-                    timeout: 15000,
+                    timeout: API_TIMEOUT_MS,
                     headers: { 'User-Agent': 'Mozilla/5.0' }
                 });
                 const mediaBuf = Buffer.from(resp.data);
