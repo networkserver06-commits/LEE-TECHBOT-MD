@@ -242,8 +242,8 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
                 await reply(sock, chatId, message, 'ℹ️ The bot is not currently participating in any groups.');
                 return true;
             }
-            const lines = groups.map((group) => `${group.index}. *${group.subject}*\n   ${group.jid}\n   Members: ${group.participants.length}`);
-            await reply(sock, chatId, message, `📋 *GROUPS (${groups.length})*\n\n${lines.join('\n\n')}\n\nUse .settings <number> to view or .gsettings <number> <feature> <on|off> to change settings.`);
+            const lines = groups.map((group) => `${group.index}. *${group.subject}*\n   Group number: ${group.number}\n   Members: ${group.participants.length}`);
+            await reply(sock, chatId, message, `📋 *GROUPS (${groups.length})*\n\n${lines.join('\n\n')}\n\nUse .settings <list number|full group number> to view or .gsettings <list number|full group number> <feature> <on|off> to change settings.`);
         } catch (error) {
             console.error('[listgroup]', error.message || error);
             await reply(sock, chatId, message, '❌ Could not fetch the bot group list.');

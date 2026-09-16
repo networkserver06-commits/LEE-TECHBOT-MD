@@ -168,6 +168,16 @@ test('gsettings resolves a numbered participating group from owner DM', async ()
     assert.match(sock.sent.at(-1).payload.text, /Usage: .gsettings/);
 });
 
+test('gsettings accepts a full numeric group number without a JID suffix', async () => {
+    const sock = mockSock();
+    sock.groupFetchAllParticipating = async () => ({
+        '120363123456789012@g.us': { subject: 'FULL NUMBER GROUP', participants: [] }
+    });
+    const message = { key: { remoteJid: '999@s.whatsapp.net', fromMe: true }, message: { conversation: '.gsettings 120363123456789012' } };
+    assert.equal(await menuCompatCommand(sock, '999@s.whatsapp.net', message, '.gsettings 120363123456789012', { isOwnerOrSudoCheck: true }), true);
+    assert.match(sock.sent.at(-1).payload.text, /FULL NUMBER GROUP/);
+});
+
 test('gsettings rejects non-owner remote targeting before fetching groups', async () => {
     const sock = mockSock();
     let fetched = false;

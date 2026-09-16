@@ -79,16 +79,16 @@ async function groupSettingsCommand(sock, chatId, message, args = []) {
     if (!featureArg || featureArg === 'status' || featureArg === 'show') {
         const features = Object.keys(FEATURE_ALIASES).filter((key) => FEATURE_ALIASES[key] === key);
         const lines = features.map((name) => `${statusFor(name, target.jid) ? '✅' : '❌'} ${name}`);
-        return sock.sendMessage(chatId, { text: `⚙️ *GROUP SETTINGS*\n*${target.subject || target.jid}*\n${target.jid}\n\n${lines.join('\n')}\n\nUsage: .gsettings <number|jid> <feature> <on|off>` }, { quoted: message });
+        return sock.sendMessage(chatId, { text: `⚙️ *GROUP SETTINGS*\n*${target.subject || target.jid}*\nGroup number: ${target.number || target.jid.replace(/@g\.us$/, '')}\n\n${lines.join('\n')}\n\nUsage: .gsettings <list number|full group number> <feature> <on|off>` }, { quoted: message });
     }
     if (!feature || !['on', 'off'].includes(valueArg)) {
-        return sock.sendMessage(chatId, { text: 'Usage: .gsettings <number|jid> <feature> <on|off>\nFeatures: antilink, antibadword, antitag, welcome, goodbye, chatbot, antisticker, antiphoto, antiviewonce, antifake, antibot' }, { quoted: message });
+        return sock.sendMessage(chatId, { text: 'Usage: .gsettings <list number|full group number> <feature> <on|off>\nFeatures: antilink, antibadword, antitag, welcome, goodbye, chatbot, antisticker, antiphoto, antiviewonce, antifake, antibot' }, { quoted: message });
     }
 
     const enabled = valueArg === 'on';
     try {
         await setFeature(feature, target.jid, enabled);
-        return sock.sendMessage(chatId, { text: `✅ *${feature}* turned *${valueArg.toUpperCase()}* for *${target.subject || target.jid}*.\nTarget: ${target.jid}` }, { quoted: message });
+        return sock.sendMessage(chatId, { text: `✅ *${feature}* turned *${valueArg.toUpperCase()}* for *${target.subject || target.jid}*.\nGroup number: ${target.number || target.jid.replace(/@g\.us$/, '')}` }, { quoted: message });
     } catch (error) {
         console.error('[gsettings]', error.message || error);
         return sock.sendMessage(chatId, { text: `❌ Could not update ${feature} for ${target.jid}.` }, { quoted: message });
