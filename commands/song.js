@@ -4,13 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const { toAudio } = require('../lib/converter');
 
-const KENYAN_MUSIC_HINTS = [
-    'sauti sol', 'bien', 'nviiri', 'nyashinski', 'khaligraph jones', 'nadia mukami',
-    'otile brown', 'bahati', 'mejja', 'femi one', 'wakadinali', 'bensoul', 'savara',
-    'sanaipei tande', 'nameless', 'amani', 'h_art the band', 'nikita kering', 'ayrosh',
-    'ethic', 'matata', 'gengetone', 'genge', 'kapuka', 'benga', 'arbantone', 'kenyan'
-];
-
 const AXIOS_DEFAULTS = {
 	timeout: 60000,
 	headers: {
@@ -40,16 +33,12 @@ function normalizePlayQuery(text = '') {
 
 function buildSearchQueries(query) {
     const clean = normalizePlayQuery(query);
-    if (!clean) return [];
-    const lower = clean.toLowerCase();
-    const alreadyKenyan = KENYAN_MUSIC_HINTS.some((hint) => lower.includes(hint));
-    return alreadyKenyan ? [clean] : [clean, `${clean} Kenyan music official audio`];
+    return clean ? [clean] : [];
 }
 
 function scoreMusicResult(video = {}, query = '') {
     const text = `${video.title || ''} ${video.author?.name || ''} ${video.description || ''}`.toLowerCase();
     let score = query && text.includes(query) ? 12 : 0;
-    for (const hint of KENYAN_MUSIC_HINTS) if (text.includes(hint)) score += 5;
     if (/official\s*(audio|music video)|official audio/.test(text)) score += 3;
     if (/lyrics|lyric video/.test(text)) score += 1;
     if (/instrumental|karaoke|reaction|cover|sped up|slowed/.test(text)) score -= 4;
@@ -129,7 +118,7 @@ async function songCommand(sock, chatId, message) {
 
 	        // Inform user with text only; the final response is the audio file.
         await sock.sendMessage(chatId, {
-	            text: `🎵 Downloading: *${video.title || query}*\n⏱ Duration: ${video.timestamp || 'unknown'}\n🇰🇪 Kenyan music search enabled`
+            text: `🎵 Downloading: *${video.title || query}*\n⏱ Duration: ${video.timestamp || 'unknown'}`
         }, { quoted: message });
 
 		// Try multiple APIs with fallback chain: EliteProTech -> Yupra -> Okatsu
@@ -341,12 +330,10 @@ async function songCommand(sock, chatId, message) {
         
         // Provide more specific error messages
         let errorMessage = '❌ Failed to download song.';
-        if (err.message && err.message.includes('blocked')) {
-            errorMessage = '❌ Download blocked. The content may be unavailable in your region or due to legal restrictions.';
-        } else if (err.response?.status === 451 || err.status === 451) {
+        if (err.response?.status === 451 || err.status === 451) {
             errorMessage = '❌ Content unavailable (451). This may be due to legal restrictions or regional blocking.';
         } else if (err.message && err.message.includes('All download sources failed')) {
-            errorMessage = '❌ All download sources failed. The content may be unavailable or blocked.';
+            errorMessage = '❌ Audio providers are temporarily unavailable, or this public track cannot be fetched right now. Please retry later.';
         }
         
         await sock.sendMessage(chatId, { 
