@@ -230,12 +230,16 @@ test('donate uses the persistent payment information handler', async () => {
 test('groq alias gives a configuration message without an API key', async () => {
     const sock = mockSock();
     const previous = process.env.GROQ_API_KEY;
+    const previousGrok = process.env.GROK_API_KEY;
     delete process.env.GROQ_API_KEY;
+    delete process.env.GROK_API_KEY;
     const message = { key: { remoteJid: '123@s.whatsapp.net' }, message: { conversation: '.grok say hello' } };
     assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.grok say hello', {}), true);
     assert.match(sock.sent.at(-1).payload.text, /GROQ_API_KEY/i);
     if (previous === undefined) delete process.env.GROQ_API_KEY;
     else process.env.GROQ_API_KEY = previous;
+    if (previousGrok === undefined) delete process.env.GROK_API_KEY;
+    else process.env.GROK_API_KEY = previousGrok;
 });
 
 test('restored legacy commands use explicit handlers instead of the generic fallback', async () => {

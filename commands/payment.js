@@ -5,6 +5,7 @@ const path = require('path');
 
 const dbPath = path.join(__dirname, '../data/payment.json');
 const dataDir = path.dirname(dbPath);
+const defaultPaymentLink = 'https://leetec.online/pay/tech-1?reference=1LEETECH';
 
 const channelInfo = {
     contextInfo: {
@@ -27,9 +28,9 @@ const defaultPayment = `💳 *PAYMENT METHODS* 💳
 function readPayment() {
     try {
         const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-        return { text: data.text || defaultPayment, link: data.link || '' };
+        return { text: data.text || defaultPayment, link: Object.prototype.hasOwnProperty.call(data, 'link') ? String(data.link || '') : defaultPaymentLink };
     } catch (_) {
-        return { text: defaultPayment, link: '' };
+        return { text: defaultPayment, link: defaultPaymentLink };
     }
 }
 
@@ -86,4 +87,4 @@ const setPaymentCommand = async (sock, chatId, message, args, isOwner) => {
     await sock.sendMessage(chatId, { text: '✅ Payment methods successfully updated!' }, { quoted: message });
 };
 
-module.exports = { paymentCommand, setPaymentCommand, getPaymentText, readPayment, savePayment, validPaymentLink };
+module.exports = { paymentCommand, setPaymentCommand, getPaymentText, readPayment, savePayment, validPaymentLink, defaultPaymentLink };
