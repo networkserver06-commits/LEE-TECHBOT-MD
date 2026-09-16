@@ -8,10 +8,12 @@ const { loadBotMode, saveBotMode } = require('../lib/mode');
 
 const modeFile = path.join(__dirname, '../data/botMode.json');
 const legacyFile = path.join(__dirname, '../data/messageCount.json');
+const envFile = path.join(__dirname, '../.env');
 
 test('bot mode survives a restart and keeps legacy state compatible', () => {
     const oldMode = fs.existsSync(modeFile) ? fs.readFileSync(modeFile) : null;
     const oldLegacy = fs.existsSync(legacyFile) ? fs.readFileSync(legacyFile) : null;
+    const oldEnv = fs.existsSync(envFile) ? fs.readFileSync(envFile) : null;
     try {
         saveBotMode(false);
         assert.equal(loadBotMode().isPublic, false);
@@ -19,8 +21,10 @@ test('bot mode survives a restart and keeps legacy state compatible', () => {
         const reloaded = require('../lib/mode');
         assert.equal(reloaded.loadBotMode().isPublic, false);
         assert.equal(JSON.parse(fs.readFileSync(legacyFile, 'utf8')).isPublic, false);
+        assert.match(fs.readFileSync(envFile, 'utf8'), /^BOT_MODE=private$/m);
     } finally {
         if (oldMode) fs.writeFileSync(modeFile, oldMode); else fs.rmSync(modeFile, { force: true });
         if (oldLegacy) fs.writeFileSync(legacyFile, oldLegacy); else fs.rmSync(legacyFile, { force: true });
+        if (oldEnv) fs.writeFileSync(envFile, oldEnv); else fs.rmSync(envFile, { force: true });
     }
 });
