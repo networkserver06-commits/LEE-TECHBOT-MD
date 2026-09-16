@@ -110,3 +110,29 @@ test('joingc extracts the invite link from a quoted message', async () => {
     assert.equal(accepted, 'REPLIED_456');
     assert.match(sock.sent.at(-1).payload.text, /Successfully joined/i);
 });
+
+test('promoteall and demoteall update every non-bot group member without mentions', async () => {
+    const sock = mockSock();
+    sock.user = { id: '999:1@s.whatsapp.net' };
+    sock.groupMetadata = async () => ({ participants: [
+        { id: '999@s.whatsapp.net' }, { id: '111@s.whatsapp.net' }, { id: '222@s.whatsapp.net' }
+    ] });
+    const updates = [];
+    sock.groupParticipantsUpdate = async (chatId, ids, action) => { updates.push({ ids, action }); return {}; };
+    const message = { key: { remoteJid: '123@g.us', fromMe: true }, message: { conversation: '.promoteall' } };
+    const context = { isGroup: true, isSenderAdmin: true, isOwnerOrSudoCheck: true };
+    assert.equal(await menuCompatCommand(sock, '123@g.us', message, '.promoteall', context), true);
+    assert.equal(await menuCompatCommand(sock, '123@g.us', message, '.demoteall', context), true);
+    assert.deepEqual(updates.map((u) => u.action), ['promote', 'promote', 'demote', 'demote']);
+    assert.deepEqual(updates[0].ids, ['111@s.whatsapp.net']);
+});
+
+test('edit updates the replied bot message without a provider fallback', async () => {
+    const sock = mockSock();
+    const message = { key: { remoteJid: '123@s.whatsapp.net', fromMe: true }, message: {
+        extendedTextMessage: { text: '.edit Updated text', contextInfo: { stanzaId: 'BOT_MSG_1', participant: '999@s.whatsapp.net' } }
+    } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.edit Updated text', { isOwnerOrSudoCheck: true }), true);
+    assert.equal(sock.sent[0].payload.edit.id, 'BOT_MSG_1');
+    assert.equal(sock.sent[0].payload.text, 'Updated text');
+});

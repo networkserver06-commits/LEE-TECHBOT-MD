@@ -144,6 +144,51 @@ async function handleSimpleLocal(sock, chatId, message, command, args, context =
     return null;
 }
 
+function botJid(sock) {
+    const id = sock.user?.id || '';
+    const bare = id.split(':')[0];
+    return bare.includes('@') ? bare : `${bare}@s.whatsapp.net`;
+}
+
+async function editRepliedMessage(sock, chatId, message, text) {
+    const contextInfo = message?.message?.extendedTextMessage?.contextInfo;
+    const stanzaId = contextInfo?.stanzaId;
+    if (!stanzaId || !text) {
+        await reply(sock, chatId, message, 'Usage: reply to one of the bot messages, then send `.edit <new text>`.');
+        return;
+    }
+    const editKey = {
+        remoteJid: chatId,
+        id: stanzaId,
+        fromMe: true,
+        participant: contextInfo.participant || botJid(sock)
+    };
+    await sock.sendMessage(chatId, { text, edit: editKey }, { quoted: message });
+}
+
+async function updateAllGroupRoles(sock, chatId, message, action) {
+    const metadata = await sock.groupMetadata(chatId);
+    const bot = botJid(sock);
+    const targets = (metadata.participants || [])
+        .map((participant) => participant.id)
+        .filter((jid) => jid && jid !== bot && !jid.startsWith('status@'));
+    if (!targets.length) {
+        await reply(sock, chatId, message, `ℹ️ No members available to ${action}.`);
+        return;
+    }
+    const changed = [];
+    const failed = [];
+    for (const jid of targets) {
+        try {
+            await sock.groupParticipantsUpdate(chatId, [jid], action);
+            changed.push(jid);
+        } catch (_) {
+            failed.push(jid);
+        }
+    }
+    await reply(sock, chatId, message, `✅ ${action === 'promote' ? 'Promoted' : 'Demoted'} ${changed.length} member(s)${failed.length ? `\n⚠️ Could not update ${failed.length} member(s) (owner/protected/admin restriction).` : ''}.`);
+}
+
 async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     const parts = String(input || '').trim().split(/\s+/).filter(Boolean);
     const command = (parts.shift() || '').replace(/^\./, '').toLowerCase();
@@ -168,6 +213,14 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
 
     if (command === 'autoviewstatus') {
         await autoStatusCommand(sock, chatId, message, args);
+        return true;
+    }
+    if (command === 'edit') {
+        await editRepliedMessage(sock, chatId, message, args.join(' ').trim());
+        return true;
+    }
+    if (command === 'promoteall' || command === 'demoteall') {
+        await updateAllGroupRoles(sock, chatId, message, command === 'promoteall' ? 'promote' : 'demote');
         return true;
     }
     if (command === 'joingc' || command === 'join') {

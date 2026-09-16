@@ -1022,12 +1022,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await antiBanCommand(sock, chatId, message, userMessage.split(/\s+/)[1] || 'status');
                 commandExecuted = true;
                 break;
-            case userMessage.startsWith('.promote'):
+            case userMessage.startsWith('.promote') && !userMessage.startsWith('.promoteall'):
                 const mentionedJidListPromote = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
                 await promoteCommand(sock, chatId, mentionedJidListPromote, message);
                 commandExecuted = true;
                 break;
-            case userMessage.startsWith('.demote'):
+            case userMessage.startsWith('.demote') && !userMessage.startsWith('.demoteall'):
                 const mentionedJidListDemote = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
                 await demoteCommand(sock, chatId, mentionedJidListDemote, message);
                 commandExecuted = true;
