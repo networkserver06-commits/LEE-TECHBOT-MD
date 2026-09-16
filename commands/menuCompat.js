@@ -95,7 +95,7 @@ const GROUP_COMMANDS = new Set([
 const OWNER_COMMANDS = new Set([
     'addowner', 'delowner', 'listowner', 'block', 'unblock', 'blocklist', 'joingc', 'join', 'restart',
     'mode', 'edit', 'clearall', 'autorecording', 'autorecordtype', 'autoviewstatus', 'autoreact',
-    'autolikestatus', 'getsession', 'setfullpp', 'reveal', 'listgroup', 'listonline', 'setpaypoint',
+    'autolikestatus', 'getsession', 'setfullpp', 'reveal', 'listgroup', 'listonline', 'setpaypoint', 'setpayment', 'paylink',
     'reportcommand', 'panel', 'eval', 'gsettings', 'groupsettings', 'setname', 'setownernumber'
 ]);
 
@@ -272,7 +272,7 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         await setProfilePicture(sock, chatId, message);
         return true;
     }
-    if (command === 'setpaypoint') {
+    if (command === 'setpaypoint' || command === 'setpayment' || command === 'paylink') {
         await setPaymentCommand(sock, chatId, message, args, context.isOwnerOrSudoCheck);
         return true;
     }
