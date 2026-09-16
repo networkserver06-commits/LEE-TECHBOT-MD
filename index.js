@@ -280,7 +280,12 @@ async function startXeonBotInc() {
 
     XeonBotInc.serializeM = (m) => smsg(XeonBotInc, m, store)
 
-    // Handle pairing code
+    // Handle pairing code. The phone number is collected before the socket
+    // reaches its connecting state, but the request itself must wait until
+    // the socket is initializing; requesting too early causes Baileys 428
+    // "Connection Closed / Precondition Required" responses.
+    let requestedPhoneNumber = ''
+    let pairingRequestStarted = false
     if (pairingCode && !XeonBotInc.authState.creds.registered) {
         if (useMobile) throw new Error('Cannot use pairing code with mobile api')
 
@@ -295,7 +300,7 @@ async function startXeonBotInc() {
             .concat(envPairingEntry ? [envPairingEntry] : [])
             .find(([, value]) => Boolean(normalizeWhatsAppNumber(value)))
         const configuredPairingInput = pairingEntry?.[1] || (process.env.PAIRING_CODE !== 'true' && process.env.PAIRING_CODE !== 'false' ? process.env.PAIRING_CODE : '') || phoneNumber
-        let requestedPhoneNumber = normalizeWhatsAppNumber(configuredPairingInput)
+        requestedPhoneNumber = normalizeWhatsAppNumber(configuredPairingInput)
         const detectedFrom = pairingEntry?.[0] || (requestedPhoneNumber ? 'bootstrap' : 'none')
         console.log(chalk.cyan(`Pairing configuration: number ${requestedPhoneNumber ? 'detected' : 'missing'} (${detectedFrom}), console input ${rl.closed || process.stdin.readableEnded ? 'closed' : 'available'}`))
         do {
@@ -309,18 +314,6 @@ async function startXeonBotInc() {
                 requestedPhoneNumber = ''
             }
         } while (!requestedPhoneNumber)
-        setTimeout(async () => {
-            try {
-                console.log(chalk.cyan(`Requesting WhatsApp pairing code for ${requestedPhoneNumber}...`))
-                let code = await XeonBotInc.requestPairingCode(requestedPhoneNumber)
-                code = code?.match(/.{1,4}/g)?.join("-") || code
-                console.log(chalk.black(chalk.bgGreen(`Your Pairing Code : `)), chalk.black(chalk.white(code)))
-                console.log(chalk.yellow(`\nPlease enter this code in your WhatsApp app:\n1. Open WhatsApp\n2. Go to Settings > Linked Devices\n3. Tap "Link a Device"\n4. Enter the code shown above`))
-            } catch (error) {
-                console.error('Error requesting pairing code:', error)
-                console.log(chalk.red('Failed to get pairing code. Please check your phone number and try again.'))
-            }
-        }, 3000)
     }
 
     // Connection handling
@@ -333,13 +326,38 @@ async function startXeonBotInc() {
         if (activeSocket !== XeonBotInc) return
         
         if (qr) {
-            console.log(chalk.yellow('📱 QR Code generated. Please scan with WhatsApp.'))
+            if (!pairingCode) console.log(chalk.yellow('📱 QR Code generated. Please scan with WhatsApp.'))
         }
         
         if (connection === 'connecting') {
             if (XeonBotInc.__connectingLogged) return
             XeonBotInc.__connectingLogged = true
             console.log(chalk.yellow('🔄 Connecting to WhatsApp...'))
+            if (pairingCode && requestedPhoneNumber && !pairingRequestStarted) {
+                pairingRequestStarted = true
+                setTimeout(async () => {
+                    for (let attempt = 1; attempt <= 3; attempt += 1) {
+                        if (activeSocket !== XeonBotInc || XeonBotInc.authState.creds.registered) return
+                        try {
+                            console.log(chalk.cyan(`Requesting WhatsApp pairing code for ${requestedPhoneNumber} (attempt ${attempt}/3)...`))
+                            let code = await XeonBotInc.requestPairingCode(requestedPhoneNumber)
+                            code = code?.match(/.{1,4}/g)?.join('-') || code
+                            console.log(chalk.black(chalk.bgGreen('Your Pairing Code : ')), chalk.black(chalk.white(code)))
+                            console.log(chalk.yellow(`\nPlease enter this code in your WhatsApp app:\n1. Open WhatsApp\n2. Go to Settings > Linked Devices\n3. Tap \`Link a Device\`\n4. Enter the code shown above`))
+                            return
+                        } catch (error) {
+                            const statusCode = error?.output?.statusCode || error?.statusCode
+                            const transient = statusCode === 428 || /connection closed|precondition required/i.test(String(error?.message || error))
+                            if (!transient || attempt === 3) {
+                                console.error('Error requesting pairing code:', error)
+                                console.log(chalk.red('Failed to get pairing code. Keep the panel running and try again.'))
+                                return
+                            }
+                            await delay(2000)
+                        }
+                    }
+                }, 1500)
+            }
         }
         
         if (connection == "open") {
