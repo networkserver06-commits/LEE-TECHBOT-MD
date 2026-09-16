@@ -615,7 +615,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await alwaysonlineCommand(sock, chatId, message, isOwnerOrSudoCheck, userMessage);
                 commandExecuted = true;
                 break;
-            case userMessage === '.groupvcf' || userMessage === '.savecontacts' || userMessage === '.extract':
+            case userMessage === '.groupvcf' || userMessage === '.savecontact' || userMessage === '.savecontacts' || userMessage === '.extract':
                 await groupVcfCommand(sock, chatId, message, isGroup, isSenderAdmin, isOwnerOrSudoCheck);
                 commandExecuted = true;
                 break;
@@ -688,7 +688,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await groupModeCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
                 commandExecuted = true;
                 break;
-             case userMessage === '.link' || userMessage === '.grouplink':
+             case userMessage === '.link' || userMessage === '.grouplink' || userMessage === '.invite':
                 await linkCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
                 commandExecuted = true;
                 break;

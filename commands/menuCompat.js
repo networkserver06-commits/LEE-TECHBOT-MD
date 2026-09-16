@@ -32,6 +32,8 @@ const { fetchParticipatingGroups } = require('../lib/groupTarget');
 const { groupSettingsCommand } = require('../commands/groupSettings');
 const { groqCommand } = require('./groq');
 const { legacyCommand } = require('./legacyCommands');
+const linkCommand = require('./link');
+const groupVcfCommand = require('./groupvcf');
 const { normalizeWhatsAppNumber } = require('../lib/phone');
 const { saveIdentity } = require('../lib/identity');
 
@@ -313,6 +315,14 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
             console.error(`[${command}]`, error.message || error);
             await reply(sock, chatId, message, '❌ Could not join the group. The invite may be expired, revoked, or invalid.');
         }
+        return true;
+    }
+    if (command === 'invite') {
+        await linkCommand(sock, chatId, message, Boolean(context.isGroup), Boolean(context.isBotAdmin));
+        return true;
+    }
+    if (command === 'savecontact' || command === 'savecontacts' || command === 'extract') {
+        await groupVcfCommand(sock, chatId, message, Boolean(context.isGroup), Boolean(context.isSenderAdmin), Boolean(context.isOwnerOrSudoCheck));
         return true;
     }
     if (command === 'autoreact' || command === 'autolikestatus') {

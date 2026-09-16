@@ -60,6 +60,28 @@ test('group menu command calls the real group-info handler', async () => {
     assert.match(sock.sent[0].payload.text || sock.sent[0].payload.caption, /GROUP INFO|SUBJECT/i);
 });
 
+test('invite uses the real group invite-link handler', async () => {
+    const sock = mockSock();
+    sock.groupInviteCode = async () => 'invite-code';
+    sock.groupMetadata = async () => ({ subject: 'Test Group' });
+    const handled = await menuCompatCommand(sock, '123@g.us', message, '.invite', {
+        isGroup: true, isSenderAdmin: true, isBotAdmin: true
+    });
+    assert.equal(handled, true);
+    assert.match(sock.sent.at(-1).payload.text, /chat\.whatsapp\.com\/invite-code/);
+});
+
+test('savecontact uses the real group VCF handler', async () => {
+    const sock = mockSock();
+    sock.groupMetadata = async () => ({ subject: 'Test Group', participants: [{ id: '254700000001@s.whatsapp.net' }] });
+    const handled = await menuCompatCommand(sock, '123@g.us', message, '.savecontact', {
+        isGroup: true, isSenderAdmin: true
+    });
+    assert.equal(handled, true);
+    assert.equal(sock.sent.at(-1).payload.mimetype, 'text/vcard');
+    assert.match(sock.sent.at(-1).payload.fileName, /Test Group_Contacts\.vcf/);
+});
+
 test('local note and rate commands execute without an external provider', async () => {
     const sock = mockSock();
     const ownerMessage = { key: { remoteJid: '123@s.whatsapp.net', fromMe: true }, message: { conversation: '.note test item' } };
