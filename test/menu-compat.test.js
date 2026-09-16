@@ -136,3 +136,23 @@ test('edit updates the replied bot message without a provider fallback', async (
     assert.equal(sock.sent[0].payload.edit.id, 'BOT_MSG_1');
     assert.equal(sock.sent[0].payload.text, 'Updated text');
 });
+
+test('listonline uses local group presence data instead of a provider fallback', async () => {
+    const sock = mockSock();
+    sock.groupMetadata = async () => ({ participants: [{ id: '111@s.whatsapp.net' }, { id: '222@s.whatsapp.net' }] });
+    sock.presence = { '111@s.whatsapp.net': { lastKnownPresence: 'available' } };
+    const message = { key: { remoteJid: '123@g.us', fromMe: true }, message: { conversation: '.listonline' } };
+    assert.equal(await menuCompatCommand(sock, '123@g.us', message, '.listonline', { isOwnerOrSudoCheck: true, isGroup: true }), true);
+    assert.match(sock.sent.at(-1).payload.text, /ONLINE MEMBERS/);
+    assert.deepEqual(sock.sent.at(-1).payload.mentions, ['111@s.whatsapp.net']);
+});
+
+test('listgroup uses native participating-group metadata', async () => {
+    const sock = mockSock();
+    sock.groupFetchAllParticipating = async () => ({
+        '123@g.us': { subject: 'LEE TECH GROUP', participants: [{ id: '111@s.whatsapp.net' }] }
+    });
+    const message = { key: { remoteJid: '123@s.whatsapp.net', fromMe: true }, message: { conversation: '.listgroup' } };
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.listgroup', { isOwnerOrSudoCheck: true }), true);
+    assert.match(sock.sent.at(-1).payload.text, /LEE TECH GROUP/);
+});

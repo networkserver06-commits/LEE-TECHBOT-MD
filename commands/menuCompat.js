@@ -19,6 +19,7 @@ const groupInfoCommand = require('./groupinfo');
 const { autoStatusCommand } = require('./autostatus');
 const { setGroupDescription, setGroupName, setGroupPhoto } = require('./groupmanage');
 const { lyricsCommand } = require('./lyrics');
+const { onlineMembers } = require('./groupcheck');
 const yts = require('yt-search');
 const { clearCommand } = require('./clear');
 const vv2Command = require('./vv2');
@@ -217,6 +218,27 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     }
     if (command === 'edit') {
         await editRepliedMessage(sock, chatId, message, args.join(' ').trim());
+        return true;
+    }
+    if (command === 'listonline') {
+        await onlineMembers(sock, chatId, Boolean(context.isGroup));
+        return true;
+    }
+    if (command === 'listgroup') {
+        try {
+            if (typeof sock.groupFetchAllParticipating !== 'function') throw new Error('group metadata API unavailable');
+            const groups = await sock.groupFetchAllParticipating();
+            const entries = Object.entries(groups || {});
+            if (!entries.length) {
+                await reply(sock, chatId, message, 'ℹ️ The bot is not currently participating in any groups.');
+                return true;
+            }
+            const lines = entries.map(([jid, group], index) => `${index + 1}. *${group.subject || 'Unnamed group'}*\n   ${jid}\n   Members: ${(group.participants || []).length}`);
+            await reply(sock, chatId, message, `📋 *GROUPS (${entries.length})*\n\n${lines.join('\n\n')}`);
+        } catch (error) {
+            console.error('[listgroup]', error.message || error);
+            await reply(sock, chatId, message, '❌ Could not fetch the bot group list.');
+        }
         return true;
     }
     if (command === 'promoteall' || command === 'demoteall') {
