@@ -372,6 +372,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         
         let isBotAdmin = false;
         let isSenderAdmin = false;
+        let groupMetadataAvailable = true;
 
         // Check admin status safely
         if (isGroup) {
@@ -379,6 +380,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 const adminStatus = await isAdmin(sock, chatId, senderId);
                 isSenderAdmin = adminStatus.isSenderAdmin;
                 isBotAdmin = adminStatus.isBotAdmin;
+                groupMetadataAvailable = adminStatus.metadataAvailable !== false;
             } catch (err) { }
         }
 
@@ -487,13 +489,17 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         const commandToken = userMessage.split(/\s+/)[0].toLowerCase();
-        const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.antidemote', '.demote', '.kick', '.antifake', '.tagall', '.tagnotadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
+        const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.antidemote', '.demote', '.kick', '.antifake', '.tagall', '.tagnotadmin', '.all', '.contacttag', '.tagadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.includes(commandToken);
 
         const ownerCommands = ['.mode', '.autostatus', '.autoviewstatus', '.autolikestatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.creategroup', '.areact', '.autoreact', '.decrypt', '.autotyping', '.autoread', '.pmblocker', '.update', '.antiban', '.setpayment', '.setprefix', '.hidechannel', '.maintenance', '.ownerstatus', '.setmenuimage', '.setmenu', '.menumode', '.menustyle', '.menufont'];
         const isOwnerCommand = ownerCommands.some(cmd => userMessage.startsWith(cmd));
 
         if (isGroup && isAdminCommand) {
+            if (!groupMetadataAvailable) {
+                await sock.sendMessage(chatId, { text: '⏳ WhatsApp group details are temporarily unavailable or rate-limited. Please wait a few seconds and try again.', ...channelInfo }, { quoted: message }).catch(() => {});
+                return;
+            }
             if (!isBotAdmin) {
                 await sock.sendMessage(chatId, { text: 'Please make the bot an admin to use admin commands.', ...channelInfo }, { quoted: message });
                 return;

@@ -37,6 +37,7 @@ const linkCommand = require('./link');
 const groupVcfCommand = require('./groupvcf');
 const { normalizeWhatsAppNumber } = require('../lib/phone');
 const { saveIdentity } = require('../lib/identity');
+const { tagAllCommand, contactTagCommand, tagAdminsCommand } = require('./groupTags');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const NOTES_FILE = path.join(DATA_DIR, 'menuNotes.json');
@@ -321,6 +322,18 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     }
     if (command === 'invite') {
         await linkCommand(sock, chatId, message, Boolean(context.isGroup), Boolean(context.isBotAdmin));
+        return true;
+    }
+    if (command === 'all') {
+        await tagAllCommand(sock, chatId, context.senderId || message.key?.participant || message.key?.remoteJid, message);
+        return true;
+    }
+    if (command === 'contacttag') {
+        await contactTagCommand(sock, chatId, context.senderId || message.key?.participant || message.key?.remoteJid, message);
+        return true;
+    }
+    if (command === 'tagadmin') {
+        await tagAdminsCommand(sock, chatId, context.senderId || message.key?.participant || message.key?.remoteJid, message);
         return true;
     }
     if (command === 'savecontact' || command === 'savecontacts' || command === 'extract') {
