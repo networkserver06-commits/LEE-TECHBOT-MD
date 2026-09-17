@@ -4,7 +4,7 @@ const fetch = require('node-fetch');
 const { configured: aiConfigured, generateChatCompletion } = require('../lib/ai_provider');
 const { getMetaAi } = require('./groupFeatures');
 const { configured: grokConfigured, generateGrokCompletion } = require('./groq');
-const { resolveGroupTarget } = require('../lib/groupTarget');
+const { resolveGroupTarget, fetchParticipatingGroups } = require('../lib/groupTarget');
 
 const USER_GROUP_DATA = path.join(__dirname, '../data/userGroupData.json');
 
@@ -78,6 +78,20 @@ function extractUserInfo(message) {
 
 async function handleChatbotCommand(sock, chatId, message, match, options = {}) {
     if (options.isOwnerDm) {
+        if (/^(status|show|list)$/i.test(String(match || '').trim())) {
+            const data = loadUserGroupData();
+            data.chatbot = data.chatbot || {};
+            try {
+                const groups = await fetchParticipatingGroups(sock);
+                const lines = groups.length
+                    ? groups.map((group) => `${chatbotEnabled(data.chatbot[group.jid]) ? '✅ ON ' : '❌ OFF'}  ${group.index}. ${group.subject || group.jid}\n   ${group.number}`)
+                    : ['No participating groups found.'];
+                return sock.sendMessage(chatId, { text: `🤖 *GROUP CHATBOT STATUS*\n\n${lines.join('\n\n')}\n\nUse .chatbot <group number> on|off to change a group.` }, { quoted: message });
+            } catch (error) {
+                console.error('[chatbot status]', error.message || error);
+                return sock.sendMessage(chatId, { text: '❌ Could not fetch the current group list.' }, { quoted: message });
+            }
+        }
         const parts = String(match || '').trim().split(/\s+/).filter(Boolean);
         const action = String(parts.pop() || '').toLowerCase();
         const target = await resolveGroupTarget(sock, chatId, parts.join(' '));
