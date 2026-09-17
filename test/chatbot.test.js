@@ -46,3 +46,27 @@ test('owner DM chatbot status lists every participating group', async () => {
     assert.match(sent.at(-1).payload.text, /OFF/);
     if (original === null) fs.rmSync(stateFile, { force: true }); else fs.writeFileSync(stateFile, original);
 });
+
+test('owner can enable chatbot replies in their own DM', async () => {
+    const original = fs.existsSync(stateFile) ? fs.readFileSync(stateFile) : null;
+    const sent = [];
+    const sock = { async sendMessage(chatId, payload) { sent.push({ chatId, payload }); } };
+    const message = { key: { remoteJid: '999@s.whatsapp.net' }, message: { conversation: '.chatbot DM on' } };
+    await handleChatbotCommand(sock, '999@s.whatsapp.net', message, 'DM on', { isOwnerDm: true });
+    const data = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    assert.equal(data.chatbot['999@s.whatsapp.net'].enabled, true);
+    assert.match(sent.at(-1).payload.text, /DM chatbot turned \*ON\*/i);
+    if (original === null) fs.rmSync(stateFile, { force: true }); else fs.writeFileSync(stateFile, original);
+});
+
+test('owner can enable chatbot replies for contact DMs', async () => {
+    const original = fs.existsSync(stateFile) ? fs.readFileSync(stateFile) : null;
+    const sent = [];
+    const sock = { async sendMessage(chatId, payload) { sent.push({ chatId, payload }); } };
+    const message = { key: { remoteJid: '999@s.whatsapp.net' }, message: { conversation: '.chatbot contacts on' } };
+    await handleChatbotCommand(sock, '999@s.whatsapp.net', message, 'contacts on', { isOwnerDm: true });
+    const data = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    assert.equal(data.chatbotContacts, true);
+    assert.match(sent.at(-1).payload.text, /Contact chatbot turned \*ON\*/i);
+    if (original === null) fs.rmSync(stateFile, { force: true }); else fs.writeFileSync(stateFile, original);
+});

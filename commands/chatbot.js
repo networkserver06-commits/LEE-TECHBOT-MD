@@ -78,6 +78,36 @@ function extractUserInfo(message) {
 
 async function handleChatbotCommand(sock, chatId, message, match, options = {}) {
     if (options.isOwnerDm) {
+        const dmParts = String(match || '').trim().split(/\s+/).filter(Boolean);
+        if (dmParts[0]?.toLowerCase() === 'dm') {
+            const action = String(dmParts[1] || '').toLowerCase();
+            const data = loadUserGroupData();
+            data.chatbot = data.chatbot || {};
+            if (!['on', 'off', 'status'].includes(action)) {
+                return sock.sendMessage(chatId, { text: 'Usage: .chatbot DM on|off|status' }, { quoted: message });
+            }
+            if (action === 'status') {
+                return sock.sendMessage(chatId, { text: `🤖 *DM chatbot*: ${chatbotEnabled(data.chatbot[chatId]) ? 'ON' : 'OFF'}` }, { quoted: message });
+            }
+            if (action === 'on') data.chatbot[chatId] = { enabled: true, provider: 'auto', scope: 'dm' };
+            else delete data.chatbot[chatId];
+            saveUserGroupData(data);
+            return sock.sendMessage(chatId, { text: `✅ DM chatbot turned *${action.toUpperCase()}*.` }, { quoted: message });
+        }
+        if (dmParts[0]?.toLowerCase() === 'contacts') {
+            const action = String(dmParts[1] || '').toLowerCase();
+            const data = loadUserGroupData();
+            data.chatbot = data.chatbot || {};
+            if (!['on', 'off', 'status'].includes(action)) {
+                return sock.sendMessage(chatId, { text: 'Usage: .chatbot contacts on|off|status' }, { quoted: message });
+            }
+            if (action === 'status') {
+                return sock.sendMessage(chatId, { text: `👥 *Contact chatbot*: ${data.chatbotContacts ? 'ON' : 'OFF'}` }, { quoted: message });
+            }
+            data.chatbotContacts = action === 'on';
+            saveUserGroupData(data);
+            return sock.sendMessage(chatId, { text: `✅ Contact chatbot turned *${action.toUpperCase()}*.` }, { quoted: message });
+        }
         if (/^(status|show|list)$/i.test(String(match || '').trim())) {
             const data = loadUserGroupData();
             data.chatbot = data.chatbot || {};
@@ -223,10 +253,14 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
 }
 
 async function handleChatbotResponse(sock, chatId, message, userMessage, senderId) {
-    if (!chatId?.endsWith('@g.us') || !String(userMessage || '').trim()) return;
+    const isGroup = chatId?.endsWith('@g.us');
+    const isOwnerDm = !isGroup && chatId && senderId && chatId === senderId;
     const data = loadUserGroupData();
     data.chatbot = data.chatbot || {};
-    if (!chatbotEnabled(data.chatbot?.[chatId]) || responseLocks.has(chatId)) return;
+    const isContactDm = !isGroup && !isOwnerDm && data.chatbotContacts === true;
+    if ((!isGroup && !isOwnerDm && !isContactDm) || !String(userMessage || '').trim()) return;
+    if (!chatbotEnabled(data.chatbot?.[chatId]) && !isContactDm) return;
+    if (responseLocks.has(chatId)) return;
     responseLocks.add(chatId);
 
     try {

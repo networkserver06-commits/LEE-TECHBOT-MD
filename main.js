@@ -446,9 +446,8 @@ async function handleMessages(sock, messageUpdate, printLog) {
             if (isGroup) {
                 await handleTagDetection(sock, chatId, message, senderId).catch(()=>null);
                 await handleMentionDetection(sock, chatId, message).catch(()=>null);
-
-                await handleChatbotResponse(sock, chatId, message, userMessage, senderId).catch(()=>null);
             }
+            await handleChatbotResponse(sock, chatId, message, userMessage, senderId).catch(()=>null);
             return;
         }
 
