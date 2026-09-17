@@ -3,6 +3,8 @@ const path = require('path');
 const fetch = require('node-fetch');
 const { configured: aiConfigured, generateChatCompletion } = require('../lib/ai_provider');
 const { getMetaAi } = require('./groupFeatures');
+const { configured: grokConfigured, generateGrokCompletion } = require('./groq');
+const { resolveGroupTarget } = require('../lib/groupTarget');
 
 const USER_GROUP_DATA = path.join(__dirname, '../data/userGroupData.json');
 
@@ -11,6 +13,11 @@ const chatMemory = {
     messages: new Map(), // Stores last 5 messages per user
     userInfo: new Map()  // Stores user information
 };
+const responseLocks = new Set();
+
+function chatbotEnabled(value) {
+    return value === true || value?.enabled === true;
+}
 
 // Load user group data
 function loadUserGroupData() {
@@ -69,7 +76,23 @@ function extractUserInfo(message) {
     return info;
 }
 
-async function handleChatbotCommand(sock, chatId, message, match) {
+async function handleChatbotCommand(sock, chatId, message, match, options = {}) {
+    if (options.isOwnerDm) {
+        const parts = String(match || '').trim().split(/\s+/).filter(Boolean);
+        const action = String(parts.pop() || '').toLowerCase();
+        const target = await resolveGroupTarget(sock, chatId, parts.join(' '));
+        if (target.error || !['on', 'off', 'status'].includes(action)) {
+            return sock.sendMessage(chatId, { text: target.error || 'Usage: .chatbot <group number or list number> on|off|status\nUse .listgroup first to see group numbers.' }, { quoted: message });
+        }
+        const data = loadUserGroupData();
+        data.chatbot = data.chatbot || {};
+        if (action === 'status') {
+            return sock.sendMessage(chatId, { text: `🤖 Chatbot for *${target.subject || target.jid}*: ${chatbotEnabled(data.chatbot[target.jid]) ? 'ON' : 'OFF'}` }, { quoted: message });
+        }
+        data.chatbot[target.jid] = { enabled: action === 'on', provider: 'auto' };
+        saveUserGroupData(data);
+        return sock.sendMessage(chatId, { text: `✅ Chatbot turned *${action.toUpperCase()}* for *${target.subject || target.jid}*.` }, { quoted: message });
+    }
     if (!match) {
         await showTyping(sock, chatId);
         return sock.sendMessage(chatId, {
@@ -79,6 +102,7 @@ async function handleChatbotCommand(sock, chatId, message, match) {
     }
 
     const data = loadUserGroupData();
+    data.chatbot = data.chatbot || {};
 
     // Get bot's number
     const botNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
@@ -91,13 +115,13 @@ async function handleChatbotCommand(sock, chatId, message, match) {
     if (isOwner) {
         if (match === 'on') {
             await showTyping(sock, chatId);
-            if (data.chatbot[chatId]) {
+            if (chatbotEnabled(data.chatbot[chatId])) {
                 return sock.sendMessage(chatId, {
                     text: '*Chatbot is already enabled for this group*',
                     quoted: message
                 });
             }
-            data.chatbot[chatId] = true;
+            data.chatbot[chatId] = { enabled: true, provider: 'auto' };
             saveUserGroupData(data);
             console.log(`✅ Chatbot enabled for group ${chatId}`);
             return sock.sendMessage(chatId, {
@@ -108,7 +132,7 @@ async function handleChatbotCommand(sock, chatId, message, match) {
 
         if (match === 'off') {
             await showTyping(sock, chatId);
-            if (!data.chatbot[chatId]) {
+            if (!chatbotEnabled(data.chatbot[chatId])) {
                 return sock.sendMessage(chatId, {
                     text: '*Chatbot is already disabled for this group*',
                     quoted: message
@@ -145,13 +169,13 @@ async function handleChatbotCommand(sock, chatId, message, match) {
 
     if (match === 'on') {
         await showTyping(sock, chatId);
-        if (data.chatbot[chatId]) {
+        if (chatbotEnabled(data.chatbot[chatId])) {
             return sock.sendMessage(chatId, {
                 text: '*Chatbot is already enabled for this group*',
                 quoted: message
             });
         }
-        data.chatbot[chatId] = true;
+            data.chatbot[chatId] = { enabled: true, provider: 'auto' };
         saveUserGroupData(data);
         console.log(`✅ Chatbot enabled for group ${chatId}`);
         return sock.sendMessage(chatId, {
@@ -162,7 +186,7 @@ async function handleChatbotCommand(sock, chatId, message, match) {
 
     if (match === 'off') {
         await showTyping(sock, chatId);
-        if (!data.chatbot[chatId]) {
+            if (!chatbotEnabled(data.chatbot[chatId])) {
             return sock.sendMessage(chatId, {
                 text: '*Chatbot is already disabled for this group*',
                 quoted: message
@@ -185,8 +209,11 @@ async function handleChatbotCommand(sock, chatId, message, match) {
 }
 
 async function handleChatbotResponse(sock, chatId, message, userMessage, senderId) {
+    if (!chatId?.endsWith('@g.us') || !String(userMessage || '').trim()) return;
     const data = loadUserGroupData();
-    if (!data.chatbot[chatId]) return;
+    data.chatbot = data.chatbot || {};
+    if (!chatbotEnabled(data.chatbot?.[chatId]) || responseLocks.has(chatId)) return;
+    responseLocks.add(chatId);
 
     try {
         // Get bot's ID - try multiple formats
@@ -199,8 +226,8 @@ async function handleChatbotResponse(sock, chatId, message, userMessage, senderI
             `${botNumber}@whatsapp.net`,
             `${botNumber}@lid`,
             botLid, // Add the actual LID
-            `${botLid.split(':')[0]}@lid` // Add LID without session part
-        ];
+            botLid ? `${botLid.split(':')[0]}@lid` : null // Add LID without session part
+        ].filter(Boolean);
 
         // Check for mentions and replies
         let isBotMentioned = false;
@@ -234,8 +261,6 @@ async function handleChatbotResponse(sock, chatId, message, userMessage, senderI
         else if (message.message?.conversation) {
             isBotMentioned = userMessage.includes(`@${botNumber}`);
         }
-
-        if (!isBotMentioned && !isReplyToBot) return;
 
         // Clean the message
         let cleanedMessage = userMessage;
@@ -311,6 +336,8 @@ async function handleChatbotResponse(sock, chatId, message, userMessage, senderI
         } catch (sendError) {
             console.error('Failed to send chatbot error message:', sendError.message);
         }
+    } finally {
+        responseLocks.delete(chatId);
     }
 }
 
@@ -376,7 +403,12 @@ You:
         `.trim();
 
         let result;
-        if (aiConfigured()) {
+        if (grokConfigured()) {
+            result = await generateGrokCompletion([
+                { role: 'system', content: 'You are LEE TECH BOT, a concise, helpful WhatsApp group assistant. Reply naturally and safely.' },
+                { role: 'user', content: prompt }
+            ]);
+        } else if (aiConfigured()) {
             result = await generateChatCompletion([
                 { role: 'system', content: 'You are LEE TECH BOT, a concise, helpful WhatsApp assistant. Never claim to be human. Do not produce harassment, spam, scams, or unsafe instructions.' },
                 { role: 'user', content: prompt }

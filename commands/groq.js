@@ -30,6 +30,31 @@ function providerError(error) {
     return '❌ Groq could not answer right now. Check the API key, free-tier quota, model, and network connection.';
 }
 
+async function generateGrokCompletion(messages) {
+    if (!configured()) throw new Error('Groq is not configured');
+    const client = getClient();
+    let completion;
+    let lastError;
+    for (const model of modelCandidates()) {
+        try {
+            completion = await client.chat.completions.create({
+                messages,
+                model,
+                temperature: Number(process.env.GROQ_TEMPERATURE || 0.7),
+                max_tokens: Number(process.env.GROQ_MAX_TOKENS || 700)
+            });
+            break;
+        } catch (error) {
+            lastError = error;
+            const status = error?.status || error?.statusCode || error?.response?.status;
+            if (status === 401 || status === 403 || status === 429) throw error;
+        }
+    }
+    const answer = completion?.choices?.[0]?.message?.content?.trim();
+    if (!answer) throw lastError || new Error('Groq returned no response text');
+    return answer;
+}
+
 async function groqCommand(sock, chatId, message, args = []) {
     const rawText = message?.message?.conversation
         || message?.message?.extendedTextMessage?.text
@@ -52,30 +77,10 @@ async function groqCommand(sock, chatId, message, args = []) {
 
     try {
         await sock.sendMessage(chatId, { react: { text: '🤖', key: message.key } });
-        const client = getClient();
-        let completion;
-        let lastError;
-        for (const model of modelCandidates()) {
-            try {
-                completion = await client.chat.completions.create({
-                    messages: [
-                        { role: 'system', content: process.env.GROQ_SYSTEM_PROMPT || 'You are a helpful WhatsApp bot.' },
-                        { role: 'user', content: query }
-                    ],
-                    model,
-                    temperature: Number(process.env.GROQ_TEMPERATURE || 0.7),
-                    max_tokens: Number(process.env.GROQ_MAX_TOKENS || 700)
-                });
-                break;
-            } catch (error) {
-                lastError = error;
-                const status = error?.status || error?.statusCode || error?.response?.status;
-                if (status === 401 || status === 403 || status === 429) throw error;
-            }
-        }
-        if (!completion) throw lastError || new Error('Groq returned no completion');
-        const answer = completion.choices?.[0]?.message?.content?.trim();
-        if (!answer) throw new Error('Groq returned no response text');
+        const answer = await generateGrokCompletion([
+            { role: 'system', content: process.env.GROQ_SYSTEM_PROMPT || 'You are a helpful WhatsApp bot.' },
+            { role: 'user', content: query }
+        ]);
         return sock.sendMessage(chatId, { text: answer }, { quoted: message });
     } catch (error) {
         console.error('[groq]', error.message || error);
@@ -83,4 +88,4 @@ async function groqCommand(sock, chatId, message, args = []) {
     }
 }
 
-module.exports = { groqCommand, configured, modelCandidates, providerError, DEFAULT_FREE_MODEL, FREE_MODEL_FALLBACKS };
+module.exports = { groqCommand, generateGrokCompletion, configured, modelCandidates, providerError, DEFAULT_FREE_MODEL, FREE_MODEL_FALLBACKS };

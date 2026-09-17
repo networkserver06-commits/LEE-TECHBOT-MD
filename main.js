@@ -447,9 +447,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await handleTagDetection(sock, chatId, message, senderId).catch(()=>null);
                 await handleMentionDetection(sock, chatId, message).catch(()=>null);
 
-                if (isPublic || isOwnerOrSudoCheck) {
-                    await handleChatbotResponse(sock, chatId, message, userMessage, senderId).catch(()=>null);
-                }
+                await handleChatbotResponse(sock, chatId, message, userMessage, senderId).catch(()=>null);
             }
             return;
         }
@@ -1116,7 +1114,13 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage.startsWith('.chatbot'):
                 if (!isGroup) {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups.', ...channelInfo }, { quoted: message });
+                    if (!isOwnerOrSudoCheck) {
+                        await sock.sendMessage(chatId, { text: '❌ Only the bot owner or sudo can control a group chatbot from DM.', ...channelInfo }, { quoted: message });
+                        break;
+                    }
+                    const dmMatch = userMessage.slice(8).trim();
+                    await handleChatbotCommand(sock, chatId, message, dmMatch, { isOwnerDm: true });
+                    commandExecuted = true;
                     break;
                 }
                 
