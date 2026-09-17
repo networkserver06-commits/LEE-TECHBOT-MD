@@ -80,3 +80,21 @@ test('publishStatus always targets the WhatsApp status broadcast', async () => {
     assert.equal(sent[0].chatId, 'status@broadcast');
     assert.equal(sent[0].options.broadcast, true);
 });
+
+test('publishStatus retries native-audience failure with valid number JIDs only', async () => {
+    const attempts = [];
+    let first = true;
+    const retrySock = {
+        user: { id: '999@s.whatsapp.net' },
+        async groupFetchAllParticipating() {
+            return { '123@g.us': { participants: [{ id: '254700000001@s.whatsapp.net' }, { id: '12345@lid' }] } };
+        },
+        async sendMessage(chatId, payload, options) {
+            attempts.push({ chatId, options });
+            if (first) { first = false; throw new Error('native audience rejected'); }
+        }
+    };
+    await publishStatus(retrySock, { type: 'text', value: 'Retry me' });
+    assert.equal(attempts.length, 2);
+    assert.deepEqual(attempts[1].options.statusJidList, ['254700000001@s.whatsapp.net', '999@s.whatsapp.net']);
+});
