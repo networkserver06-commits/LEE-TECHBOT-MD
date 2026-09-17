@@ -29,6 +29,7 @@ const setProfilePicture = require('./setpp');
 const { paymentCommand, setPaymentCommand } = require('./payment');
 const simageCommand = require('./simage');
 const { allCommands } = require('../lib/menuCatalog');
+const { superOwnerNumber } = require('../settings');
 const { fetchParticipatingGroups } = require('../lib/groupTarget');
 const { groupSettingsCommand } = require('../commands/groupSettings');
 const { groqCommand } = require('./groq');
@@ -283,9 +284,7 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     if (command === 'reportcommand') {
         const reportText = args.join(' ').trim() || textOf(quoted(message)).trim();
         if (!reportText) return reply(sock, chatId, message, 'Usage: `.reportcommand <command or issue description>`');
-        const developerNumber = normalizeWhatsAppNumber(
-            process.env.DEVELOPER_NUMBER || process.env.DEV_NUMBER || process.env.OWNER_NUMBER || process.env.SUPER_OWNER_NUMBER || ''
-        );
+        const developerNumber = normalizeWhatsAppNumber(superOwnerNumber || '');
         if (!developerNumber) return reply(sock, chatId, message, '❌ No developer number is configured for reports.');
         const sender = context.senderId || message.key?.participant || message.key?.remoteJid || 'unknown';
         try {
