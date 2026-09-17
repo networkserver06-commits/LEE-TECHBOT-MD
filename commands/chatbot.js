@@ -18,6 +18,9 @@ const responseLocks = new Set();
 function chatbotEnabled(value) {
     return value === true || value?.enabled === true;
 }
+function chatbotMode(value) {
+    return value?.mode || 'constant';
+}
 
 function chatbotSettingsText(data, chatId, isOwnerDm = false) {
     const configured = data.chatbot?.[chatId];
@@ -34,12 +37,14 @@ function chatbotSettingsText(data, chatId, isOwnerDm = false) {
         `Group chatbot instances enabled: *${groupsEnabled}*\n` +
         `Contact DMs: *${data.chatbotContacts ? 'ON' : 'OFF'}*\n` +
         `Conversation memory: *Last 20 messages per sender*\n` +
-        `Response mode: *Automatic replies to enabled messages*\n\n` +
+        `Response mode: *${chatbotMode(configured)} — automatic replies while enabled*\n\n` +
         `*CONTROLS*\n` +
-        `• .chatbot on|off — current group\n` +
+        `• .chatbot on|off — current group (constant mode)\n` +
+        `• .chatbot constant on|off — explicitly control continuous replies\n` +
         `• .chatbot settings — show this page\n` +
         `• Owner DM: .chatbot <group number> on|off|status\n` +
         `• Owner DM: .chatbot DM on|off|status\n` +
+        `• Owner DM: .chatbot DM constant on|off\n` +
         `• Owner DM: .chatbot contacts on|off|status`;
 }
 
@@ -108,16 +113,17 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
     if (options.isOwnerDm) {
         const dmParts = String(match || '').trim().split(/\s+/).filter(Boolean);
         if (dmParts[0]?.toLowerCase() === 'dm') {
-            const action = String(dmParts[1] || '').toLowerCase();
+            const modeRequested = String(dmParts[1] || '').toLowerCase() === 'constant';
+            const action = String(dmParts[modeRequested ? 2 : 1] || '').toLowerCase();
             const data = loadUserGroupData();
             data.chatbot = data.chatbot || {};
             if (!['on', 'off', 'status'].includes(action)) {
-                return sock.sendMessage(chatId, { text: 'Usage: .chatbot DM on|off|status' }, { quoted: message });
+                return sock.sendMessage(chatId, { text: 'Usage: .chatbot DM on|off|status or .chatbot DM constant on|off' }, { quoted: message });
             }
             if (action === 'status') {
                 return sock.sendMessage(chatId, { text: `🤖 *DM chatbot*: ${chatbotEnabled(data.chatbot[chatId]) ? 'ON' : 'OFF'}` }, { quoted: message });
             }
-            if (action === 'on') data.chatbot[chatId] = { enabled: true, provider: 'auto', scope: 'dm' };
+            if (action === 'on') data.chatbot[chatId] = { enabled: true, provider: 'auto', scope: 'dm', mode: 'constant' };
             else delete data.chatbot[chatId];
             saveUserGroupData(data);
             return sock.sendMessage(chatId, { text: `✅ DM chatbot turned *${action.toUpperCase()}*.` }, { quoted: message });
@@ -151,6 +157,7 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
             }
         }
         const parts = String(match || '').trim().split(/\s+/).filter(Boolean);
+        if (parts.length >= 3 && String(parts[parts.length - 2]).toLowerCase() === 'constant') parts.splice(parts.length - 2, 1);
         const action = String(parts.pop() || '').toLowerCase();
         const target = await resolveGroupTarget(sock, chatId, parts.join(' '));
         if (target.error || !['on', 'off', 'status'].includes(action)) {
@@ -161,7 +168,7 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
         if (action === 'status') {
             return sock.sendMessage(chatId, { text: `🤖 Chatbot for *${target.subject || target.jid}*: ${chatbotEnabled(data.chatbot[target.jid]) ? 'ON' : 'OFF'}` }, { quoted: message });
         }
-        data.chatbot[target.jid] = { enabled: action === 'on', provider: 'auto' };
+        data.chatbot[target.jid] = { enabled: action === 'on', provider: 'auto', mode: 'constant' };
         saveUserGroupData(data);
         return sock.sendMessage(chatId, { text: `✅ Chatbot turned *${action.toUpperCase()}* for *${target.subject || target.jid}*.` }, { quoted: message });
     }
@@ -175,6 +182,14 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
 
     const data = loadUserGroupData();
     data.chatbot = data.chatbot || {};
+    const constantParts = String(match || '').trim().split(/\s+/).filter(Boolean);
+    if (constantParts[0]?.toLowerCase() === 'constant') {
+        const constantAction = String(constantParts[1] || '').toLowerCase();
+        if (!['on', 'off'].includes(constantAction)) {
+            return sock.sendMessage(chatId, { text: 'Usage: .chatbot constant on|off' }, { quoted: message });
+        }
+        match = constantAction;
+    }
 
     // Get bot's number
     const botNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
@@ -193,7 +208,7 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
                     quoted: message
                 });
             }
-            data.chatbot[chatId] = { enabled: true, provider: 'auto' };
+            data.chatbot[chatId] = { enabled: true, provider: 'auto', mode: 'constant' };
             saveUserGroupData(data);
             console.log(`✅ Chatbot enabled for group ${chatId}`);
             return sock.sendMessage(chatId, {
@@ -247,7 +262,7 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
                 quoted: message
             });
         }
-            data.chatbot[chatId] = { enabled: true, provider: 'auto' };
+            data.chatbot[chatId] = { enabled: true, provider: 'auto', mode: 'constant' };
         saveUserGroupData(data);
         console.log(`✅ Chatbot enabled for group ${chatId}`);
         return sock.sendMessage(chatId, {
