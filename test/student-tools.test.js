@@ -10,7 +10,7 @@ function msg(text) { return { key: { remoteJid: '123@g.us', participant: '111@s.
 function sock(sent) {
     return {
         async groupFetchAllParticipating() {
-            return { '555@g.us': { subject: 'IAM Class', participants: [] }, '777@g.us': { subject: 'Project Group', participants: [] } };
+            return { '555@g.us': { subject: 'IAM Class', participants: [{ id: '254700000010@s.whatsapp.net', admin: 'admin', notify: 'Class Rep' }] }, '777@g.us': { subject: 'Project Group', participants: [] } };
         },
         async sendMessage(chatId, payload) { sent.push({ chatId, payload }); }
     };
@@ -55,4 +55,13 @@ test('owner DM can schedule a reminder to a numbered group', async () => {
     await menuCompatCommand(s, '999@s.whatsapp.net', dm, `.remind cancel ${reminderId}`, ownerDm);
     assert.equal(JSON.parse(fs.readFileSync(stateFile, 'utf8')).reminders.length, 0);
     cleanup();
+});
+
+test('owner DM can list IAM group admins by group number', async () => {
+    const sent = []; const s = sock(sent);
+    const dm = { key: { remoteJid: '999@s.whatsapp.net' }, message: { conversation: '.iamadmin' } };
+    await menuCompatCommand(s, '999@s.whatsapp.net', dm, '.iamadmin', context({ isGroup: false, isSenderAdmin: false, senderId: '999@s.whatsapp.net' }));
+    assert.match(sent.at(-1).payload.text, /IAM GROUP ADMIN DIRECTORY/);
+    assert.match(sent.at(-1).payload.text, /1\. IAM Class/);
+    assert.match(sent.at(-1).payload.text, /Class Rep — 254700000010/);
 });

@@ -243,6 +243,7 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     if (command === 'logs') { await studentTools.logsCommand(sock, chatId, message, args, context); return true; }
     if (command === 'todo') { await studentTools.todoCommand(sock, chatId, message, args, context); return true; }
     if (command === 'remind') { await studentTools.remindCommand(sock, chatId, message, args, context); return true; }
+    if (['iamadmin', 'iamadmins', 'groupadmins'].includes(command)) { await studentTools.iamAdminCommand(sock, chatId, message, context); return true; }
     if (command === 'summary') { await studentTools.summaryCommand(sock, chatId, message, args); return true; }
 
     if (OWNER_COMMANDS.has(command) && !context.isOwnerOrSudoCheck) {

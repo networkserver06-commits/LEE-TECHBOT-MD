@@ -236,4 +236,30 @@ async function summaryCommand(sock, chatId, message, args) {
     }
 }
 
-module.exports = { broadcastCommand, scheduleCommand, feedbackCommand, statusCommand, logsCommand, deployCommand, todoCommand, remindCommand, summaryCommand, hydrateReminders };
+async function iamAdminCommand(sock, chatId, message, context) {
+    if (!context.isOwnerOrSudoCheck || context.isGroup) return reply(sock, chatId, message, '❌ Use `.iamadmin` from your owner DM.');
+    try {
+        const groups = await fetchParticipatingGroups(sock);
+        const sections = [];
+        for (const group of groups) {
+            const admins = (group.participants || []).filter((participant) => participant.admin);
+            const adminLines = admins.length
+                ? admins.map((participant) => {
+                    const jid = participant.phoneNumber || participant.id || participant.jid || '';
+                    const number = String(jid).split('@')[0].split(':')[0];
+                    const name = participant.name || participant.notify || participant.verifiedName || 'Unnamed admin';
+                    return `   • ${name} — ${number}`;
+                }).join('\n')
+                : '   • No admin metadata available';
+            sections.push(`*${group.index}. ${group.subject || group.jid}*\n   Group: ${group.number}\n${adminLines}`);
+        }
+        return reply(sock, chatId, message, sections.length
+            ? `👥 *IAM GROUP ADMIN DIRECTORY*\n\n${sections.join('\n\n')}\n\nUse ".remind group <number> ..." to schedule to a group.`
+            : '❌ No participating groups were found.');
+    } catch (error) {
+        console.error('[iamadmin]', error.message || error);
+        return reply(sock, chatId, message, '❌ Could not fetch group admin information right now.');
+    }
+}
+
+module.exports = { broadcastCommand, scheduleCommand, feedbackCommand, statusCommand, logsCommand, deployCommand, todoCommand, remindCommand, iamAdminCommand, summaryCommand, hydrateReminders };
