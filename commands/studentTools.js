@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const { configured: grokConfigured, generateGrokCompletion } = require('./groq');
 const { configured: aiConfigured, generateChatCompletion } = require('../lib/ai_provider');
+const { fetchParticipatingGroups } = require('../lib/groupTarget');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'studentTools.json');
@@ -136,24 +137,84 @@ function parseReminder(value) {
     if (!Number.isFinite(delay) || delay < 1000 || delay > 30 * 86400000) return null;
     return { delay, task: match[3].trim(), label: `${match[1]} ${match[2]}` };
 }
+
+async function resolveReminderTarget(sock, chatId, args, context) {
+    if (String(args[0] || '').toLowerCase() !== 'group') return { targetChatId: chatId, args };
+    if (!context.isOwnerOrSudoCheck) return { error: '❌ Only the owner or sudo can schedule reminders to a group from a DM.' };
+    if (context.isGroup) return { error: '❌ Use group-targeted reminders from your owner DM.' };
+    const target = String(args[1] || '').trim();
+    if (!target) return { error: 'Usage: `.remind group <number> <time> <task>` or `.remind groups`' };
+    const groups = await fetchParticipatingGroups(sock);
+    const index = Number(target);
+    const group = Number.isInteger(index) && index > 0
+        ? groups.find((item) => item.index === index)
+        : groups.find((item) => item.jid === target || item.number === target);
+    if (!group) return { error: '❌ Group not found. Use `.remind groups` to see the available group numbers.' };
+    return { targetChatId: group.jid, args: args.slice(2), groupName: group.subject || group.jid };
+}
+
+function scheduleReminder(sock, row) {
+    const delay = Math.max(0, row.dueAt - Date.now());
+    const timer = setTimeout(async () => {
+        await sock.sendMessage(row.targetChatId, { text: `⏰ *REMINDER*\n${row.task}` }).catch(() => null);
+        const next = readState();
+        next.reminders = (next.reminders || []).filter((item) => item.id !== row.id);
+        writeState(next);
+        timers.delete(row.id);
+    }, delay);
+    if (typeof timer.unref === 'function') timer.unref();
+    timers.set(row.id, timer);
+}
+
+function hydrateReminders(sock) {
+    for (const row of (readState().reminders || [])) {
+        if (row.dueAt > Date.now() && !timers.has(row.id)) scheduleReminder(sock, row);
+    }
+}
+
 async function remindCommand(sock, chatId, message, args, context) {
-    const reminder = parseReminder(args.join(' '));
+    hydrateReminders(sock);
+    if (String(args[0] || '').toLowerCase() === 'groups') {
+        if (!context.isOwnerOrSudoCheck || context.isGroup) return reply(sock, chatId, message, '❌ Use `.remind groups` from your owner DM.');
+        try {
+            const groups = await fetchParticipatingGroups(sock);
+            return reply(sock, chatId, message, groups.length
+                ? `👥 *REMINDER GROUPS*\n\n${groups.map((group) => `${group.index}. ${group.subject || group.jid}\n   ${group.number}`).join('\n\n')}\n\nUse: .remind group <number> <time> <task>`
+                : '❌ No participating groups were found.');
+        } catch (error) {
+            console.error('[remind groups]', error.message || error);
+            return reply(sock, chatId, message, '❌ Could not fetch your groups right now.');
+        }
+    }
+    if (String(args[0] || '').toLowerCase() === 'cancel') {
+        const id = args[1];
+        const state = readState();
+        const row = (state.reminders || []).find((item) => item.id === id && (item.ownerId === (context.senderId || chatId) || context.isOwnerOrSudoCheck));
+        if (!row) return reply(sock, chatId, message, '❌ Reminder not found. Use `.remind list` to see active reminders.');
+        if (timers.has(id)) clearTimeout(timers.get(id));
+        timers.delete(id);
+        state.reminders = state.reminders.filter((item) => item.id !== id);
+        writeState(state);
+        return reply(sock, chatId, message, `✅ Reminder *${id}* cancelled.`);
+    }
+    if (String(args[0] || '').toLowerCase() === 'list') {
+        const ownerId = context.senderId || chatId;
+        const rows = (readState().reminders || []).filter((item) => context.isOwnerOrSudoCheck || item.ownerId === ownerId);
+        return reply(sock, chatId, message, rows.length ? `⏰ *ACTIVE REMINDERS*\n\n${rows.map((item) => `• ${item.id}\n  ${new Date(item.dueAt).toLocaleString('en-KE')} — ${item.targetName || item.targetChatId}\n  ${item.task}`).join('\n\n')}` : '⏰ No active reminders.');
+    }
+    let target;
+    try { target = await resolveReminderTarget(sock, chatId, args, context); }
+    catch (error) { console.error('[remind target]', error.message || error); return reply(sock, chatId, message, '❌ Could not resolve the target group right now.'); }
+    if (target.error) return reply(sock, chatId, message, target.error);
+    const reminder = parseReminder(target.args.join(' '));
     if (!reminder) return reply(sock, chatId, message, 'Usage: `.remind 30 min Submit CAT report` (maximum 30 days)');
     const state = readState();
     const id = `${chatId}:${Date.now()}`;
-    const row = { id, chatId, task: reminder.task, dueAt: Date.now() + reminder.delay };
+    const row = { id, chatId, targetChatId: target.targetChatId, targetName: target.groupName || target.targetChatId, ownerId: context.senderId || chatId, task: reminder.task, dueAt: Date.now() + reminder.delay };
     state.reminders.push(row);
     writeState(state);
-    const timer = setTimeout(async () => {
-        await sock.sendMessage(chatId, { text: `⏰ *REMINDER*\n${reminder.task}` }).catch(() => null);
-        const next = readState();
-        next.reminders = next.reminders.filter((item) => item.id !== id);
-        writeState(next);
-        timers.delete(id);
-    }, reminder.delay);
-    if (typeof timer.unref === 'function') timer.unref();
-    timers.set(id, timer);
-    return reply(sock, chatId, message, `✅ Reminder set for *${reminder.label}*: ${reminder.task}`);
+    scheduleReminder(sock, row);
+    return reply(sock, chatId, message, `✅ Reminder set for *${reminder.label}* to *${row.targetName}*: ${reminder.task}\nID: ${id}`);
 }
 
 async function summaryCommand(sock, chatId, message, args) {
@@ -175,4 +236,4 @@ async function summaryCommand(sock, chatId, message, args) {
     }
 }
 
-module.exports = { broadcastCommand, scheduleCommand, feedbackCommand, statusCommand, logsCommand, deployCommand, todoCommand, remindCommand, summaryCommand };
+module.exports = { broadcastCommand, scheduleCommand, feedbackCommand, statusCommand, logsCommand, deployCommand, todoCommand, remindCommand, summaryCommand, hydrateReminders };
