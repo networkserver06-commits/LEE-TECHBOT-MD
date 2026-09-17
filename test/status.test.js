@@ -60,6 +60,15 @@ test('tostatus rejects non-owner use before reading content', async () => {
     assert.match(sent[0].payload.text, /Only the bot owner/i);
 });
 
+test('tostatus uses native WhatsApp Status privacy without a local audience list', async () => {
+    const sent = [];
+    await toStatus(sock(sent), '999@s.whatsapp.net', quotedText('Personal status'), true);
+    const status = sent.find((item) => item.chatId === 'status@broadcast');
+    assert.ok(status);
+    assert.equal(status.options.statusJidList, undefined);
+    assert.match(sent.at(-1).payload.text, /posted to your WhatsApp Status/i);
+});
+
 test('group audience requires participants', async () => {
     const emptySock = { async groupMetadata() { return { subject: 'Empty', participants: [] }; } };
     await assert.rejects(() => groupAudience(emptySock, '123@g.us'), /no participants/i);

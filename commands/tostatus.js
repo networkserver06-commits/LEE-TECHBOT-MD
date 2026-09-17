@@ -1,6 +1,6 @@
 'use strict';
 
-const { getCommandContent, personalAudience, publishStatus } = require('../lib/status');
+const { getCommandContent, publishStatus } = require('../lib/status');
 
 const toStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck) => {
     if (!isOwnerOrSudoCheck) {
@@ -16,11 +16,12 @@ const toStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck) => {
 
     try {
         await sock.sendMessage(chatId, { text: '⏳ Uploading to your WhatsApp Status…' }, { quoted: message });
-        const recipients = await personalAudience(sock);
-        if (!recipients.length) throw new Error('No WhatsApp contacts were found for the personal audience');
-        await publishStatus(sock, content, recipients);
+        // Let WhatsApp apply the account's native Status privacy audience. A
+        // locally assembled JID list can contain stale/LID entries and cause
+        // the Status upload to be rejected even when the media is valid.
+        await publishStatus(sock, content);
         return sock.sendMessage(chatId, {
-            text: `✅ ${content.type === 'text' ? 'Text' : `${content.type.charAt(0).toUpperCase()}${content.type.slice(1)}`} posted to your WhatsApp Status for *${recipients.length}* audience contacts.`
+            text: `✅ ${content.type === 'text' ? 'Text' : `${content.type.charAt(0).toUpperCase()}${content.type.slice(1)}`} posted to your WhatsApp Status.`
         }, { quoted: message });
     } catch (error) {
         console.error('[tostatus]', error.message || error);
