@@ -99,6 +99,7 @@ const groupModeCommand = require('./commands/groupmode');
 
 // Commands
 const pingCommand = require('./commands/ping');
+const { pingHostCommand } = require('./commands/academicTools');
 const helpCommand = require('./commands/help');
 const { parsePrefixArgument } = require('./lib/prefix');
 const ownerCommand = require('./commands/owner');
@@ -321,7 +322,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             message.message?.buttonsResponseMessage?.selectedButtonId ||
             '';
         let userMessage = String(extractedText).toLowerCase().replace(/\.\s+/g, '.').trim();
-        if (userMessage.startsWith('/')) {
+        if (userMessage.startsWith('/') || userMessage.startsWith('!')) {
             const commandPrefix = global.prefix === 'none' ? '.' : (global.prefix || '.');
             userMessage = `${commandPrefix}${userMessage.slice(1)}`;
         }
@@ -356,7 +357,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const fastPrefix = global.prefix === 'none' ? '.' : (global.prefix || '.');
         const isFastCommand = userMessage.startsWith(fastPrefix) && ['.ping', '.help', '.menu', '.commands', '.devmenu', '.developermenu', '.devtools', '.tools', '.groupmenu', '.alive', '.system', '.stats', '.speed', '.uptime', '.runtime', '.id', '.botinfo', '.health'].includes(fastCommand);
         if (isFastCommand) {
-            if (fastCommand === '.ping') await pingCommand(sock, chatId, message);
+            if (fastCommand === '.ping') {
+                if (userMessage.split(/\s+/).length > 1) await pingHostCommand(sock, chatId, message, userMessage.split(/\s+/).slice(1));
+                else await pingCommand(sock, chatId, message);
+            }
             else if (fastCommand === '.help' || fastCommand === '.menu' || fastCommand === '.commands' || fastCommand === '.devmenu' || fastCommand === '.developermenu' || fastCommand === '.devtools' || fastCommand === '.tools' || fastCommand === '.groupmenu') await helpCommand(sock, chatId, message);
             else if (fastCommand === '.alive') await aliveCommand(sock, chatId, message);
             else if (fastCommand === '.speed') await speedCommand(sock, chatId, message);
@@ -1047,8 +1051,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await demoteCommand(sock, chatId, mentionedJidListDemote, message);
                 commandExecuted = true;
                 break;
-            case userMessage === '.ping':
-                await pingCommand(sock, chatId, message);
+            case userMessage === '.ping' || userMessage.startsWith('.ping '):
+                if (userMessage.split(/\s+/).length > 1) await pingHostCommand(sock, chatId, message, userMessage.split(/\s+/).slice(1));
+                else await pingCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
             case userMessage === '.alive' || userMessage.startsWith('.alive '):

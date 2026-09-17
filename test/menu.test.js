@@ -9,7 +9,7 @@ const { botInfoCommand } = require('../commands/utility');
 test('menu catalog contains every requested top-level category', () => {
     assert.deepEqual(
         MENU_CATEGORIES.map((category) => category.key),
-        ['settings', 'class-rep', 'student', 'developer', 'groups', 'ai', 'anime', 'img-maker', 'convert', 'fun', 'downloads', 'general']
+        ['settings', 'class-rep', 'media-utilities', 'class-moderation', 'student', 'developer', 'academic', 'groups', 'ai', 'anime', 'img-maker', 'convert', 'fun', 'downloads', 'general']
     );
 });
 

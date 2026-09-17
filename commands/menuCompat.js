@@ -51,6 +51,7 @@ const { normalizeWhatsAppNumber } = require('../lib/phone');
 const { saveIdentity } = require('../lib/identity');
 const { tagAllCommand, contactTagCommand, tagAdminsCommand } = require('./groupTags');
 const studentTools = require('./studentTools');
+const { whoisCommand, pingHostCommand, dnsCommand, scholarCommand, mathCommand, pdfCommand } = require('./academicTools');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const NOTES_FILE = path.join(DATA_DIR, 'menuNotes.json');
@@ -226,6 +227,13 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     const command = (parts.shift() || '').replace(/^[./]/, '').toLowerCase();
     const args = parts;
     if (!command) return false;
+
+    if (command === 'whois') { await whoisCommand(sock, chatId, message, args); return true; }
+    if (command === 'pinghost') { await pingHostCommand(sock, chatId, message, args); return true; }
+    if (command === 'dns') { await dnsCommand(sock, chatId, message, args); return true; }
+    if (command === 'scholar') { await scholarCommand(sock, chatId, message, args); return true; }
+    if (command === 'math') { await mathCommand(sock, chatId, message, args); return true; }
+    if (command === 'pdf') { await pdfCommand(sock, chatId, message, args); return true; }
 
     if (command === 'broadcast') { await studentTools.broadcastCommand(sock, chatId, message, args, context); return true; }
     if (command === 'schedule') { await studentTools.scheduleCommand(sock, chatId, message, args, context); return true; }

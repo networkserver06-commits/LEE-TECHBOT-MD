@@ -19,6 +19,18 @@ function uniqueParticipants(metadata) {
 function formatTag(id) {
     return `@${String(id).split('@')[0].split(':')[0]}`;
 }
+const tagCooldowns = new Map();
+function rateLimited(chatId, senderId, label) {
+    const key = `${chatId}:${senderId}:${label}`;
+    const now = Date.now();
+    const last = tagCooldowns.get(key) || 0;
+    if (now - last < 15000) return true;
+    tagCooldowns.set(key, now);
+    return false;
+}
+async function sendRateLimit(sock, chatId, message) {
+    await sock.sendMessage(chatId, { text: '⏳ Rate-limited: please wait 15 seconds before using another group-tag command.' }, { quoted: message });
+}
 
 async function sendGroupUnavailable(sock, chatId, message) {
     await sock.sendMessage(chatId, {
@@ -61,6 +73,7 @@ async function tagParticipants(sock, chatId, message, participants, text) {
 async function tagAllCommand(sock, chatId, senderId, message) {
     try {
         const participants = await getAuthorizedParticipants(sock, chatId, senderId, message, 'tagall');
+        if (participants && rateLimited(chatId, senderId, 'tagall')) return sendRateLimit(sock, chatId, message);
         if (participants) await tagParticipants(sock, chatId, message, participants, '🔊 *Hello Everyone:*');
     } catch (error) {
         console.error('Error in tagall command:', error?.message || error);
@@ -71,6 +84,7 @@ async function tagAllCommand(sock, chatId, senderId, message) {
 async function tagNotAdminCommand(sock, chatId, senderId, message) {
     try {
         const participants = await getAuthorizedParticipants(sock, chatId, senderId, message, 'tagnotadmin');
+        if (participants && rateLimited(chatId, senderId, 'tagnotadmin')) return sendRateLimit(sock, chatId, message);
         if (!participants) return;
         const nonAdmins = participants.filter((participant) => !participant.admin);
         await tagParticipants(sock, chatId, message, nonAdmins, '🔊 *Hello Members:*');
@@ -83,6 +97,7 @@ async function tagNotAdminCommand(sock, chatId, senderId, message) {
 async function tagAdminsCommand(sock, chatId, senderId, message) {
     try {
         const participants = await getAuthorizedParticipants(sock, chatId, senderId, message, 'tagadmin');
+        if (participants && rateLimited(chatId, senderId, 'tagadmin')) return sendRateLimit(sock, chatId, message);
         if (participants) await tagParticipants(sock, chatId, message, participants.filter((participant) => participant.admin), '📢 *Group Admins:*');
     } catch (error) {
         console.error('Error in tagadmin command:', error?.message || error);
@@ -93,6 +108,7 @@ async function tagAdminsCommand(sock, chatId, senderId, message) {
 async function contactTagCommand(sock, chatId, senderId, message) {
     try {
         const participants = await getAuthorizedParticipants(sock, chatId, senderId, message, 'contacttag');
+        if (participants && rateLimited(chatId, senderId, 'contacttag')) return sendRateLimit(sock, chatId, message);
         if (!participants) return;
         const contacts = participants.map((participant) => {
             const id = participantId(participant);
