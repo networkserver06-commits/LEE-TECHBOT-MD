@@ -1,6 +1,6 @@
 'use strict';
 
-const { getQuotedMessage, getContent, groupAudience, publishStatus } = require('../lib/status');
+const { getCommandContent, groupAudience, publishStatus } = require('../lib/status');
 
 const togStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck, isGroup) => {
     if (!isOwnerOrSudoCheck) {
@@ -10,11 +10,10 @@ const togStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck, isGro
         return sock.sendMessage(chatId, { text: '❌ Use .togstatus inside the group whose members should see the Status.' }, { quoted: message });
     }
 
-    const quoted = getQuotedMessage(message);
-    const content = getContent(quoted);
+    const content = getCommandContent(message);
     if (!content) {
         return sock.sendMessage(chatId, {
-            text: '❌ Reply to a text, image, or video, then send .togstatus.'
+            text: '❌ Reply to text, an image, video, audio, or document, then send .togstatus. You can also caption a media message with .togstatus.'
         }, { quoted: message });
     }
 
@@ -24,7 +23,7 @@ const togStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck, isGro
         if (!audience.recipients.length) throw new Error('The group has no usable phone recipients');
         await publishStatus(sock, content, audience.recipients);
         return sock.sendMessage(chatId, {
-            text: `✅ ${content.type === 'text' ? 'Text' : `${content.type.charAt(0).toUpperCase()}${content.type.slice(1)}`} Status posted for *${audience.subject}* members.`
+            text: `✅ ${content.type === 'text' ? 'Text' : `${content.type.charAt(0).toUpperCase()}${content.type.slice(1)}`} Status posted for *${audience.subject}* members (*${audience.recipients.length}* recipients).`
         }, { quoted: message });
     } catch (error) {
         console.error('[togstatus]', error.message || error);

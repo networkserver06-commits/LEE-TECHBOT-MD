@@ -1,26 +1,26 @@
 'use strict';
 
-const { getQuotedMessage, getContent, personalAudience, publishStatus } = require('../lib/status');
+const { getCommandContent, personalAudience, publishStatus } = require('../lib/status');
 
 const toStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck) => {
     if (!isOwnerOrSudoCheck) {
         return sock.sendMessage(chatId, { text: '❌ Only the bot owner or super-owner can use this command.' }, { quoted: message });
     }
 
-    const quoted = getQuotedMessage(message);
-    const content = getContent(quoted);
+    const content = getCommandContent(message);
     if (!content) {
         return sock.sendMessage(chatId, {
-            text: '❌ Reply to a text, image, or video, then send .tostatus.'
+            text: '❌ Reply to text, an image, video, audio, or document, then send .tostatus. You can also caption a media message with .tostatus.'
         }, { quoted: message });
     }
 
     try {
         await sock.sendMessage(chatId, { text: '⏳ Uploading to your WhatsApp Status…' }, { quoted: message });
         const recipients = await personalAudience(sock);
+        if (!recipients.length) throw new Error('No WhatsApp contacts were found for the personal audience');
         await publishStatus(sock, content, recipients);
         return sock.sendMessage(chatId, {
-            text: `✅ ${content.type === 'text' ? 'Text' : `${content.type.charAt(0).toUpperCase()}${content.type.slice(1)}`} posted to your WhatsApp Status.`
+            text: `✅ ${content.type === 'text' ? 'Text' : `${content.type.charAt(0).toUpperCase()}${content.type.slice(1)}`} posted to your WhatsApp Status for *${recipients.length}* audience contacts.`
         }, { quoted: message });
     } catch (error) {
         console.error('[tostatus]', error.message || error);

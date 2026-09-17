@@ -438,6 +438,8 @@ async function handleMessages(sock, messageUpdate, printLog) {
         } else {
             isCmd = userMessage.startsWith(actualPrefix);
         }
+        const slashStatusCommand = /^\/(?:to|tog)status(?:\s|$)/i.test(userMessage);
+        if (slashStatusCommand) isCmd = true;
 
         if (!isCmd) {
             if (isGroup && /^@ll(?:\s|$)/i.test(userMessage)) {
@@ -480,7 +482,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
         }
 
-        if (actualPrefix !== '.' && actualPrefix !== '') {
+        if (slashStatusCommand) {
+            userMessage = `.${userMessage.slice(1).trim()}`;
+        } else if (actualPrefix !== '.' && actualPrefix !== '') {
             userMessage = '.' + userMessage.slice(actualPrefix.length).trim();
         } else if (actualPrefix === '') {
             if (!userMessage.startsWith('.')) {
@@ -632,12 +636,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
 
-            case userMessage === '.tostatus':
+            case userMessage === '.tostatus' || userMessage === '.tostatus now':
                 await toStatusCommand(sock, chatId, message, isOwnerOrSudoCheck);
                 commandExecuted = true;
                 break;
                 
-            case userMessage === '.togstatus':
+            case userMessage === '.togstatus' || userMessage === '.togstatus now':
                 await togStatusCommand(sock, chatId, message, isOwnerOrSudoCheck, isGroup);
                 commandExecuted = true;
                 break;
