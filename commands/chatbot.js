@@ -14,6 +14,29 @@ const chatMemory = {
     userInfo: new Map()  // Stores user information
 };
 const responseLocks = new Set();
+const chatbotRate = new Map();
+const CHATBOT_COOLDOWN_MS = 15000;
+const CHATBOT_WINDOW_MS = 60 * 60 * 1000;
+const CHATBOT_MAX_PER_HOUR = 30;
+
+function allowChatbotResponse(chatId) {
+    const now = Date.now();
+    const current = chatbotRate.get(chatId) || { last: 0, timestamps: [] };
+    current.timestamps = current.timestamps.filter((timestamp) => now - timestamp < CHATBOT_WINDOW_MS);
+    if (now - current.last < CHATBOT_COOLDOWN_MS || current.timestamps.length >= CHATBOT_MAX_PER_HOUR) {
+        chatbotRate.set(chatId, current);
+        return false;
+    }
+    current.last = now;
+    current.timestamps.push(now);
+    chatbotRate.set(chatId, current);
+    if (chatbotRate.size > 1000) {
+        for (const [key, value] of chatbotRate) {
+            if (!value.timestamps.length || now - value.timestamps[value.timestamps.length - 1] > CHATBOT_WINDOW_MS) chatbotRate.delete(key);
+        }
+    }
+    return true;
+}
 
 function chatbotEnabled(value) {
     return value === true || value?.enabled === true;
@@ -304,6 +327,7 @@ async function handleChatbotResponse(sock, chatId, message, userMessage, senderI
     if ((!isGroup && !isOwnerDm && !isContactDm) || !String(userMessage || '').trim()) return;
     if (!chatbotEnabled(data.chatbot?.[chatId]) && !isContactDm) return;
     if (responseLocks.has(chatId)) return;
+    if (!allowChatbotResponse(chatId)) return;
     responseLocks.add(chatId);
 
     try {
