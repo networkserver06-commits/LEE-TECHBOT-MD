@@ -217,6 +217,7 @@ const autodlCommand = require('./commands/autodl');
 const autobioCommand = require('./commands/autobio');
 const alwaysonlineCommand = require('./commands/alwaysonline');
 const groupVcfCommand = require('./commands/groupvcf');
+const { isGroupAlertEnabled } = require('./commands/groupFeatures');
 const setMenuImageCommand = require('./commands/setmenuimage');
 const linkCommand = require('./commands/link');
 const pairCommand = require('./commands/pair');
@@ -1730,10 +1731,18 @@ async function handleGroupParticipantUpdate(sock, update) {
             }
 
             if (typeof handleJoinEvent === 'function') await handleJoinEvent(sock, id, participants).catch(()=>null);
+            if (isGroupAlertEnabled(id)) {
+                const mentions = participants.map((participant) => typeof participant === 'string' ? participant : participant.id).filter(Boolean);
+                await sock.sendMessage(id, { text: `📣 Group alert: ${mentions.map((jid) => `@${jid.split('@')[0]}`).join(', ')} joined the group.`, mentions }).catch(()=>null);
+            }
         }
 
         if (action === 'remove') {
             if (typeof handleLeaveEvent === 'function') await handleLeaveEvent(sock, id, participants).catch(()=>null);
+            if (isGroupAlertEnabled(id)) {
+                const mentions = participants.map((participant) => typeof participant === 'string' ? participant : participant.id).filter(Boolean);
+                await sock.sendMessage(id, { text: `📣 Group alert: ${mentions.map((jid) => `@${jid.split('@')[0]}`).join(', ')} left the group.`, mentions }).catch(()=>null);
+            }
         }
     } catch (error) {
         console.error('Error in handleGroupParticipantUpdate:', error);

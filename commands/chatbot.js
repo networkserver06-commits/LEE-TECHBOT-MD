@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
 const { configured: aiConfigured, generateChatCompletion } = require('../lib/ai_provider');
+const { getMetaAi } = require('./groupFeatures');
 
 const USER_GROUP_DATA = path.join(__dirname, '../data/userGroupData.json');
 
@@ -271,7 +272,8 @@ async function handleChatbotResponse(sock, chatId, message, userMessage, senderI
         // Get AI response with context
         const response = await getAIResponse(cleanedMessage, {
             messages: chatMemory.messages.get(senderId),
-            userInfo: chatMemory.userInfo.get(senderId)
+            userInfo: chatMemory.userInfo.get(senderId),
+            groupMetadata: getMetaAi(chatId)
         });
 
         if (!response) {
@@ -362,6 +364,9 @@ ${userContext.messages.join('\n')}
 
 User information:
 ${JSON.stringify(userContext.userInfo, null, 2)}
+
+Group metadata context:
+${userContext.groupMetadata ? JSON.stringify(userContext.groupMetadata, null, 2) : 'Not enabled for this group'}
 
 Current message: ${userMessage}
 

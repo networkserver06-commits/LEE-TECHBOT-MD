@@ -36,6 +36,16 @@ const { legacyCommand } = require('./legacyCommands');
 const linkCommand = require('./link');
 const groupVcfCommand = require('./groupvcf');
 const leaveCommand = require('./leave');
+const {
+    addAllCommand,
+    unwarnCommand,
+    antiStatusCommand,
+    groupAlertCommand,
+    addMetaAiCommand,
+    removeMetaAiCommand,
+    openTimeCommand,
+    closeTimeCommand
+} = require('./groupFeatures');
 const { normalizeWhatsAppNumber } = require('../lib/phone');
 const { saveIdentity } = require('../lib/identity');
 const { tagAllCommand, contactTagCommand, tagAdminsCommand } = require('./groupTags');
@@ -351,6 +361,38 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     }
     if (command === 'sendcontact') {
         await contactTagCommand(sock, chatId, context.senderId || message.key?.participant || message.key?.remoteJid, message);
+        return true;
+    }
+    if (command === 'addall') {
+        await addAllCommand(sock, chatId, message, args, context);
+        return true;
+    }
+    if (command === 'unwarn') {
+        await unwarnCommand(sock, chatId, message, args, context);
+        return true;
+    }
+    if (command === 'antistatus') {
+        await antiStatusCommand(sock, chatId, message, args, context);
+        return true;
+    }
+    if (command === 'gcalert') {
+        await groupAlertCommand(sock, chatId, message, args, context);
+        return true;
+    }
+    if (command === 'addmetaai') {
+        await addMetaAiCommand(sock, chatId, message, context);
+        return true;
+    }
+    if (command === 'removemetaai') {
+        await removeMetaAiCommand(sock, chatId, message, context);
+        return true;
+    }
+    if (command === 'opentime') {
+        await openTimeCommand(sock, chatId, message, args, context);
+        return true;
+    }
+    if (command === 'closetime') {
+        await closeTimeCommand(sock, chatId, message, args, context);
         return true;
     }
     if (command === 'savecontact' || command === 'savecontacts' || command === 'extract') {

@@ -14,8 +14,8 @@ test('recognized-command fallback never asks users to resend after connection', 
 test('unsupported catalog commands receive an accurate response', async () => {
     const sent = [];
     const sock = { async sendMessage(chatId, payload) { sent.push(payload); } };
-    const message = { key: { remoteJid: '123@g.us' }, message: { conversation: '.addall' } };
-    assert.equal(await menuCompatCommand(sock, message.key.remoteJid, message, '.addall', { isGroup: true, isSenderAdmin: true }), true);
+    const message = { key: { remoteJid: '123@s.whatsapp.net' }, message: { conversation: '.panel' } };
+    assert.equal(await menuCompatCommand(sock, message.key.remoteJid, message, '.panel', { isOwnerOrSudoCheck: true }), true);
     assert.match(sent[0].text, /handler is not available/i);
     assert.doesNotMatch(sent[0].text, /send it again after the bot has fully connected/i);
 });
