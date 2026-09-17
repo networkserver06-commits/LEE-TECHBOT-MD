@@ -50,6 +50,7 @@ const {
 const { normalizeWhatsAppNumber } = require('../lib/phone');
 const { saveIdentity } = require('../lib/identity');
 const { tagAllCommand, contactTagCommand, tagAdminsCommand } = require('./groupTags');
+const studentTools = require('./studentTools');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const NOTES_FILE = path.join(DATA_DIR, 'menuNotes.json');
@@ -222,9 +223,19 @@ async function updateAllGroupRoles(sock, chatId, message, action) {
 
 async function menuCompatCommand(sock, chatId, message, input, context = {}) {
     const parts = String(input || '').trim().split(/\s+/).filter(Boolean);
-    const command = (parts.shift() || '').replace(/^\./, '').toLowerCase();
+    const command = (parts.shift() || '').replace(/^[./]/, '').toLowerCase();
     const args = parts;
     if (!command) return false;
+
+    if (command === 'broadcast') { await studentTools.broadcastCommand(sock, chatId, message, args, context); return true; }
+    if (command === 'schedule') { await studentTools.scheduleCommand(sock, chatId, message, args, context); return true; }
+    if (command === 'feedback') { await studentTools.feedbackCommand(sock, chatId, message, args, context); return true; }
+    if (command === 'status') { await studentTools.statusCommand(sock, chatId, message); return true; }
+    if (command === 'deploy') { await studentTools.deployCommand(sock, chatId, message, args, context); return true; }
+    if (command === 'logs') { await studentTools.logsCommand(sock, chatId, message, args, context); return true; }
+    if (command === 'todo') { await studentTools.todoCommand(sock, chatId, message, args, context); return true; }
+    if (command === 'remind') { await studentTools.remindCommand(sock, chatId, message, args, context); return true; }
+    if (command === 'summary') { await studentTools.summaryCommand(sock, chatId, message, args); return true; }
 
     if (OWNER_COMMANDS.has(command) && !context.isOwnerOrSudoCheck) {
         await reply(sock, chatId, message, '❌ This command is restricted to the bot owner or sudo.');
