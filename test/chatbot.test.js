@@ -22,6 +22,7 @@ test('owner DM can enable chatbot for a numbered group', async () => {
     assert.match(sent.at(-1).payload.text, /turned \*ON\*/i);
     const data = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     assert.equal(data.chatbot['123@g.us'].enabled, true);
+    assert.ok(sent.some((item) => item.payload.react?.text === '✅'));
     if (original === null) fs.rmSync(stateFile, { force: true }); else fs.writeFileSync(stateFile, original);
 });
 

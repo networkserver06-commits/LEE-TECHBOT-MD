@@ -19,6 +19,15 @@ const CHATBOT_COOLDOWN_MS = 15000;
 const CHATBOT_WINDOW_MS = 60 * 60 * 1000;
 const CHATBOT_MAX_PER_HOUR = 30;
 
+async function reactSuccess(sock, chatId, message) {
+    if (!message?.key) return;
+    try {
+        await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
+    } catch (error) {
+        console.warn('[chatbot reaction]', error.message || error);
+    }
+}
+
 function allowChatbotResponse(chatId) {
     const now = Date.now();
     const current = chatbotRate.get(chatId) || { last: 0, timestamps: [] };
@@ -193,6 +202,7 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
         }
         data.chatbot[target.jid] = { enabled: action === 'on', provider: 'auto', mode: 'constant' };
         saveUserGroupData(data);
+        if (action === 'on' && target.jid.endsWith('@g.us')) await reactSuccess(sock, chatId, message);
         return sock.sendMessage(chatId, { text: `✅ Chatbot turned *${action.toUpperCase()}* for *${target.subject || target.jid}*.` }, { quoted: message });
     }
     if (!match) {
@@ -234,6 +244,7 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
             data.chatbot[chatId] = { enabled: true, provider: 'auto', mode: 'constant' };
             saveUserGroupData(data);
             console.log(`✅ Chatbot enabled for group ${chatId}`);
+            await reactSuccess(sock, chatId, message);
             return sock.sendMessage(chatId, {
                 text: '*Chatbot has been enabled for this group*',
                 quoted: message
@@ -285,9 +296,10 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
                 quoted: message
             });
         }
-            data.chatbot[chatId] = { enabled: true, provider: 'auto', mode: 'constant' };
+        data.chatbot[chatId] = { enabled: true, provider: 'auto', mode: 'constant' };
         saveUserGroupData(data);
         console.log(`✅ Chatbot enabled for group ${chatId}`);
+        await reactSuccess(sock, chatId, message);
         return sock.sendMessage(chatId, {
             text: '*Chatbot has been enabled for this group*',
             quoted: message
