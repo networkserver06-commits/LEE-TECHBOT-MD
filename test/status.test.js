@@ -60,12 +60,12 @@ test('tostatus rejects non-owner use before reading content', async () => {
     assert.match(sent[0].payload.text, /Only the bot owner/i);
 });
 
-test('tostatus uses native WhatsApp Status privacy without a local audience list', async () => {
+test('tostatus sends a valid normal-number audience list for visible Status delivery', async () => {
     const sent = [];
     await toStatus(sock(sent), '999@s.whatsapp.net', quotedText('Personal status'), true);
     const status = sent.find((item) => item.chatId === 'status@broadcast');
     assert.ok(status);
-    assert.equal(status.options.statusJidList, undefined);
+    assert.deepEqual(status.options.statusJidList, ['254700000001@s.whatsapp.net', '999@s.whatsapp.net']);
     assert.match(sent.at(-1).payload.text, /posted to your WhatsApp Status/i);
 });
 
@@ -81,9 +81,8 @@ test('publishStatus always targets the WhatsApp status broadcast', async () => {
     assert.equal(sent[0].options.broadcast, true);
 });
 
-test('publishStatus retries native-audience failure with valid number JIDs only', async () => {
+test('publishStatus filters invalid LIDs from the Status audience', async () => {
     const attempts = [];
-    let first = true;
     const retrySock = {
         user: { id: '999@s.whatsapp.net' },
         async groupFetchAllParticipating() {
@@ -91,10 +90,9 @@ test('publishStatus retries native-audience failure with valid number JIDs only'
         },
         async sendMessage(chatId, payload, options) {
             attempts.push({ chatId, options });
-            if (first) { first = false; throw new Error('native audience rejected'); }
         }
     };
     await publishStatus(retrySock, { type: 'text', value: 'Retry me' });
-    assert.equal(attempts.length, 2);
-    assert.deepEqual(attempts[1].options.statusJidList, ['254700000001@s.whatsapp.net', '999@s.whatsapp.net']);
+    assert.equal(attempts.length, 1);
+    assert.deepEqual(attempts[0].options.statusJidList, ['254700000001@s.whatsapp.net', '999@s.whatsapp.net']);
 });
