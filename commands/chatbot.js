@@ -19,6 +19,30 @@ function chatbotEnabled(value) {
     return value === true || value?.enabled === true;
 }
 
+function chatbotSettingsText(data, chatId, isOwnerDm = false) {
+    const configured = data.chatbot?.[chatId];
+    const enabled = chatbotEnabled(configured);
+    const provider = configured?.provider || 'auto';
+    const scope = isOwnerDm ? 'Owner DM' : (chatId?.endsWith('@g.us') ? 'This group' : 'Private chat');
+    const groupsEnabled = Object.entries(data.chatbot || {}).filter(([jid, value]) => jid.endsWith('@g.us') && chatbotEnabled(value)).length;
+    return `🤖 *LEE TECH CHATBOT SETTINGS*\n\n` +
+        `Status: *${enabled ? 'ON' : 'OFF'}*\n` +
+        `Scope: *${scope}*\n` +
+        `Provider: *${provider}* (Grok/Groq: ${grokConfigured() ? 'available' : 'not configured'}; fallback AI: ${aiConfigured() ? 'available' : 'not configured'})\n` +
+        `Language: *Auto — English or Kiswahili*\n` +
+        `Other languages: *Only when explicitly requested*\n` +
+        `Group chatbot instances enabled: *${groupsEnabled}*\n` +
+        `Contact DMs: *${data.chatbotContacts ? 'ON' : 'OFF'}*\n` +
+        `Conversation memory: *Last 20 messages per sender*\n` +
+        `Response mode: *Automatic replies to enabled messages*\n\n` +
+        `*CONTROLS*\n` +
+        `• .chatbot on|off — current group\n` +
+        `• .chatbot settings — show this page\n` +
+        `• Owner DM: .chatbot <group number> on|off|status\n` +
+        `• Owner DM: .chatbot DM on|off|status\n` +
+        `• Owner DM: .chatbot contacts on|off|status`;
+}
+
 // Load user group data
 function loadUserGroupData() {
     try {
@@ -77,6 +101,10 @@ function extractUserInfo(message) {
 }
 
 async function handleChatbotCommand(sock, chatId, message, match, options = {}) {
+    const requested = String(match || '').trim().toLowerCase();
+    if (requested === 'settings' || requested === 'config' || requested === 'info') {
+        return sock.sendMessage(chatId, { text: chatbotSettingsText(loadUserGroupData(), chatId, Boolean(options.isOwnerDm)) }, { quoted: message });
+    }
     if (options.isOwnerDm) {
         const dmParts = String(match || '').trim().split(/\s+/).filter(Boolean);
         if (dmParts[0]?.toLowerCase() === 'dm') {
@@ -140,7 +168,7 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
     if (!match) {
         await showTyping(sock, chatId);
         return sock.sendMessage(chatId, {
-            text: `*CHATBOT SETUP*\n\n*.chatbot on*\nEnable chatbot\n\n*.chatbot off*\nDisable chatbot in this group`,
+            text: `${chatbotSettingsText(loadUserGroupData(), chatId)}\n\nUse *.chatbot on* or *.chatbot off* to change the current group.`,
             quoted: message
         });
     }
