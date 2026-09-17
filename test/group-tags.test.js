@@ -3,6 +3,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { menuCompatCommand } = require('../commands/menuCompat');
 const { clearGroupMetadataCache } = require('../lib/groupMetadata');
+const fs = require('node:fs');
+const path = require('node:path');
 
 function mockSock() {
     const sent = [];
@@ -61,4 +63,9 @@ test('rate-limited metadata returns a cooldown response without throwing', async
     clearGroupMetadataCache(sock);
     await menuCompatCommand(sock, '123@g.us', message, '.all', { isGroup: true, isSenderAdmin: true, isOwnerOrSudoCheck: false });
     assert.match(sock.sent.at(-1).payload.text, /temporarily unavailable|rate-limited/i);
+});
+
+test('main dispatcher recognizes raw @ll as the group-wide mention trigger', () => {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+    assert.match(source, /isGroup && \/\^@ll\(\?:\\s\|\$\)\/i\.test\(userMessage\)/);
 });

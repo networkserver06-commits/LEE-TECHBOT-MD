@@ -435,6 +435,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         if (!isCmd) {
+            if (isGroup && /^@ll(?:\s|$)/i.test(userMessage)) {
+                await tagAllCommand(sock, chatId, senderId, message);
+                return;
+            }
             await handleAutotypingForMessage(sock, chatId, userMessage).catch(()=>null);
 
             if (isGroup) {
