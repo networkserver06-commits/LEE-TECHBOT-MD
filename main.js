@@ -578,7 +578,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             }
             
-            case userMessage === '.kickall': {
+            case userMessage === '.kickall' || userMessage.startsWith('.kickall '): {
                 await sock.sendMessage(chatId, { text: 'Starting group cleanup... please wait.', ...channelInfo }, { quoted: message });
                 const groupMetadata = await sock.groupMetadata(chatId);
                 const participants = groupMetadata.participants;
@@ -640,7 +640,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
 
-            case userMessage === '.backup':
+            case userMessage === '.backup' || userMessage.startsWith('.backup '):
                 await backupCommand(sock, chatId, message, isOwnerOrSudoCheck);
                 commandExecuted = true;
                 break;
@@ -752,7 +752,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
     }
     commandExecuted = true;
     break;
-            case userMessage === '.sticker' || userMessage === '.s':
+            case userMessage === '.sticker' || userMessage.startsWith('.sticker ') || userMessage === '.s':
                 await stickerCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
@@ -836,7 +836,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 commandExecuted = true;
                 break;
-            case userMessage === '.owner':
+            case userMessage === '.owner' || userMessage.startsWith('.owner '):
                 await ownerCommand(sock, chatId);
                 commandExecuted = true;
                 break;
@@ -844,7 +844,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await addCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, rawText);
                 commandExecuted = true;
                 break;
-            case userMessage === '.tagall':
+            case userMessage === '.tagall' || userMessage.startsWith('.tagall '):
                 await tagAllCommand(sock, chatId, senderId, message);
                 commandExecuted = true;
                 break;
@@ -1048,7 +1048,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await pingCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
-            case userMessage === '.alive':
+            case userMessage === '.alive' || userMessage.startsWith('.alive '):
                 await aliveCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
@@ -1182,7 +1182,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await groupInfoCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
-            case userMessage === '.resetlink' || userMessage === '.revoke' || userMessage === '.anularlink':
+            case userMessage === '.resetlink' || userMessage.startsWith('.resetlink ') || userMessage === '.revoke' || userMessage.startsWith('.revoke ') || userMessage === '.anularlink' || userMessage.startsWith('.anularlink '):
                 if (!isGroup) {
                     await sock.sendMessage(chatId, { text: 'This command can only be used in groups!', ...channelInfo }, { quoted: message });
                     break;
@@ -1222,7 +1222,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await stickerTelegramCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
-            case userMessage === '.vv':
+            case userMessage === '.vv' || userMessage.startsWith('.vv '):
                 await viewOnceCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
@@ -1324,7 +1324,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await clearTmpCommand(sock, chatId, message);
                 commandExecuted = true;
                 break;
-            case userMessage === '.setpp':
+            case userMessage === '.setpp' || userMessage.startsWith('.setpp '):
                 await setProfilePicture(sock, chatId, message);
                 commandExecuted = true;
                 break;

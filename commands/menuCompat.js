@@ -35,6 +35,7 @@ const { groqCommand } = require('./groq');
 const { legacyCommand } = require('./legacyCommands');
 const linkCommand = require('./link');
 const groupVcfCommand = require('./groupvcf');
+const leaveCommand = require('./leave');
 const { normalizeWhatsAppNumber } = require('../lib/phone');
 const { saveIdentity } = require('../lib/identity');
 const { tagAllCommand, contactTagCommand, tagAdminsCommand } = require('./groupTags');
@@ -336,6 +337,22 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         await tagAdminsCommand(sock, chatId, context.senderId || message.key?.participant || message.key?.remoteJid, message);
         return true;
     }
+    if (command === 'totag') {
+        await tagAllCommand(sock, chatId, context.senderId || message.key?.participant || message.key?.remoteJid, message);
+        return true;
+    }
+    if (command === 'gc' || command === 'group') {
+        await groupInfoCommand(sock, chatId, message);
+        return true;
+    }
+    if (command === 'left') {
+        await leaveCommand(sock, chatId, message, Boolean(context.isGroup), Boolean(context.isOwnerOrSudoCheck));
+        return true;
+    }
+    if (command === 'sendcontact') {
+        await contactTagCommand(sock, chatId, context.senderId || message.key?.participant || message.key?.remoteJid, message);
+        return true;
+    }
     if (command === 'savecontact' || command === 'savecontacts' || command === 'extract') {
         await groupVcfCommand(sock, chatId, message, Boolean(context.isGroup), Boolean(context.isSenderAdmin), Boolean(context.isOwnerOrSudoCheck));
         return true;
@@ -543,7 +560,7 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         return true;
     }
     if (allCommands().includes(command)) {
-        await reply(sock, chatId, message, `ℹ️ *.${command}* is a recognized command. Please send it again after the bot has fully connected; the primary command dispatcher handles this feature.`);
+        await reply(sock, chatId, message, `⚠️ *.${command}* is recognized, but its handler is not available in this deployment. Use *.menu* to view the currently supported commands.`);
         return true;
     }
     return false;
