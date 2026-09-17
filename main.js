@@ -322,11 +322,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
             message.message?.buttonsResponseMessage?.selectedButtonId ||
             '';
         let userMessage = String(extractedText).toLowerCase().replace(/\.\s+/g, '.').trim();
-        if (userMessage.startsWith('/') || userMessage.startsWith('!')) {
-            const commandPrefix = global.prefix === 'none' ? '.' : (global.prefix || '.');
-            userMessage = `${commandPrefix}${userMessage.slice(1)}`;
-        }
-
         if (userMessage.startsWith(global.prefix || '.')) {
             const commandGuard = isAntiBanEnabled() ? antiBanGuard : messageGuard;
             if (!commandGuard.allowCommand(message.key.participant || message.key.remoteJid)) {
