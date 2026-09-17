@@ -51,7 +51,7 @@ process.env.TMPDIR = customTemp;
 process.env.TEMP = customTemp;
 process.env.TMP = customTemp;
 
-setInterval(() => {
+const tempCleanupTimer = setInterval(() => {
     fs.readdir(customTemp, (err, files) => {
         if (err) return;
         for (const file of files) {
@@ -65,6 +65,7 @@ setInterval(() => {
     });
     console.log('🧹 Temp folder auto-cleaned');
 }, 3 * 60 * 60 * 1000);
+if (typeof tempCleanupTimer.unref === 'function') tempCleanupTimer.unref();
 
 // ==========================================
 // 3. IMPORTS (ALL FEATURES INCLUDED & FIXED)
@@ -259,11 +260,12 @@ Object.defineProperty(channelInfo, 'contextInfo', {
 // ==========================================
 async function handleMessages(sock, messageUpdate, printLog) {
     try {
-        const { messages, type } = messageUpdate;
+        const { messages, type } = messageUpdate || {};
         if (type !== 'notify') return;
 
-        const message = messages[0];
+        const message = Array.isArray(messages) ? messages[0] : null;
         if (!message?.message) return;
+        if (typeof message.key?.remoteJid !== 'string' || !message.key.remoteJid) return;
         if (messageGuard.isDuplicate(message.key?.id)) return;
         healthMetrics.recordMessage();
 
@@ -312,14 +314,13 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
         }
 
-        let userMessage = (
-            message.message?.conversation?.trim() ||
-            message.message?.extendedTextMessage?.text?.trim() ||
-            message.message?.imageMessage?.caption?.trim() ||
-            message.message?.videoMessage?.caption?.trim() ||
-            message.message?.buttonsResponseMessage?.selectedButtonId?.trim() ||
-            ''
-        ).toLowerCase().replace(/\.\s+/g, '.').trim();
+        const extractedText = message.message?.conversation ||
+            message.message?.extendedTextMessage?.text ||
+            message.message?.imageMessage?.caption ||
+            message.message?.videoMessage?.caption ||
+            message.message?.buttonsResponseMessage?.selectedButtonId ||
+            '';
+        let userMessage = String(extractedText).toLowerCase().replace(/\.\s+/g, '.').trim();
 
         if (userMessage.startsWith(global.prefix || '.')) {
             const commandGuard = isAntiBanEnabled() ? antiBanGuard : messageGuard;
@@ -331,11 +332,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         // Preserve raw message
-        const rawText = message.message?.conversation?.trim() ||
-            message.message?.extendedTextMessage?.text?.trim() ||
-            message.message?.imageMessage?.caption?.trim() ||
-            message.message?.videoMessage?.caption?.trim() ||
-            '';
+        const rawText = String(message.message?.conversation ||
+            message.message?.extendedTextMessage?.text ||
+            message.message?.imageMessage?.caption ||
+            message.message?.videoMessage?.caption ||
+            '');
 
         // Read bot mode safely
         let isPublic = true;

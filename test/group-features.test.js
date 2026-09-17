@@ -46,3 +46,17 @@ test('all remaining catalog group commands use concrete handlers', async () => {
     }
     if (fs.existsSync(stateFile)) fs.unlinkSync(stateFile);
 });
+
+test('open and close commands accept relative durations', async () => {
+    for (const command of ['opentime', 'closetime']) {
+        const sent = [];
+        const sock = mockSock(sent);
+        const input = `.${command} 5 min`;
+        await menuCompatCommand(sock, '123@g.us', message(input), input, {
+            isGroup: true, isSenderAdmin: true, isBotAdmin: true, isOwnerOrSudoCheck: true,
+            senderId: '999@s.whatsapp.net'
+        });
+        assert.match(sent.at(-1).text, /timer set for \*5 mins?\*/i);
+    }
+    if (fs.existsSync(stateFile)) fs.unlinkSync(stateFile);
+});

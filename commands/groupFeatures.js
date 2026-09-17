@@ -134,6 +134,16 @@ function parseTime(value) {
     if (hour > 23 || minute > 59) return null;
     return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
+function parseDuration(args) {
+    const amount = Number(args[0]);
+    const unit = String(args[1] || 'min').toLowerCase().replace(/s$/, '');
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    const multipliers = { min: 60 * 1000, minute: 60 * 1000, hour: 60 * 60 * 1000, day: 24 * 60 * 60 * 1000 };
+    if (!multipliers[unit]) return null;
+    const milliseconds = amount * multipliers[unit];
+    if (milliseconds > 7 * 24 * 60 * 60 * 1000) return null;
+    return { milliseconds, label: `${args[0]} ${unit}${amount === 1 ? '' : 's'}` };
+}
 function scheduleNext(sock, chatId, time, setting, label) {
     const key = `${chatId}:${setting}`;
     if (timers.has(key)) clearTimeout(timers.get(key));
@@ -152,30 +162,65 @@ function scheduleNext(sock, chatId, time, setting, label) {
             scheduleNext(sock, chatId, time, setting, label);
         }
     }, Math.max(1000, next.getTime() - now.getTime()));
+    if (typeof timer.unref === 'function') timer.unref();
+    timers.set(key, timer);
+}
+function scheduleRelative(sock, chatId, delay, setting, label, stateKey) {
+    const key = `${chatId}:${setting}`;
+    if (timers.has(key)) clearTimeout(timers.get(key));
+    const timer = setTimeout(async () => {
+        try {
+            await sock.groupSettingUpdate(chatId, setting);
+            await sock.sendMessage(chatId, { text: `${label} timer applied automatically.` });
+        } catch (error) {
+            console.error(`[${setting} timer]`, error?.message || error);
+        } finally {
+            const state = readState();
+            if (state[chatId]) {
+                delete state[chatId][stateKey];
+                saveState(state);
+            }
+            timers.delete(key);
+        }
+    }, Math.max(1000, delay));
+    if (typeof timer.unref === 'function') timer.unref();
     timers.set(key, timer);
 }
 async function timedGroupModeCommand(sock, chatId, message, args, mode, context) {
     message.isOwnerOrSudoCheck = context.isOwnerOrSudoCheck;
     if (!await requireGroupAdmin(sock, chatId, message)) return;
     const key = mode === 'open' ? 'openTime' : 'closeTime';
+    const durationKey = `${key}Duration`;
     const value = String(args[0] || '').toLowerCase();
     const state = readState();
     const current = state[chatId]?.[key];
+    const currentDuration = state[chatId]?.[durationKey];
     if (!value || value === 'status' || value === 'show') {
-        return sock.sendMessage(chatId, { text: `⏰ *${mode === 'open' ? 'Open' : 'Close'} schedule*: ${current || 'not set'}\nUsage: .${mode === 'open' ? 'opentime' : 'closetime'} HH:MM\nDisable with .${mode === 'open' ? 'opentime' : 'closetime'} off` }, { quoted: message });
+        const display = current || (currentDuration ? `in ${currentDuration.label}` : 'not set');
+        return sock.sendMessage(chatId, { text: `⏰ *${mode === 'open' ? 'Open' : 'Close'} schedule*: ${display}\nUsage: .${mode === 'open' ? 'opentime' : 'closetime'} HH:MM\nOr relative: .${mode === 'open' ? 'opentime' : 'closetime'} 5 min\nDisable with .${mode === 'open' ? 'opentime' : 'closetime'} off` }, { quoted: message });
     }
     if (value === 'off') {
-        if (current) {
+        if (current || currentDuration) {
             const timerKey = `${chatId}:${mode === 'open' ? 'not_announcement' : 'announcement'}`;
             if (timers.has(timerKey)) clearTimeout(timers.get(timerKey));
             timers.delete(timerKey);
         }
         if (state[chatId]) delete state[chatId][key];
+        if (state[chatId]) delete state[chatId][durationKey];
         saveState(state);
         return sock.sendMessage(chatId, { text: `✅ ${mode === 'open' ? 'Open' : 'Close'} schedule disabled.` }, { quoted: message });
     }
+    const duration = parseDuration(args);
+    if (duration) {
+        groupState(state, chatId)[durationKey] = { label: duration.label, expiresAt: Date.now() + duration.milliseconds };
+        delete groupState(state, chatId)[key];
+        saveState(state);
+        const setting = mode === 'open' ? 'not_announcement' : 'announcement';
+        scheduleRelative(sock, chatId, duration.milliseconds, setting, mode === 'open' ? 'Open' : 'Close', durationKey);
+        return sock.sendMessage(chatId, { text: `✅ ${mode === 'open' ? 'Open' : 'Close'} timer set for *${duration.label}* from now.` }, { quoted: message });
+    }
     const parsed = parseTime(args[0]);
-    if (!parsed) return sock.sendMessage(chatId, { text: `❌ Use 24-hour time in HH:MM format, for example .${mode === 'open' ? 'opentime' : 'closetime'} 08:30` }, { quoted: message });
+    if (!parsed) return sock.sendMessage(chatId, { text: `❌ Use HH:MM or a relative duration, for example .${mode === 'open' ? 'opentime' : 'closetime'} 08:30 or .${mode === 'open' ? 'opentime' : 'closetime'} 5 min` }, { quoted: message });
     groupState(state, chatId)[key] = parsed;
     saveState(state);
     const setting = mode === 'open' ? 'not_announcement' : 'announcement';

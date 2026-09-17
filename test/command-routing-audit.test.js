@@ -19,3 +19,16 @@ test('unsupported catalog commands receive an accurate response', async () => {
     assert.match(sent[0].text, /handler is not available/i);
     assert.doesNotMatch(sent[0].text, /send it again after the bot has fully connected/i);
 });
+
+test('reportcommand sends reports to the configured developer number', async () => {
+    const previous = process.env.DEVELOPER_NUMBER;
+    process.env.DEVELOPER_NUMBER = '254700000001';
+    const sent = [];
+    const sock = { async sendMessage(chatId, payload) { sent.push({ chatId, payload }); } };
+    const message = { key: { remoteJid: '123@s.whatsapp.net' }, message: { conversation: '.reportcommand .opentime failed' } };
+    await menuCompatCommand(sock, message.key.remoteJid, message, '.reportcommand .opentime failed', { isOwnerOrSudoCheck: true });
+    assert.equal(sent[0].chatId, '254700000001@s.whatsapp.net');
+    assert.match(sent[0].payload.text, /\.opentime failed/);
+    assert.match(sent.at(-1).payload.text, /Report sent/i);
+    if (previous === undefined) delete process.env.DEVELOPER_NUMBER; else process.env.DEVELOPER_NUMBER = previous;
+});

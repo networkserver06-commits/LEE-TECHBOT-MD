@@ -280,6 +280,24 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
         saveIdentity({ ownerNumber: number });
         return reply(sock, chatId, message, `✅ Menu owner number saved as *${number}*.`);
     }
+    if (command === 'reportcommand') {
+        const reportText = args.join(' ').trim() || textOf(quoted(message)).trim();
+        if (!reportText) return reply(sock, chatId, message, 'Usage: `.reportcommand <command or issue description>`');
+        const developerNumber = normalizeWhatsAppNumber(
+            process.env.DEVELOPER_NUMBER || process.env.DEV_NUMBER || process.env.OWNER_NUMBER || process.env.SUPER_OWNER_NUMBER || ''
+        );
+        if (!developerNumber) return reply(sock, chatId, message, '❌ No developer number is configured for reports.');
+        const sender = context.senderId || message.key?.participant || message.key?.remoteJid || 'unknown';
+        try {
+            await sock.sendMessage(`${developerNumber}@s.whatsapp.net`, {
+                text: `🛠️ *Command report*\nFrom: ${sender}\nChat: ${chatId}\n\n${reportText}`
+            });
+            return reply(sock, chatId, message, '✅ Report sent to the developer.');
+        } catch (error) {
+            console.error('[reportcommand]', error.message || error);
+            return reply(sock, chatId, message, '❌ Could not deliver the report to the developer.');
+        }
+    }
     if (command === 'gsettings' || command === 'groupsettings') {
         await groupSettingsCommand(sock, chatId, message, args);
         return true;
