@@ -81,6 +81,8 @@ If the Katabump console closes stdin, set `PHONE_NUMBER=254781231617` as a panel
 
 If WhatsApp displays “Waiting for this message” and the console reports `Bad MAC`, `verifyMAC`, or “failed to decrypt,” the saved Signal session is stale or corrupted. The bot now skips that message without sending a misleading error reply, but cryptographic state cannot be repaired in place. Stop the bot, remove the contents of the configured `AUTH_DIR`, remove the old linked device in WhatsApp, and link again with a new pairing code. Run only one bot process against each `AUTH_DIR` and prefer an absolute Katabump path such as `/home/container/session`.
 
+The same recovery applies when libsignal reports `SessionError: Over 2000 messages into the future`. This means the stored Signal session has fallen too far behind the message counter and cannot safely decrypt the current queue. When started with `npm start` or `npm run start:recovery`, the recovery wrapper detects this error, stops the bot, backs up the damaged `AUTH_DIR`, creates a fresh session directory, and starts one fresh pairing attempt. The old session is renamed with a `.bad-mac-<timestamp>` suffix for inspection. If the error returns after one automatic recovery, remove the old linked device from WhatsApp and pair the bot again rather than repeatedly restarting it.
+
 To use QR instead, set `AUTH_METHOD=qr` and `PAIRING_CODE=false`. The linking-code prompt is never shown when a saved session already exists.
 
 ## AI chatbot

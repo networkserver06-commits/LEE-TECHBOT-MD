@@ -98,7 +98,7 @@ function wasDeletedMessage(remoteJid, messageId) {
 
 function isSignalDecryptError(error) {
     const text = String(error?.stack || error?.message || error || '').toLowerCase()
-    return /bad mac|verif(?:y|ication)mac|failed to decrypt|decrypt.*session|known session|signal.*session|waiting for this message/.test(text)
+    return /bad mac|verif(?:y|ication)mac|failed to decrypt|decrypt.*session|known session|signal.*session|waiting for this message|over\s+\d+\s+messages?\s+into\s+the\s+future/.test(text)
 }
 
 function logDecryptWarningOnce(messageId, error) {
@@ -279,6 +279,11 @@ async function startXeonBotInc() {
                 }
             }
         } catch (err) {
+            if (isSignalDecryptError(err)) {
+                logDecryptWarningOnce(chatUpdate?.messages?.[0]?.key?.id, err)
+                scheduleSignalSessionRecovery(err)
+                return
+            }
             console.error("Error in messages.upsert:", err)
         }
     })
