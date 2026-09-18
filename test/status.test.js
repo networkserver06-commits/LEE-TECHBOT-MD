@@ -43,6 +43,8 @@ test('status content accepts quoted text, direct text, and directly captioned me
     assert.deepEqual(getCommandContent(quotedText('Exam at 8am')), { type: 'text', value: 'Exam at 8am' });
     assert.deepEqual(getCommandContent({ message: { conversation: '.tostatus Exam at 8am' } }), { type: 'text', value: 'Exam at 8am' });
     assert.equal(getCommandContent(directImage()).type, 'image');
+    const imageWithMessage = getCommandContent({ message: { imageMessage: { url: 'https://example.invalid/image', caption: '.tostatus Exam notice' } } });
+    assert.equal(imageWithMessage.value.caption, 'Exam notice');
 });
 
 test('togstatus publishes text as a Status for current group members', async () => {
