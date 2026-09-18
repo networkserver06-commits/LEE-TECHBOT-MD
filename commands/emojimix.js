@@ -25,8 +25,14 @@ async function emojimixCommand(sock, chatId, msg) {
 
         let [emoji1, emoji2] = args[0].split('+').map(e => e.trim());
 
-        // Using Tenor API endpoint
-        const url = `https://tenor.googleapis.com/v2/featured?key=AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ&contentfilter=high&media_filter=png_transparent&component=proactive&collection=emoji_kitchen_v5&q=${encodeURIComponent(emoji1)}_${encodeURIComponent(emoji2)}`;
+        const tenorApiKey = String(process.env.TENOR_API_KEY || '').trim();
+        if (!tenorApiKey) {
+            await sock.sendMessage(chatId, { text: '❌ Emoji mix is not configured. Add TENOR_API_KEY to the bot environment.' });
+            return;
+        }
+
+        // Use a deployment-provided Tenor API key; never commit credentials.
+        const url = `https://tenor.googleapis.com/v2/featured?key=${encodeURIComponent(tenorApiKey)}&contentfilter=high&media_filter=png_transparent&component=proactive&collection=emoji_kitchen_v5&q=${encodeURIComponent(emoji1)}_${encodeURIComponent(emoji2)}`;
 
         const response = await fetch(url);
         const data = await response.json();
@@ -99,4 +105,4 @@ async function emojimixCommand(sock, chatId, msg) {
     }
 }
 
-module.exports = emojimixCommand; 
+module.exports = emojimixCommand;

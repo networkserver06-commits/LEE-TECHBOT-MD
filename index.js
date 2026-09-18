@@ -552,11 +552,10 @@ async function startXeonBotInc() {
 
             if (isStreamConflict) {
                 global.__conflictRestarting = true
-                console.error(chalk.red('WhatsApp stream conflict detected; stopping this process so the host can start one clean instance.'))
+                console.error(chalk.red('WhatsApp stream conflict detected. Another bot instance is using this auth folder; reconnecting is paused to avoid a loop. Stop the other instance, then restart this bot.'))
                 try {
                     if (XeonBotInc?.ws && typeof XeonBotInc.ws.close === 'function') XeonBotInc.ws.close()
                 } catch (_) {}
-                setTimeout(() => process.exit(1), 1500)
                 return
             }
 
