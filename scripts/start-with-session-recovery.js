@@ -7,7 +7,9 @@ const path = require('path');
 const entry = path.resolve(process.env.BOT_ENTRY || path.join(process.cwd(), 'index.js'));
 const authDir = path.resolve(process.env.AUTH_DIR || path.join(process.cwd(), 'session'));
 const badMacPattern = /bad mac|verif(?:y|ication)mac|failed to decrypt|decrypt.*session|failed to decrypt message with any known session|over\s+\d+\s+messages?\s+into\s+the\s+future/i;
-const shouldResetSession = process.env.SESSION_RECOVERY_RESET !== 'false';
+// Never destroy a paired session automatically. Set SESSION_RECOVERY_RESET=true
+// only for an intentional manual relink after backing up the auth directory.
+const shouldResetSession = process.env.SESSION_RECOVERY_RESET === 'true';
 let alreadyRecovered = process.env.SESSION_RECOVERY_USED === '1';
 let child = null;
 let recovering = false;
@@ -51,8 +53,12 @@ function launch() {
         process.stdout.write(text);
         if (!recovering && !alreadyRecovered && badMacPattern.test(text)) {
             recovering = true;
-            log('Signal decryption failure detected. Backing up the broken auth folder and starting a clean pairing session.');
-            resetBrokenSession();
+            if (shouldResetSession) {
+                log('Signal decryption failure detected. Reset mode is enabled; backing up the auth folder and starting a clean pairing session.');
+                resetBrokenSession();
+            } else {
+                log('Signal decryption failure detected. Preserving the paired auth folder and restarting without relinking.');
+            }
             stopChild();
         } else if (alreadyRecovered && badMacPattern.test(text)) {
             log('Bad MAC happened again after recovery. No further automatic reset will be attempted. Check for duplicate bot instances or relink manually.');

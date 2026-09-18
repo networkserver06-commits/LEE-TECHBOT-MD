@@ -125,6 +125,11 @@ function scheduleSignalSessionRecovery(error) {
     signalDecryptFailures.push(now)
     while (signalDecryptFailures[0] && now - signalDecryptFailures[0] > 60000) signalDecryptFailures.shift()
     if (signalRecoveryScheduled || signalDecryptFailures.length < 3) return
+    if (process.env.SESSION_RECOVERY_RESET !== 'true') {
+        signalRecoveryScheduled = true
+        console.warn('[crypto] Repeated Signal decryption failures detected; preserving the paired auth session. Messages that cannot be decrypted will be skipped.')
+        return
+    }
     signalRecoveryScheduled = true
     // When npm start is using the recovery supervisor, let the supervisor
     // rotate the auth directory. This prevents two processes from renaming
