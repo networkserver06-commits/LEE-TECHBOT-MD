@@ -5,6 +5,7 @@ const { configured: aiConfigured, generateChatCompletion } = require('../lib/ai_
 const { getMetaAi } = require('./groupFeatures');
 const { configured: grokConfigured, generateGrokCompletion } = require('./groq');
 const { resolveGroupTarget, fetchParticipatingGroups } = require('../lib/groupTarget');
+const settings = require('../settings');
 
 const USER_GROUP_DATA = path.join(__dirname, '../data/userGroupData.json');
 
@@ -107,6 +108,15 @@ function normalizeContactJid(value) {
     return /^\d{7,15}$/.test(number) ? `${number}@s.whatsapp.net` : '';
 }
 
+function isOwnerContact(sock, jid) {
+    const number = normalizeContactJid(jid).split('@')[0];
+    const linked = normalizeContactJid(sock?.user?.id).split('@')[0];
+    const configured = [settings.ownerNumber, settings.superOwnerNumber]
+        .map((value) => normalizeContactJid(value).split('@')[0])
+        .filter(Boolean);
+    return Boolean(number && [linked, ...configured].filter(Boolean).includes(number));
+}
+
 function autoreplyHelp() {
     return `👥 *SELECTED CONTACT AUTOREPLY*\n\n• .autoreply add <number> ai\n• .autoreply add <number> text <message>\n• .autoreply remove <number>\n• .autoreply list\n• .autoreply on|off\n• .autoreply status`;
 }
@@ -162,6 +172,7 @@ function allowAutoReply(chatId) {
 
 async function handleSavedContactAutoReply(sock, chatId, message, userMessage, senderId) {
     if (!chatId || chatId.endsWith('@g.us') || message?.key?.fromMe) return false;
+    if (isOwnerContact(sock, senderId)) return true;
     const data = loadUserGroupData();
     if (!data.autoReply?.enabled) return false;
     const config = data.autoReply.contacts?.[normalizeContactJid(senderId)];
@@ -410,6 +421,7 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
 async function handleChatbotResponse(sock, chatId, message, userMessage, senderId) {
     const isGroup = chatId?.endsWith('@g.us');
     const isOwnerDm = !isGroup && chatId && senderId && chatId === senderId;
+    if (!isGroup && isOwnerContact(sock, senderId)) return;
     const data = loadUserGroupData();
     data.chatbot = data.chatbot || {};
     const isContactDm = !isGroup && !isOwnerDm && data.chatbotContacts === true;
