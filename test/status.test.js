@@ -96,3 +96,22 @@ test('publishStatus filters invalid LIDs from the Status audience', async () => 
     assert.equal(attempts.length, 1);
     assert.deepEqual(attempts[0].options.statusJidList, ['254700000001@s.whatsapp.net', '999@s.whatsapp.net']);
 });
+
+test('publishStatus retries with LID recipients when PN delivery is rejected', async () => {
+    const attempts = [];
+    const lidSock = {
+        user: { id: '999@s.whatsapp.net' },
+        async groupFetchAllParticipating() {
+            return { '123@g.us': { participants: [{ id: '254700000001@s.whatsapp.net' }, { id: '12345@lid' }] } };
+        },
+        async sendMessage(chatId, payload, options) {
+            attempts.push(options.statusJidList);
+            if (attempts.length === 1) throw new Error('PN audience rejected');
+        }
+    };
+    await publishStatus(lidSock, { type: 'text', value: 'LID retry' });
+    assert.deepEqual(attempts, [
+        ['254700000001@s.whatsapp.net', '999@s.whatsapp.net'],
+        ['12345@lid']
+    ]);
+});

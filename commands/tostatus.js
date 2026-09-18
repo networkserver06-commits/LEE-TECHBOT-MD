@@ -26,7 +26,7 @@ const toStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck) => {
     } catch (error) {
         console.error('[tostatus]', error.message || error);
         return sock.sendMessage(chatId, {
-            text: '❌ Status upload failed. Check that the media is still available and try again.'
+            text: `❌ Status upload failed: ${String(error.message || 'WhatsApp rejected the upload').slice(0, 180)}\nCheck that the media is still available and try again.`
         }, { quoted: message });
     }
 };
