@@ -60,6 +60,7 @@ setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
 let reconnectAttempts = 0
 let activeSocket = null
 let reconnectTimer = null
+let cachedBaileysVersion = null
 const pairingWebEnabled = process.env.PAIRING_WEB_ENABLED !== 'false'
 const configuredPairingInputMode = process.env.PAIRING_INPUT_MODE || (pairingWebEnabled ? 'choose' : 'terminal')
 const pairingWebServer = createPairingWebServer({
@@ -180,7 +181,11 @@ const question = (text) => {
 
 async function startXeonBotInc() {
     try {
-        let { version, isLatest } = await fetchLatestBaileysVersion()
+        // Reuse the negotiated version across reconnects. Fetching a different
+        // latest version during every handoff can create avoidable protocol
+        // churn and is slower on panel hosts.
+        if (!cachedBaileysVersion) cachedBaileysVersion = await fetchLatestBaileysVersion()
+        const { version } = cachedBaileysVersion
         // Auth files are generated automatically on first pairing. They do not
         // need to be uploaded beforehand; keep AUTH_DIR on persistent panel
         // storage if you want to avoid relinking after a restart.
@@ -211,7 +216,7 @@ async function startXeonBotInc() {
             msgRetryCounterCache,
             defaultQueryTimeoutMs: 60000,
             connectTimeoutMs: 60000,
-            keepAliveIntervalMs: 10000,
+            keepAliveIntervalMs: Number(process.env.WA_KEEPALIVE_MS || 10000),
         })
         activeSocket = XeonBotInc
 
@@ -247,11 +252,6 @@ async function startXeonBotInc() {
                 if (!isGroup) return // Block DMs in private mode, but allow group messages
             }
             if (mek.key.id.startsWith('BAE5') && mek.key.id.length === 16) return
-
-            // Clear message retry cache to prevent memory bloat
-            if (XeonBotInc?.msgRetryCounterCache) {
-                XeonBotInc.msgRetryCounterCache.clear()
-            }
 
             try {
                 await handleMessages(XeonBotInc, chatUpdate, true)
@@ -586,8 +586,8 @@ async function startXeonBotInc() {
             return
         }
         console.error('Error in startXeonBotInc:', error)
-        await delay(5000)
-        startXeonBotInc()
+        await delay(Math.min(30000, 5000 * Math.max(1, reconnectAttempts)))
+        if (!activeSocket && !reconnectTimer && !global.__updateRestarting) startXeonBotInc()
     }
 }
 
@@ -599,10 +599,12 @@ startXeonBotInc().catch(error => {
 })
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err)
+    if (isSignalDecryptError(err)) scheduleSignalSessionRecovery(err)
 })
 
 process.on('unhandledRejection', (err) => {
     console.error('Unhandled Rejection:', err)
+    if (isSignalDecryptError(err)) scheduleSignalSessionRecovery(err)
 })
 
 let file = require.resolve(__filename)
