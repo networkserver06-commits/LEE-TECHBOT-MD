@@ -7,6 +7,7 @@ const path = require('path');
 const entry = path.resolve(process.env.BOT_ENTRY || path.join(process.cwd(), 'index.js'));
 const authDir = path.resolve(process.env.AUTH_DIR || path.join(process.cwd(), 'session'));
 const badMacPattern = /bad mac|verif(?:y|ication)mac|failed to decrypt|decrypt.*session|failed to decrypt message with any known session|over\s+\d+\s+messages?\s+into\s+the\s+future/i;
+const shouldResetSession = process.env.SESSION_RECOVERY_RESET !== 'false';
 let alreadyRecovered = process.env.SESSION_RECOVERY_USED === '1';
 let child = null;
 let recovering = false;
@@ -24,6 +25,20 @@ function stopChild() {
     }, 5000).unref();
 }
 
+function resetBrokenSession() {
+    if (!shouldResetSession || !fs.existsSync(authDir)) return false;
+    const backupDir = `${authDir}.bad-mac-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+    try {
+        fs.renameSync(authDir, backupDir);
+        fs.mkdirSync(authDir, { recursive: true, mode: 0o700 });
+        log(`Moved the broken auth folder to ${backupDir} and created a clean auth folder.`);
+        return true;
+    } catch (error) {
+        console.error(`[session-recovery] Could not reset auth folder: ${error.message}`);
+        return false;
+    }
+}
+
 function launch() {
     child = spawn(process.execPath, [entry], {
         cwd: process.cwd(),
@@ -36,10 +51,11 @@ function launch() {
         process.stdout.write(text);
         if (!recovering && !alreadyRecovered && badMacPattern.test(text)) {
             recovering = true;
-            log('Signal decryption failure detected. Restarting the bot while preserving the existing auth folder.');
+            log('Signal decryption failure detected. Backing up the broken auth folder and starting a clean pairing session.');
+            resetBrokenSession();
             stopChild();
         } else if (alreadyRecovered && badMacPattern.test(text)) {
-            log('Bad MAC happened again after recovery. No further automatic reset will be attempted.');
+            log('Bad MAC happened again after recovery. No further automatic reset will be attempted. Check for duplicate bot instances or relink manually.');
         }
     };
 

@@ -124,10 +124,22 @@ function scheduleSignalSessionRecovery(error) {
     while (signalDecryptFailures[0] && now - signalDecryptFailures[0] > 60000) signalDecryptFailures.shift()
     if (signalRecoveryScheduled || signalDecryptFailures.length < 3) return
     signalRecoveryScheduled = true
-    console.error(`[crypto] Repeated Signal decryption errors detected. Keeping the saved session intact and reconnecting without forcing a new pairing.`)
+    console.error(`[crypto] Repeated Signal decryption errors detected. Backing up the broken session and restarting for a fresh pairing.`)
+    try {
+        const resolvedAuthDir = path.resolve(authDir)
+        const backupDir = `${resolvedAuthDir}.bad-mac-${new Date().toISOString().replace(/[:.]/g, '-')}`
+        if (fs.existsSync(resolvedAuthDir)) {
+            fs.renameSync(resolvedAuthDir, backupDir)
+            fs.mkdirSync(resolvedAuthDir, { recursive: true, mode: 0o700 })
+            console.error(`[crypto] Broken auth folder moved to ${backupDir}. The host should restart and show a fresh pairing prompt.`)
+        }
+    } catch (resetError) {
+        console.error(`[crypto] Could not reset the broken auth folder: ${resetError.message || resetError}`)
+    }
     try {
         if (activeSocket?.ws && typeof activeSocket.ws.close === 'function') activeSocket.ws.close()
     } catch (_) {}
+    setTimeout(() => process.exit(1), 1500).unref()
 }
 
 // libsignal can catch decryption failures inside its queue and print them
