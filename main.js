@@ -5,6 +5,7 @@ const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const { ensureRuntimeDirs, readJson, createMessageGuard, createHealthMetrics } = require('./lib/runtime');
 const { antiBanCommand, isAntiBanEnabled } = require('./commands/antiban');
 const { loadBotMode, saveBotMode } = require('./lib/mode');
+const { canProcessMessage } = require('./lib/modeAccess');
 const { hydrateRuntimeSettings } = require('./lib/runtimeSettings');
 
 ensureRuntimeDirs();
@@ -344,6 +345,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
             isPublic = loadBotMode().isPublic;
         } catch (error) {}
         const isOwnerOrSudoCheck = message.key.fromMe || senderIsOwnerOrSudo;
+        // Private mode is a hard no-reply/no-command mode for everyone except
+        // the linked owner, sudo identities, and the configured developer
+        // identity represented by the owner/sudo authorization helper.
+        if (!canProcessMessage({ isPublic, isGroup, fromMe: message.key.fromMe, isOwnerOrSudo: isOwnerOrSudoCheck })) return;
         if (global.ownerControls?.maintenance && !isOwnerOrSudoCheck) return;
 
         // Fast lane: these read-only commands do not need group metadata or
