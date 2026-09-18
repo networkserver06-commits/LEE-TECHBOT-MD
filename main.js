@@ -340,15 +340,15 @@ async function handleMessages(sock, messageUpdate, printLog) {
             '');
 
         // Read bot mode safely
-        let isPublic = true;
+        let modeData = { mode: 'public', isPublic: true };
         try {
-            isPublic = loadBotMode().isPublic;
+            modeData = loadBotMode();
         } catch (error) {}
         const isOwnerOrSudoCheck = message.key.fromMe || senderIsOwnerOrSudo;
         // Private mode is a hard no-reply/no-command mode for everyone except
         // the linked owner, sudo identities, and the configured developer
         // identity represented by the owner/sudo authorization helper.
-        if (!canProcessMessage({ isPublic, isGroup, fromMe: message.key.fromMe, isOwnerOrSudo: isOwnerOrSudoCheck })) return;
+        if (!canProcessMessage({ mode: modeData.mode, isPublic: modeData.isPublic, isGroup })) return;
         if (global.ownerControls?.maintenance && !isOwnerOrSudoCheck) return;
 
         // Fast lane: these read-only commands do not need group metadata or
@@ -815,19 +815,19 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     break;
                 }
 
-                const action = userMessage.split(' ')[1]?.toLowerCase();
-                if (!action || (action !== 'public' && action !== 'private')) {
-                    const currentMode = data.isPublic ? 'public' : 'private';
+                const action = userMessage.split(/\s+/)[1]?.toLowerCase();
+                const supportedModes = ['public', 'private', 'group', 'dm'];
+                if (!action || !supportedModes.includes(action)) {
+                    const currentMode = data.mode || (data.isPublic ? 'public' : 'private');
                     await sock.sendMessage(chatId, {
-                        text: `Current bot mode: *${currentMode}*\n\nUsage: .mode public/private\n\nExample:\n.mode public - Allow everyone to use bot\n.mode private - Restrict to owner only`,
+                        text: `Current bot mode: *${currentMode}*\n\nUsage: .mode public|private|group|dm\n\npublic — commands in groups and DMs\ngroup — commands in groups only\ndm — commands in private chats only\nprivate — legacy group-only mode`,
                         ...channelInfo
                     }, { quoted: message });
                     break;
                 }
 
                 try {
-                    data.isPublic = action === 'public';
-                    saveBotMode(data.isPublic);
+                    saveBotMode(action);
                     await sock.sendMessage(chatId, { text: `Bot is now in *${action}* mode`, ...channelInfo });
                 } catch (error) {
                     await sock.sendMessage(chatId, { text: 'Failed to update bot access mode', ...channelInfo });

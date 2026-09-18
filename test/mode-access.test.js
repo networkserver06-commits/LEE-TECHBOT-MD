@@ -3,20 +3,32 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { canProcessMessage } = require('../lib/modeAccess');
+const { normalizeMode } = require('../lib/mode');
 
-test('private mode allows ordinary group messages and commands', () => {
-    assert.equal(canProcessMessage({ isPublic: false, isGroup: true, fromMe: false, isOwnerOrSudo: false }), true);
+test('mode names are normalized and validated', () => {
+    assert.equal(normalizeMode('PUBLIC'), 'public');
+    assert.equal(normalizeMode('group'), 'group');
+    assert.equal(normalizeMode('dm'), 'dm');
+    assert.equal(normalizeMode('private'), 'private');
+    assert.equal(normalizeMode('owner-only'), null);
 });
 
-test('private mode is silent for ordinary private chats', () => {
-    assert.equal(canProcessMessage({ isPublic: false, isGroup: false, fromMe: false, isOwnerOrSudo: false }), false);
+test('public mode allows group and private chats', () => {
+    assert.equal(canProcessMessage({ mode: 'public', isGroup: true }), true);
+    assert.equal(canProcessMessage({ mode: 'public', isGroup: false }), true);
 });
 
-test('private mode blocks every private chat, including owner and sudo DMs', () => {
-    assert.equal(canProcessMessage({ isPublic: false, isGroup: false, fromMe: true, isOwnerOrSudo: false }), false);
-    assert.equal(canProcessMessage({ isPublic: false, isGroup: false, fromMe: false, isOwnerOrSudo: true }), false);
+test('group mode allows only group chats', () => {
+    assert.equal(canProcessMessage({ mode: 'group', isGroup: true }), true);
+    assert.equal(canProcessMessage({ mode: 'group', isGroup: false }), false);
 });
 
-test('public mode allows all chats', () => {
-    assert.equal(canProcessMessage({ isPublic: true, isGroup: false, fromMe: false, isOwnerOrSudo: false }), true);
+test('dm mode allows only private chats', () => {
+    assert.equal(canProcessMessage({ mode: 'dm', isGroup: false }), true);
+    assert.equal(canProcessMessage({ mode: 'dm', isGroup: true }), false);
+});
+
+test('private mode remains a strict group-only legacy alias', () => {
+    assert.equal(canProcessMessage({ mode: 'private', isGroup: true }), true);
+    assert.equal(canProcessMessage({ mode: 'private', isGroup: false }), false);
 });
