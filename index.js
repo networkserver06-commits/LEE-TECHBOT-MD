@@ -384,7 +384,10 @@ async function startXeonBotInc() {
             }
         }, 1500)
     }
-    if (pairingCode && !XeonBotInc.authState.creds.registered && configuredPairingInputMode === 'choose') {
+    // Web-only deployments must never open the terminal pairing prompt. The
+    // old prompt allowed selecting Terminal even when PAIRING_WEB_ONLY=true,
+    // which caused the panel to request codes from a closing socket.
+    if (pairingCode && !pairingWebOnly && !XeonBotInc.authState.creds.registered && configuredPairingInputMode === 'choose') {
         try {
             const choice = await question(chalk.bgBlack(chalk.greenBright('Choose pairing method:\n1. Website (enter number on host link)\n2. Terminal (enter number here)\nChoose 1 or 2: ')))
             pairingWebOnly = choice.trim() !== '2'
