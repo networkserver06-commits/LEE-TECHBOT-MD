@@ -123,19 +123,10 @@ function scheduleSignalSessionRecovery(error) {
     while (signalDecryptFailures[0] && now - signalDecryptFailures[0] > 60000) signalDecryptFailures.shift()
     if (signalRecoveryScheduled || signalDecryptFailures.length < 3) return
     signalRecoveryScheduled = true
+    console.error(`[crypto] Repeated Signal decryption errors detected. Keeping the saved session intact and reconnecting without forcing a new pairing.`)
     try {
-        const resolvedAuthDir = path.resolve(authDir)
-        if (resolvedAuthDir === path.parse(resolvedAuthDir).root || resolvedAuthDir === path.resolve(process.cwd())) {
-            throw new Error(`unsafe AUTH_DIR: ${resolvedAuthDir}`)
-        }
-        const backup = `${resolvedAuthDir}.bad-mac-${Date.now()}`
-        if (fs.existsSync(resolvedAuthDir)) fs.renameSync(resolvedAuthDir, backup)
-        fs.mkdirSync(resolvedAuthDir, { recursive: true, mode: 0o700 })
-        console.error(`[crypto] Repeated Signal Bad MAC errors detected. Rotated the damaged session to ${backup}. Restarting for fresh pairing.`)
-    } catch (recoveryError) {
-        console.error(`[crypto] Could not rotate the damaged Signal session: ${recoveryError.message}`)
-    }
-    setTimeout(() => process.exit(1), 1500).unref()
+        if (activeSocket?.ws && typeof activeSocket.ws.close === 'function') activeSocket.ws.close()
+    } catch (_) {}
 }
 
 // libsignal can catch decryption failures inside its queue and print them
@@ -462,6 +453,8 @@ async function startXeonBotInc() {
         if (connection === "open") {
             if (XeonBotInc.__connectionOpened) return
             XeonBotInc.__connectionOpened = true
+            signalRecoveryScheduled = false
+            signalDecryptFailures.length = 0
             if (reconnectTimer) {
                 clearTimeout(reconnectTimer)
                 reconnectTimer = null

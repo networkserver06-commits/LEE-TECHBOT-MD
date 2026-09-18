@@ -16,20 +16,6 @@ function log(message) {
     process.stdout.write(`[session-recovery] ${message}\n`);
 }
 
-function clearSessionWithBackup() {
-    if (authDir === path.parse(authDir).root || authDir === path.resolve(process.cwd())) {
-        throw new Error(`Refusing unsafe AUTH_DIR: ${authDir}`);
-    }
-    if (!fs.existsSync(authDir)) {
-        log(`Auth directory does not exist: ${authDir}`);
-        return null;
-    }
-    const backup = `${authDir}.bad-mac-${Date.now()}`;
-    fs.renameSync(authDir, backup);
-    fs.mkdirSync(authDir, { recursive: true, mode: 0o700 });
-    return backup;
-}
-
 function stopChild() {
     if (!child || child.killed) return;
     child.kill('SIGTERM');
@@ -50,15 +36,8 @@ function launch() {
         process.stdout.write(text);
         if (!recovering && !alreadyRecovered && badMacPattern.test(text)) {
             recovering = true;
-            log('Signal decryption failure detected. Stopping bot and rotating the auth folder once.');
-            try {
-                const backup = clearSessionWithBackup();
-                log(`Old auth folder backed up to ${backup || '(none)'}. Restarting with a fresh session.`);
-                stopChild();
-            } catch (error) {
-                console.error(`[session-recovery] Could not clear auth folder: ${error.message}`);
-                stopChild();
-            }
+            log('Signal decryption failure detected. Restarting the bot while preserving the existing auth folder.');
+            stopChild();
         } else if (alreadyRecovered && badMacPattern.test(text)) {
             log('Bad MAC happened again after recovery. No further automatic reset will be attempted.');
         }
