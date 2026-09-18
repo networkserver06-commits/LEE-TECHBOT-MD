@@ -1,6 +1,6 @@
 'use strict';
 
-const { getCommandContent, groupAudience, publishToChat } = require('../lib/status');
+const { getCommandContent, groupAudience, publishStatus } = require('../lib/status');
 
 const togStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck, isGroup) => {
     if (!isOwnerOrSudoCheck) {
@@ -18,12 +18,12 @@ const togStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck, isGro
     }
 
     try {
-        await sock.sendMessage(chatId, { text: '⏳ Uploading to this group…' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '⏳ Uploading a group-audience Status…' }, { quoted: message });
         const audience = await groupAudience(sock, chatId);
         if (!audience.recipients.length) throw new Error('The group has no usable phone recipients');
-        await publishToChat(sock, chatId, content);
+        await publishStatus(sock, content, audience.recipients);
         return sock.sendMessage(chatId, {
-            text: `✅ ${content.type === 'text' ? 'Text' : `${content.type.charAt(0).toUpperCase()}${content.type.slice(1)}`} posted to *${audience.subject}* group.`
+            text: `✅ ${content.type === 'text' ? 'Text' : `${content.type.charAt(0).toUpperCase()}${content.type.slice(1)}`} Status posted for *${audience.subject}* members (*${audience.recipients.length}* recipients).`
         }, { quoted: message });
     } catch (error) {
         console.error('[togstatus]', error.message || error);
