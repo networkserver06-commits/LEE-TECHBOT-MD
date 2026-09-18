@@ -85,6 +85,8 @@ test('stored password must be supplied on later opens', async () => {
     const second = createPairingWebServer({ host: '127.0.0.1', port: 0, authDir, logger: { log() {}, error() {}, warn() {} } });
     await new Promise((resolve) => second.once('listening', resolve));
     try {
+        const authState = await request(second, 'GET', '/api/auth-state');
+        assert.deepEqual(authState.body, { passwordConfigured: true });
         const wrong = await request(second, 'POST', '/api/auth', { password: 'wrong-pass', confirmPassword: '' });
         assert.equal(wrong.status, 401);
         const accepted = await request(second, 'POST', '/api/auth', { password: 'persistent-pass', confirmPassword: '' });

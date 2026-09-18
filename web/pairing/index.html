@@ -42,7 +42,8 @@
     </section>
   </main>
   <script>
-    const authView=document.querySelector('#authView'),pairingView=document.querySelector('#pairingView'),authForm=document.querySelector('#authForm'),authTitle=document.querySelector('#authTitle'),authDescription=document.querySelector('#authDescription'),authSubmit=document.querySelector('#authSubmit'),confirmWrap=document.querySelector('#confirmWrap'),authStatus=document.querySelector('#authStatus');
+    const authView=document.querySelector('#authView'),pairingView=document.querySelector('#pairingView'),authForm=document.querySelector('#authForm'),authTitle=document.querySelector('#authTitle'),authDescription=document.querySelector('#authDescription'),authSubmit=document.querySelector('#authSubmit'),confirmWrap=document.querySelector('#confirmWrap'),confirmPassword=document.querySelector('#confirmPassword'),authStatus=document.querySelector('#authStatus');
+    async function configureAuth(){try{const response=await fetch('/api/auth-state',{cache:'no-store'});const data=await response.json();if(data.passwordConfigured){authTitle.textContent='Enter website password';authDescription.textContent='Enter the password already stored on this host before viewing pairing or linked-account status.';authSubmit.textContent='Log in';confirmWrap.classList.add('hidden');confirmPassword.required=false;document.querySelector('#password').autocomplete='current-password'}}catch(error){authStatus.textContent='Unable to check password status.'}}
     async function unlock(){
       const response=await fetch('/api/status');
       if(response.ok){authView.classList.add('hidden');pairingView.classList.remove('hidden');return true;}
@@ -52,7 +53,7 @@
     const form=document.querySelector('#form'),button=document.querySelector('#submit'),status=document.querySelector('#status'),result=document.querySelector('#result'),code=document.querySelector('#code'),copy=document.querySelector('#copy');
     form.addEventListener('submit',async event=>{event.preventDefault();button.disabled=true;result.classList.remove('show');status.className='status';status.textContent='Connecting to WhatsApp…';try{const headers={'content-type':'application/json'},token=document.querySelector('#token').value.trim();if(token)headers['x-pairing-token']=token;const response=await fetch('/api/pairing-code',{method:'POST',headers,body:JSON.stringify({phoneNumber:document.querySelector('#phone').value})});const data=await response.json();if(!response.ok)throw new Error(data.error||'Could not generate a code.');code.textContent=data.code;result.classList.add('show');status.textContent='Code generated. Enter it in WhatsApp now.'}catch(error){status.className='status error';status.textContent=error.message}finally{button.disabled=false}});
     copy.addEventListener('click',async()=>{try{if(navigator.clipboard)await navigator.clipboard.writeText(code.textContent);else{const area=document.createElement('textarea');area.value=code.textContent;document.body.appendChild(area);area.select();document.execCommand('copy');area.remove()}copy.textContent='Copied';setTimeout(()=>copy.textContent='Copy code',1600)}catch(error){status.className='status error';status.textContent='Copy failed. Press and hold the code to copy it.'}});
-    unlock().catch(()=>{}).then(unlocked=>{if(unlocked){authView.classList.add('hidden');pairingView.classList.remove('hidden')}});
+    configureAuth();unlock().catch(()=>{}).then(unlocked=>{if(unlocked){authView.classList.add('hidden');pairingView.classList.remove('hidden')}});
   </script>
 </body>
 </html>
