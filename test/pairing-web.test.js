@@ -131,7 +131,8 @@ test('public pairing website can bind for a host proxy without crashing', async 
 test('connected account gets a live dashboard after authentication', async () => {
     const socket = {
         authState: { creds: { registered: true } },
-        ws: { readyState: 1 },
+        __connectionOpened: true,
+        ws: { readyState: 0 },
         user: { id: '254700000000:1@s.whatsapp.net', name: 'Connected Bot' }
     };
     const { server, authDir } = await startServer({ getSocket: () => socket });
