@@ -60,6 +60,7 @@ setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
 let reconnectAttempts = 0
 let pairingExpiryAttempts = 0
 let streamRestartAttempts = 0
+let ackStreamAttempts = 0
 let activeSocket = null
 let reconnectTimer = null
 let socketStartInFlight = false
@@ -496,6 +497,7 @@ async function startXeonBotInc() {
             reconnectAttempts = 0
             pairingExpiryAttempts = 0
             streamRestartAttempts = 0
+            ackStreamAttempts = 0
             console.log(chalk.magenta(` `))
             console.log(chalk.yellow(`🌿Connected to => ` + JSON.stringify(XeonBotInc.user, null, 2)))
 
@@ -541,6 +543,7 @@ async function startXeonBotInc() {
             const shouldReconnect = !needsFreshPairing || (pairingCode && !global.__updateRestarting)
             const isStreamConflict = statusCode === 440 || /stream errored.*conflict|conflict.*stream errored/i.test(disconnectText)
             const isRestartRequired = statusCode === DisconnectReason.restartRequired || /stream errored.*restart required|restart required/i.test(disconnectText)
+            const isAckStreamError = /stream errored.*\back\b|\back\b.*stream errored/i.test(disconnectText)
             const isQrRefsExpiredError = !XeonBotInc.authState?.creds?.registered && (isQrRefsExpired(lastDisconnect?.error) || /qr refs attempts ended/i.test(disconnectText))
 
             // A normal network/socket reconnect must not force the operator to
@@ -570,6 +573,21 @@ async function startXeonBotInc() {
                         if (global.__updateRestarting || activeSocket) return
                         await startXeonBotInc()
                     }, restartDelay)
+                }
+                return
+            }
+
+            if (isAckStreamError) {
+                ackStreamAttempts += 1
+                reconnectAttempts = 0
+                const ackDelay = Math.min(90000, 10000 * (2 ** Math.min(ackStreamAttempts - 1, 3)))
+                console.warn(chalk.yellow(`WhatsApp ACK stream reset; preserving the paired session and reconnecting in ${Math.ceil(ackDelay / 1000)}s (attempt ${ackStreamAttempts}).`))
+                if (!reconnectTimer) {
+                    reconnectTimer = setTimeout(async () => {
+                        reconnectTimer = null
+                        if (global.__updateRestarting || activeSocket) return
+                        await startXeonBotInc()
+                    }, ackDelay)
                 }
                 return
             }
