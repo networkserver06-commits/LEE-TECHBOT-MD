@@ -60,6 +60,7 @@ setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
 let reconnectAttempts = 0
 let activeSocket = null
 let reconnectTimer = null
+let socketStartInFlight = false
 let cachedBaileysVersion = null
 const pairingWebEnabled = process.env.PAIRING_WEB_ENABLED !== 'false'
 const configuredPairingInputMode = process.env.PAIRING_INPUT_MODE || (pairingWebEnabled ? 'choose' : 'terminal')
@@ -188,6 +189,8 @@ const question = (text) => {
 
 
 async function startXeonBotInc() {
+    if (activeSocket || socketStartInFlight || global.__updateRestarting) return activeSocket
+    socketStartInFlight = true
     try {
         // Reuse the negotiated version across reconnects. Fetching a different
         // latest version during every handoff can create avoidable protocol
@@ -614,8 +617,11 @@ async function startXeonBotInc() {
         await handleStatus(XeonBotInc, status);
     });
 
+    socketStartInFlight = false
     return XeonBotInc
     } catch (error) {
+        socketStartInFlight = false
+        activeSocket = null
         if (error?.code === 'PAIRING_INPUT_CLOSED' || error?.code === 'ERR_USE_AFTER_CLOSE') {
             console.error('Pairing input closed before a number was entered. Enable the Katabump console/terminal input and restart the server.')
             process.exitCode = 1
