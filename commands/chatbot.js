@@ -103,8 +103,8 @@ function saveUserGroupData(data) {
 }
 
 function normalizeContactJid(value) {
-    const raw = String(value || '').trim().replace(/^\+/, '').replace(/[^0-9@.]/g, '');
-    const number = raw.split('@')[0];
+    const raw = String(value || '').trim().replace(/^\+/, '').replace(/[^0-9@.:]/g, '');
+    const number = raw.split('@')[0].split(':')[0];
     return /^\d{7,15}$/.test(number) ? `${number}@s.whatsapp.net` : '';
 }
 
