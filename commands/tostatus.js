@@ -10,7 +10,7 @@ const toStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck) => {
     const content = getCommandContent(message);
     if (!content) {
         return sock.sendMessage(chatId, {
-            text: '❌ Reply to text, an image, video, audio, or document, then send .tostatus. You can also caption a media message with .tostatus.'
+            text: '❌ Use `.tostatus Your text here`, reply to text/media, or caption an image, video, audio, or document with `.tostatus`.'
         }, { quoted: message });
     }
 

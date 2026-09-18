@@ -39,8 +39,9 @@ function sock(sent) {
     };
 }
 
-test('status content accepts quoted text and directly captioned media', () => {
+test('status content accepts quoted text, direct text, and directly captioned media', () => {
     assert.deepEqual(getCommandContent(quotedText('Exam at 8am')), { type: 'text', value: 'Exam at 8am' });
+    assert.deepEqual(getCommandContent({ message: { conversation: '.tostatus Exam at 8am' } }), { type: 'text', value: 'Exam at 8am' });
     assert.equal(getCommandContent(directImage()).type, 'image');
 });
 

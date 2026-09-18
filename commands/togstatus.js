@@ -13,7 +13,7 @@ const togStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck, isGro
     const content = getCommandContent(message);
     if (!content) {
         return sock.sendMessage(chatId, {
-            text: '❌ Reply to text, an image, video, audio, or document, then send .togstatus. You can also caption a media message with .togstatus.'
+            text: '❌ Use `.togstatus Your text here`, reply to text/media, or caption an image, video, audio, or document with `.togstatus` inside the target group.'
         }, { quoted: message });
     }
 
