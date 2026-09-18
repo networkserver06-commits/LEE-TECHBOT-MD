@@ -12,9 +12,9 @@ test('private mode is silent for ordinary private chats', () => {
     assert.equal(canProcessMessage({ isPublic: false, isGroup: false, fromMe: false, isOwnerOrSudo: false }), false);
 });
 
-test('private mode allows owner, sudo, and developer identities in DMs', () => {
-    assert.equal(canProcessMessage({ isPublic: false, isGroup: false, fromMe: true, isOwnerOrSudo: false }), true);
-    assert.equal(canProcessMessage({ isPublic: false, isGroup: false, fromMe: false, isOwnerOrSudo: true }), true);
+test('private mode blocks every private chat, including owner and sudo DMs', () => {
+    assert.equal(canProcessMessage({ isPublic: false, isGroup: false, fromMe: true, isOwnerOrSudo: false }), false);
+    assert.equal(canProcessMessage({ isPublic: false, isGroup: false, fromMe: false, isOwnerOrSudo: true }), false);
 });
 
 test('public mode allows all chats', () => {
