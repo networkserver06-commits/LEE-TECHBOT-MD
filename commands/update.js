@@ -226,7 +226,9 @@ async function updateViaZip(zipOverride) {
 
 async function restartProcess(sock) {
     global.__updateRestarting = true;
-    try { sock?.ev?.removeAllListeners?.(); sock?.ws?.close?.(); sock?.end?.(new Error('Update restart handoff')); }
+    // Close the transport quietly. Passing an Error to sock.end() makes
+    // Baileys report a false "Connection Terminated" during a normal update.
+    try { sock?.ev?.removeAllListeners?.(); sock?.ws?.close?.(); }
     catch (error) { console.warn('[update] Socket close warning:', error.message || error); }
     const mode = String(process.env.RESTART_MODE || 'auto').toLowerCase();
     if (mode === 'none') return;
@@ -240,8 +242,13 @@ async function restartProcess(sock) {
     if (mode === 'panel' || isPanel) { setTimeout(() => process.exit(0), 1800); return; }
     try {
         const entry = path.resolve(process.argv[1] || 'index.js');
-        const child = require('child_process').spawn(process.execPath, [entry], { cwd: process.cwd(), env: { ...process.env, BOT_RESTARTED_AFTER_UPDATE: '1' }, detached: true, stdio: 'ignore' });
-        child.unref(); setTimeout(() => process.exit(0), 1800);
+        // Release the old process before starting its replacement so two
+        // sockets never use the same WhatsApp session at the same time.
+        setTimeout(() => {
+            const child = require('child_process').spawn(process.execPath, [entry], { cwd: process.cwd(), env: { ...process.env, BOT_RESTARTED_AFTER_UPDATE: '1' }, detached: true, stdio: 'ignore' });
+            child.unref();
+        }, 1200).unref();
+        setTimeout(() => process.exit(0), 1800);
     } catch (error) { console.error('[update] Direct restart failed:', error.message || error); setTimeout(() => process.exit(0), 1800); }
 }
 
