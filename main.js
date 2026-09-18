@@ -500,7 +500,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         
         console.log(`📝 Command used in ${isGroup ? 'group' : 'private'}: ${userMessage}`);
 
-        if (!isPublic && !isOwnerOrSudoCheck) {
+        if (modeData.mode === 'private' && !isOwnerOrSudoCheck) {
             return;
         }
 
