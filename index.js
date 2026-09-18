@@ -49,7 +49,7 @@ const { join } = require('path')
 const store = require('./lib/lightweight_store')
 const { ensureRuntimeDirs, readJson } = require('./lib/runtime')
 const { normalizeWhatsAppNumber } = require('./lib/phone')
-const { requestPairingCodeWithRetry } = require('./lib/pairing')
+const { requestPairingCodeWithRetry, isTransientPairingError } = require('./lib/pairing')
 const { createPairingWebServer } = require('./lib/pairingWeb')
 ensureRuntimeDirs()
 
@@ -358,8 +358,9 @@ async function startXeonBotInc() {
             try {
                 const code = await requestPairingCodeWithRetry({
                     socket: XeonBotInc,
+                    getSocket: () => activeSocket,
                     phoneNumber: requestedPhoneNumber,
-                    isActive: () => activeSocket === XeonBotInc,
+                    isActive: () => Boolean(activeSocket && !activeSocket.authState?.creds?.registered),
                     logger: console
                 })
                 if (code) {
@@ -367,8 +368,14 @@ async function startXeonBotInc() {
                     console.log(chalk.yellow(`\nPlease enter this code in your WhatsApp app:\n1. Open WhatsApp\n2. Go to Settings > Linked Devices\n3. Tap \`Link a Device\`\n4. Enter the code shown above`))
                 }
             } catch (error) {
-                console.error('Error requesting pairing code:', error)
-                console.log(chalk.red('Failed to get pairing code. Keep the panel running and try again.'))
+                if (isTransientPairingError(error)) {
+                    console.log(chalk.yellow('Pairing socket closed before the code was ready. A fresh socket will retry automatically.'))
+                    pairingRequestStarted = false
+                    setTimeout(() => requestTerminalPairingCode(), 3000).unref()
+                } else {
+                    console.error('Error requesting pairing code:', error)
+                    console.log(chalk.red('Pairing code unavailable. Keep the panel running while the connection is restored.'))
+                }
             }
         }, 1500)
     }

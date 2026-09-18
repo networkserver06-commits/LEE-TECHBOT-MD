@@ -29,3 +29,25 @@ test('retries a transient pairing failure and returns the generated code', async
     assert.equal(code, 'ABCD-EFGH');
     assert.equal(calls, 2);
 });
+
+test('uses a fresh active socket after the original socket closes', async () => {
+    let current;
+    const first = {
+        authState: { creds: { registered: false } },
+        async requestPairingCode() { throw { output: { statusCode: 428 }, message: 'Connection Closed' }; }
+    };
+    const second = {
+        authState: { creds: { registered: false } },
+        async requestPairingCode() { return 'IJKL5678'; }
+    };
+    current = first;
+    setTimeout(() => { current = second; }, 10);
+    const code = await requestPairingCodeWithRetry({
+        socket: first,
+        getSocket: () => current,
+        isActive: () => Boolean(current),
+        retryDelayMs: 1,
+        logger: { log() {} }
+    });
+    assert.equal(code, 'IJKL-5678');
+});
