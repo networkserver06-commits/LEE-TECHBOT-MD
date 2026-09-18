@@ -125,6 +125,10 @@ function scheduleSignalSessionRecovery(error) {
     while (signalDecryptFailures[0] && now - signalDecryptFailures[0] > 60000) signalDecryptFailures.shift()
     if (signalRecoveryScheduled || signalDecryptFailures.length < 3) return
     signalRecoveryScheduled = true
+    // When npm start is using the recovery supervisor, let the supervisor
+    // rotate the auth directory. This prevents two processes from renaming
+    // the same folder at the same time.
+    if (process.env.SESSION_RECOVERY_USED !== undefined) return
     console.error(`[crypto] Repeated Signal decryption errors detected. Backing up the broken session and restarting for a fresh pairing.`)
     try {
         const resolvedAuthDir = path.resolve(authDir)
@@ -132,15 +136,23 @@ function scheduleSignalSessionRecovery(error) {
         if (fs.existsSync(resolvedAuthDir)) {
             fs.renameSync(resolvedAuthDir, backupDir)
             fs.mkdirSync(resolvedAuthDir, { recursive: true, mode: 0o700 })
-            console.error(`[crypto] Broken auth folder moved to ${backupDir}. The host should restart and show a fresh pairing prompt.`)
+        console.error(`[crypto] Broken auth folder moved to ${backupDir}. Starting a fresh pairing socket.`)
         }
     } catch (resetError) {
         console.error(`[crypto] Could not reset the broken auth folder: ${resetError.message || resetError}`)
     }
+    const brokenSocket = activeSocket
+    activeSocket = null
     try {
-        if (activeSocket?.ws && typeof activeSocket.ws.close === 'function') activeSocket.ws.close()
+        if (brokenSocket?.ws && typeof brokenSocket.ws.close === 'function') brokenSocket.ws.close()
     } catch (_) {}
-    setTimeout(() => process.exit(1), 1500).unref()
+    if (reconnectTimer) clearTimeout(reconnectTimer)
+    reconnectTimer = setTimeout(async () => {
+        reconnectTimer = null
+        if (global.__updateRestarting || activeSocket) return
+        await startXeonBotInc()
+    }, 3000)
+    reconnectTimer.unref?.()
 }
 
 // libsignal can catch decryption failures inside its queue and print them
