@@ -237,8 +237,16 @@ async function startXeonBotInc() {
         })
         activeSocket = XeonBotInc
 
-        // Save credentials when they update
-        XeonBotInc.ev.on('creds.update', saveCreds)
+        // Persist every pairing and key update. Keep the listener guarded so a
+        // storage failure is visible without becoming an unhandled rejection
+        // that can restart the bot after an otherwise successful pairing.
+        XeonBotInc.ev.on('creds.update', async (update) => {
+            try {
+                await saveCreds(update)
+            } catch (error) {
+                console.error(`[auth] Could not persist WhatsApp session: ${error.message || error}`)
+            }
+        })
 
     store.bind(XeonBotInc.ev)
 
