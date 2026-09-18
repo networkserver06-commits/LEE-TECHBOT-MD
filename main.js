@@ -760,7 +760,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         await sock.sendMessage(chatId, { text: '❌ *Usage Error!*\nYou must provide a name.\nExample: *.cg My Cool Group*' }, { quoted: message });
     } else {
         // Only call the function if a name was provided
-        await createGroupCommand(sock, chatId, message, isOwnerOrSudoCheck, groupName);
+        await creategroupCommand(sock, chatId, message, isOwnerOrSudoCheck, groupName);
     }
     commandExecuted = true;
     break;
@@ -936,10 +936,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             case userMessage.startsWith('.move'):
                 const position = parseInt(userMessage.split(' ')[1]);
-                if (isNaN(position)) {
+                if (!Number.isInteger(position) || position < 1 || position > 9) {
                     await sock.sendMessage(chatId, { text: 'Please provide a valid position number for Tic-Tac-Toe move.', ...channelInfo }, { quoted: message });
                 } else {
-                    tictactoeMove(sock, chatId, senderId, position);
+                    await handleTicTacToeMove(sock, chatId, senderId, String(position));
                 }
                 commandExecuted = true;
                 break;
@@ -958,7 +958,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             // Parse arguments (passwords)
             const decryptArgs = userMessage.split(' ').slice(1);
             // Pass the correct parameters so the decrypt function works
-            await decrypt(sock, chatId, message, isOwnerOrSudoCheck, decryptArgs);
+            await decryptCommand(sock, chatId, message, isOwnerOrSudoCheck, decryptArgs);
             commandExecuted = true;
             break;
             case userMessage.startsWith('.hangman'):

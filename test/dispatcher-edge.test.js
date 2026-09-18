@@ -19,3 +19,16 @@ test('dispatcher normalizes non-string message text safely', () => {
     assert.match(source, /let userMessage = String\(extractedText\)/);
     assert.match(source, /const rawText = String\(message\.message\?\.conversation/);
 });
+
+test('owner command routes call the imported handlers', () => {
+    assert.match(source, /await creategroupCommand\(sock, chatId, message, isOwnerOrSudoCheck, groupName\)/);
+    assert.match(source, /await decryptCommand\(sock, chatId, message, isOwnerOrSudoCheck, decryptArgs\)/);
+    assert.match(source, /await handleTicTacToeMove\(sock, chatId, senderId, String\(position\)\)/);
+    assert.doesNotMatch(source, /\bcreateGroupCommand\(/);
+    assert.doesNotMatch(source, /\bdecrypt\(/);
+    assert.doesNotMatch(source, /\btictactoeMove\(/);
+});
+
+test('tic-tac-toe move route validates positions before dispatch', () => {
+    assert.match(source, /!Number\.isInteger\(position\) \|\| position < 1 \|\| position > 9/);
+});
