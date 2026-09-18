@@ -110,9 +110,14 @@ test('pairing website serves authenticated health and generates a code', async (
         const result = await request(server, 'POST', '/api/pairing-code', { phoneNumber: '254700000000' }, { cookie });
         assert.equal(result.status, 200);
         assert.equal(result.body.code, 'ABCD-EFGH');
-        server.clearWebSessions('test disconnect', true);
+        server.clearWebSessions('transient reconnect', false);
         const afterDisconnect = await request(server, 'GET', '/api/status', null, { cookie });
         assert.equal(afterDisconnect.status, 401);
+        assert.equal(fs.existsSync(path.join(authDir, '.pairing-web-password.json')), true);
+        const acceptedAfterReconnect = await request(server, 'POST', '/api/auth', { password: 'secure-pass', confirmPassword: '' });
+        assert.equal(acceptedAfterReconnect.status, 200);
+        assert.equal(acceptedAfterReconnect.body.created, false);
+        server.clearWebSessions('real WhatsApp logout', true);
         assert.equal(fs.existsSync(path.join(authDir, '.pairing-web-password.json')), false);
         const newPassword = await request(server, 'POST', '/api/auth', { password: 'new-secure-pass', confirmPassword: 'new-secure-pass' });
         assert.equal(newPassword.status, 200);

@@ -494,10 +494,6 @@ async function startXeonBotInc() {
             }
             XeonBotInc.__connectionOpened = false
             activeSocket = null
-            // Invalidate authenticated pairing-web browser sessions and reset
-            // the host password when the WhatsApp socket drops. The next web
-            // visit must create and confirm a new password before pairing.
-            pairingWebServer?.clearWebSessions?.('WhatsApp disconnection', true)
             if (global.__updateRestarting) {
                 console.log(chalk.yellow('Update restart requested; suppressing reconnect for the closing socket.'))
                 return
@@ -507,6 +503,13 @@ async function startXeonBotInc() {
             const needsFreshPairing = statusCode === DisconnectReason.loggedOut || statusCode === 401
             const shouldReconnect = !needsFreshPairing || (pairingCode && !global.__updateRestarting)
             const isStreamConflict = statusCode === 440 || /stream errored.*conflict|conflict.*stream errored/i.test(disconnectText)
+
+            // A normal network/socket reconnect must not force the operator to
+            // recreate the website password. Reset credentials only when
+            // WhatsApp explicitly logged the device out or invalidated it.
+            if (needsFreshPairing) {
+                pairingWebServer?.clearWebSessions?.('WhatsApp logout', true)
+            }
 
             if (isStreamConflict) {
                 global.__conflictRestarting = true
