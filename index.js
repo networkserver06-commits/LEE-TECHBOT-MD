@@ -73,6 +73,8 @@ const pairingWebServer = createPairingWebServer({
 const connectionNoticePath = path.join(process.env.AUTH_DIR || './session', '.connection-notice.json')
 let hasAnnouncedConnection = Boolean(readJson(connectionNoticePath, {}).sent)
 const decryptWarningCache = new Map()
+const signalDecryptFailures = []
+let signalRecoveryScheduled = false
 const deletedMessageKeys = new Map()
 const DELETED_KEY_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -111,6 +113,27 @@ function logDecryptWarningOnce(messageId, error) {
         }
     }
     console.warn(`[crypto] message skipped because Signal could not decrypt it${error?.message ? `: ${error.message}` : ''}`)
+}
+
+function scheduleSignalSessionRecovery(error) {
+    const now = Date.now()
+    signalDecryptFailures.push(now)
+    while (signalDecryptFailures[0] && now - signalDecryptFailures[0] > 60000) signalDecryptFailures.shift()
+    if (signalRecoveryScheduled || signalDecryptFailures.length < 3) return
+    signalRecoveryScheduled = true
+    try {
+        const resolvedAuthDir = path.resolve(authDir)
+        if (resolvedAuthDir === path.parse(resolvedAuthDir).root || resolvedAuthDir === path.resolve(process.cwd())) {
+            throw new Error(`unsafe AUTH_DIR: ${resolvedAuthDir}`)
+        }
+        const backup = `${resolvedAuthDir}.bad-mac-${Date.now()}`
+        if (fs.existsSync(resolvedAuthDir)) fs.renameSync(resolvedAuthDir, backup)
+        fs.mkdirSync(resolvedAuthDir, { recursive: true, mode: 0o700 })
+        console.error(`[crypto] Repeated Signal Bad MAC errors detected. Rotated the damaged session to ${backup}. Restarting for fresh pairing.`)
+    } catch (recoveryError) {
+        console.error(`[crypto] Could not rotate the damaged Signal session: ${recoveryError.message}`)
+    }
+    setTimeout(() => process.exit(1), 1500).unref()
 }
 
 // Memory optimization - Force garbage collection if available
@@ -235,6 +258,7 @@ async function startXeonBotInc() {
             } catch (err) {
                 if (isSignalDecryptError(err)) {
                     logDecryptWarningOnce(mek.key?.id, err)
+                    scheduleSignalSessionRecovery(err)
                     return
                 }
                 console.error("Error in handleMessages:", err)
