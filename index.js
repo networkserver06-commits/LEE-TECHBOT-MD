@@ -76,6 +76,7 @@ let hasAnnouncedConnection = Boolean(readJson(connectionNoticePath, {}).sent)
 const decryptWarningCache = new Map()
 const signalDecryptFailures = []
 let signalRecoveryScheduled = false
+let signalConsoleIntercepting = false
 const deletedMessageKeys = new Map()
 const DELETED_KEY_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -135,6 +136,22 @@ function scheduleSignalSessionRecovery(error) {
         console.error(`[crypto] Could not rotate the damaged Signal session: ${recoveryError.message}`)
     }
     setTimeout(() => process.exit(1), 1500).unref()
+}
+
+// libsignal can catch decryption failures inside its queue and print them
+// directly instead of rejecting the Baileys message event. Intercept only
+// known Signal failures so a stale session is recovered even when the panel
+// launches `node index.js` directly rather than through the recovery wrapper.
+const originalConsoleError = console.error.bind(console)
+console.error = (...args) => {
+    const text = args.map((value) => value instanceof Error ? value.stack || value.message : String(value)).join(' ')
+    const signalError = isSignalDecryptError(text)
+    if (signalError && signalRecoveryScheduled) return
+    originalConsoleError(...args)
+    if (signalConsoleIntercepting || !signalError) return
+    signalConsoleIntercepting = true
+    try { scheduleSignalSessionRecovery(new Error(text)) }
+    finally { signalConsoleIntercepting = false }
 }
 
 // Memory optimization - Force garbage collection if available
