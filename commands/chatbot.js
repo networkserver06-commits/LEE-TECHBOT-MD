@@ -109,6 +109,9 @@ function normalizeContactJid(value) {
 }
 
 function isOwnerContact(sock, jid) {
+    const raw = String(jid || '').split(':')[0];
+    const linkedLid = String(sock?.user?.lid || '').split(':')[0];
+    if (raw && linkedLid && raw.replace('@lid', '') === linkedLid.replace('@lid', '')) return true;
     const number = normalizeContactJid(jid).split('@')[0];
     const linked = normalizeContactJid(sock?.user?.id).split('@')[0];
     const configured = [settings.ownerNumber, settings.superOwnerNumber]
@@ -421,7 +424,7 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
 async function handleChatbotResponse(sock, chatId, message, userMessage, senderId) {
     const isGroup = chatId?.endsWith('@g.us');
     const isOwnerDm = !isGroup && chatId && senderId && chatId === senderId;
-    if (!isGroup && isOwnerContact(sock, senderId)) return;
+    if (message?.key?.fromMe || isOwnerContact(sock, senderId)) return;
     const data = loadUserGroupData();
     data.chatbot = data.chatbot || {};
     const isContactDm = !isGroup && !isOwnerDm && data.chatbotContacts === true;
