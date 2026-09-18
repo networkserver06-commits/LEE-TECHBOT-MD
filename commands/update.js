@@ -226,9 +226,11 @@ async function updateViaZip(zipOverride) {
 
 async function restartProcess(sock) {
     global.__updateRestarting = true;
-    // Close the transport quietly. Passing an Error to sock.end() makes
-    // Baileys report a false "Connection Terminated" during a normal update.
-    try { sock?.ev?.removeAllListeners?.(); sock?.ws?.close?.(); }
+    // Do not call ws.close() here. Even a clean WebSocket close can emit a
+    // Baileys connection-terminated event and start the reconnect loop while
+    // the update process is being replaced. The supervisor will terminate
+    // this process after the replacement is ready.
+    try { sock?.ev?.removeAllListeners?.(); }
     catch (error) { console.warn('[update] Socket close warning:', error.message || error); }
     const mode = String(process.env.RESTART_MODE || 'auto').toLowerCase();
     if (mode === 'none') return;
@@ -242,13 +244,13 @@ async function restartProcess(sock) {
     if (mode === 'panel' || isPanel) { setTimeout(() => process.exit(0), 1800); return; }
     try {
         const entry = path.resolve(process.argv[1] || 'index.js');
-        // Release the old process before starting its replacement so two
-        // sockets never use the same WhatsApp session at the same time.
-        setTimeout(() => {
-            const child = require('child_process').spawn(process.execPath, [entry], { cwd: process.cwd(), env: { ...process.env, BOT_RESTARTED_AFTER_UPDATE: '1' }, detached: true, stdio: 'ignore' });
-            child.unref();
-        }, 1200).unref();
-        setTimeout(() => process.exit(0), 1800);
+        // Exit this process first, then start the replacement. Starting both
+        // immediately can make WhatsApp terminate one of the two sockets.
+        const shell = process.env.SHELL || '/bin/sh';
+        const command = `sleep 2; exec ${JSON.stringify(process.execPath)} ${JSON.stringify(entry)}`;
+        const child = require('child_process').spawn(shell, ['-c', command], { cwd: process.cwd(), env: { ...process.env, BOT_RESTARTED_AFTER_UPDATE: '1' }, detached: true, stdio: 'ignore' });
+        child.unref();
+        setTimeout(() => process.exit(0), 500);
     } catch (error) { console.error('[update] Direct restart failed:', error.message || error); setTimeout(() => process.exit(0), 1800); }
 }
 
