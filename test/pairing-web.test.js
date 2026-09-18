@@ -157,3 +157,21 @@ test('connected account gets a live dashboard after authentication', async () =>
         await closeServer(server, authDir);
     }
 });
+
+test('pairing request switches to status when WhatsApp becomes linked', async () => {
+    const socket = {
+        authState: { creds: { registered: true } },
+        __connectionOpened: true,
+        user: { id: '254700000000:1@s.whatsapp.net', name: 'Connected Bot' }
+    };
+    const { server, authDir } = await startServer({ getSocket: () => socket });
+    try {
+        const auth = await request(server, 'POST', '/api/auth', { password: 'secure-pass', confirmPassword: 'secure-pass' });
+        const result = await request(server, 'POST', '/api/pairing-code', { phoneNumber: '254781231617' }, { cookie: cookieFrom(auth) });
+        assert.equal(result.status, 409);
+        assert.equal(result.body.paired, true);
+        assert.equal(result.body.status.state, 'connected');
+    } finally {
+        await closeServer(server, authDir);
+    }
+});
