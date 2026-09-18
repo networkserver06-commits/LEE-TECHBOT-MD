@@ -18,6 +18,8 @@ const chatbotRate = new Map();
 const CHATBOT_COOLDOWN_MS = 15000;
 const CHATBOT_WINDOW_MS = 60 * 60 * 1000;
 const CHATBOT_MAX_PER_HOUR = 30;
+const AUTOREPLY_COOLDOWN_MS = 15000;
+const autoreplyRate = new Map();
 
 async function reactSuccess(sock, chatId, message) {
     if (!message?.key) return;
@@ -97,6 +99,79 @@ function saveUserGroupData(data) {
     } catch (error) {
         console.error('❌ Error saving user group data:', error.message);
     }
+}
+
+function normalizeContactJid(value) {
+    const raw = String(value || '').trim().replace(/^\+/, '').replace(/[^0-9@.]/g, '');
+    const number = raw.split('@')[0];
+    return /^\d{7,15}$/.test(number) ? `${number}@s.whatsapp.net` : '';
+}
+
+function autoreplyHelp() {
+    return `👥 *SELECTED CONTACT AUTOREPLY*\n\n• .autoreply add <number> ai\n• .autoreply add <number> text <message>\n• .autoreply remove <number>\n• .autoreply list\n• .autoreply on|off\n• .autoreply status`;
+}
+
+async function handleAutoReplyCommand(sock, chatId, message, match, isOwner) {
+    if (!isOwner) return false;
+    const parts = String(match || '').trim().split(/\s+/).filter(Boolean);
+    const action = String(parts.shift() || '').toLowerCase();
+    const data = loadUserGroupData();
+    data.autoReply = data.autoReply || { enabled: false, contacts: {} };
+    data.autoReply.contacts = data.autoReply.contacts || {};
+    if (!action || action === 'help') {
+        await sock.sendMessage(chatId, { text: autoreplyHelp() }, { quoted: message }); return true;
+    }
+    if (action === 'on' || action === 'off') {
+        data.autoReply.enabled = action === 'on'; saveUserGroupData(data);
+        await sock.sendMessage(chatId, { text: `✅ Selected-contact autoreply turned *${action.toUpperCase()}*.\nOnly saved contacts will receive automatic replies.` }, { quoted: message }); return true;
+    }
+    if (action === 'status') {
+        await sock.sendMessage(chatId, { text: `👥 Selected-contact autoreply: *${data.autoReply.enabled ? 'ON' : 'OFF'}*\nSaved contacts: *${Object.keys(data.autoReply.contacts).length}*\nEach message gets at most one autoreply.` }, { quoted: message }); return true;
+    }
+    if (action === 'list') {
+        const entries = Object.entries(data.autoReply.contacts);
+        const lines = entries.length ? entries.map(([jid, value], index) => `${index + 1}. ${jid.split('@')[0]} — ${value.mode === 'ai' ? 'AI' : `Manual: ${value.text}`}`) : ['No saved autoreply contacts.'];
+        await sock.sendMessage(chatId, { text: `👥 *AUTOREPLY CONTACTS*\nStatus: *${data.autoReply.enabled ? 'ON' : 'OFF'}*\n\n${lines.join('\n')}` }, { quoted: message }); return true;
+    }
+    if (action === 'add') {
+        const jid = normalizeContactJid(parts.shift());
+        const mode = String(parts.shift() || '').toLowerCase();
+        if (!jid || !['ai', 'text'].includes(mode)) {
+            await sock.sendMessage(chatId, { text: 'Usage: .autoreply add <full international number> ai\nOr: .autoreply add <number> text <message>' }, { quoted: message }); return true;
+        }
+        const text = parts.join(' ').trim();
+        if (mode === 'text' && !text) { await sock.sendMessage(chatId, { text: 'Add the manual message after `text`.' }, { quoted: message }); return true; }
+        data.autoReply.contacts[jid] = mode === 'ai' ? { mode: 'ai' } : { mode: 'manual', text };
+        saveUserGroupData(data);
+        await sock.sendMessage(chatId, { text: `✅ Saved ${jid.split('@')[0]} for ${mode === 'ai' ? 'AI' : 'manual'} autoreplies.` }, { quoted: message }); return true;
+    }
+    if (action === 'remove' || action === 'delete') {
+        const jid = normalizeContactJid(parts.shift());
+        if (!jid || !data.autoReply.contacts[jid]) { await sock.sendMessage(chatId, { text: 'That contact is not saved. Use .autoreply list.' }, { quoted: message }); return true; }
+        delete data.autoReply.contacts[jid]; saveUserGroupData(data);
+        await sock.sendMessage(chatId, { text: `✅ Removed ${jid.split('@')[0]} from autoreply.` }, { quoted: message }); return true;
+    }
+    await sock.sendMessage(chatId, { text: autoreplyHelp() }, { quoted: message }); return true;
+}
+
+function allowAutoReply(chatId) {
+    const now = Date.now(); const previous = autoreplyRate.get(chatId) || 0;
+    if (now - previous < AUTOREPLY_COOLDOWN_MS) return false;
+    autoreplyRate.set(chatId, now); return true;
+}
+
+async function handleSavedContactAutoReply(sock, chatId, message, userMessage, senderId) {
+    if (!chatId || chatId.endsWith('@g.us') || message?.key?.fromMe) return false;
+    const data = loadUserGroupData();
+    const config = data.autoReply?.contacts?.[normalizeContactJid(senderId)];
+    if (!data.autoReply?.enabled || !config || !String(userMessage || '').trim() || !allowAutoReply(chatId) || responseLocks.has(chatId)) return false;
+    responseLocks.add(chatId);
+    try {
+        const response = config.mode === 'ai' ? await getAIResponse(String(userMessage).trim(), { messages: [String(userMessage).trim()], userInfo: {}, groupMetadata: null }) : config.text;
+        if (response) await sock.sendMessage(chatId, { text: String(response) }, { quoted: message });
+    } catch (error) { console.error('[autoreply]', error.message || error); }
+    finally { responseLocks.delete(chatId); }
+    return true;
 }
 
 // Add random delay between 2-5 seconds
@@ -601,5 +676,7 @@ You:
 
 module.exports = {
     handleChatbotCommand,
-    handleChatbotResponse
+    handleChatbotResponse,
+    handleAutoReplyCommand,
+    handleSavedContactAutoReply
 };

@@ -106,7 +106,7 @@ const ownerCommand = require('./commands/owner');
 const vv2Command = require('./commands/vv2');
 const toStatusCommand = require('./commands/tostatus');
 const togStatusCommand = require('./commands/togstatus');
-const { handleChatbotCommand, handleChatbotResponse } = require('./commands/chatbot');
+const { handleChatbotCommand, handleChatbotResponse, handleAutoReplyCommand, handleSavedContactAutoReply } = require('./commands/chatbot');
 const tagAllCommand = require('./commands/tagall');
 const banCommand = require('./commands/ban');
 const { promoteCommand } = require('./commands/promote');
@@ -452,6 +452,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await handleTagDetection(sock, chatId, message, senderId).catch(()=>null);
                 await handleMentionDetection(sock, chatId, message).catch(()=>null);
             }
+            if (await handleSavedContactAutoReply(sock, chatId, message, userMessage, senderId).catch(() => false)) return;
             await handleChatbotResponse(sock, chatId, message, userMessage, senderId).catch(()=>null);
             return;
         }
@@ -1117,6 +1118,14 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     break;
                 }
                 await antibadwordCommand(sock, chatId, message, senderId, isSenderAdmin);
+                commandExecuted = true;
+                break;
+            case userMessage.startsWith('.autoreply') || userMessage.startsWith('/autoreply'):
+                if (!isOwnerOrSudoCheck) {
+                    await sock.sendMessage(chatId, { text: '❌ Only the bot owner or sudo can control selected-contact autoreplies.', ...channelInfo }, { quoted: message });
+                    break;
+                }
+                await handleAutoReplyCommand(sock, chatId, message, userMessage.slice(10).trim(), true);
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.chatbot'):
