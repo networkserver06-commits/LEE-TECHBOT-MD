@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { formatPairingCode, isTransientPairingError, requestPairingCodeWithRetry } = require('../lib/pairing');
+const { formatPairingCode, isTransientPairingError, isQrRefsExpired, requestPairingCodeWithRetry } = require('../lib/pairing');
 
 test('formats WhatsApp pairing codes in four-character groups', () => {
     assert.equal(formatPairingCode('ABCDEFGH'), 'ABCD-EFGH');
@@ -13,6 +13,11 @@ test('recognizes Baileys 428 connection closures as transient', () => {
     assert.equal(isTransientPairingError({ output: { statusCode: 428 }, message: 'Connection Closed' }), true);
     assert.equal(isTransientPairingError(new Error('Precondition Required')), true);
     assert.equal(isTransientPairingError({ output: { statusCode: 401 }, message: 'logged out' }), false);
+});
+
+test('recognizes expired QR reference pools separately from ordinary disconnects', () => {
+    assert.equal(isQrRefsExpired({ output: { statusCode: 408 }, message: 'QR refs attempts ended' }), true);
+    assert.equal(isQrRefsExpired(new Error('Connection Closed')), false);
 });
 
 test('retries a transient pairing failure and returns the generated code', async () => {

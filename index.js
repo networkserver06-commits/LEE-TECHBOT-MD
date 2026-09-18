@@ -49,7 +49,7 @@ const { join } = require('path')
 const store = require('./lib/lightweight_store')
 const { ensureRuntimeDirs, readJson } = require('./lib/runtime')
 const { normalizeWhatsAppNumber } = require('./lib/phone')
-const { requestPairingCodeWithRetry, isTransientPairingError } = require('./lib/pairing')
+const { requestPairingCodeWithRetry, isTransientPairingError, isQrRefsExpired } = require('./lib/pairing')
 const { createPairingWebServer } = require('./lib/pairingWeb')
 ensureRuntimeDirs()
 
@@ -58,6 +58,7 @@ store.readFromFile()
 const settings = require('./settings')
 setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
 let reconnectAttempts = 0
+let pairingExpiryAttempts = 0
 let activeSocket = null
 let reconnectTimer = null
 let socketStartInFlight = false
@@ -475,6 +476,7 @@ async function startXeonBotInc() {
                 reconnectTimer = null
             }
             reconnectAttempts = 0
+            pairingExpiryAttempts = 0
             console.log(chalk.magenta(` `))
             console.log(chalk.yellow(`🌿Connected to => ` + JSON.stringify(XeonBotInc.user, null, 2)))
 
@@ -519,6 +521,7 @@ async function startXeonBotInc() {
             const needsFreshPairing = statusCode === DisconnectReason.loggedOut || statusCode === 401
             const shouldReconnect = !needsFreshPairing || (pairingCode && !global.__updateRestarting)
             const isStreamConflict = statusCode === 440 || /stream errored.*conflict|conflict.*stream errored/i.test(disconnectText)
+            const isQrRefsExpiredError = !XeonBotInc.authState?.creds?.registered && (isQrRefsExpired(lastDisconnect?.error) || /qr refs attempts ended/i.test(disconnectText))
 
             // A normal network/socket reconnect must not force the operator to
             // recreate the website password. Reset credentials only when
@@ -537,7 +540,13 @@ async function startXeonBotInc() {
                 return
             }
             
-            console.log(chalk.red(`Connection closed due to ${lastDisconnect?.error}, reconnecting ${shouldReconnect}`))
+            if (isQrRefsExpiredError) {
+                pairingExpiryAttempts += 1
+                reconnectAttempts = 0
+                console.log(chalk.yellow(`Pairing window expired before the phone was linked (attempt ${pairingExpiryAttempts}). Starting a fresh pairing socket; the website remains available.`))
+            } else {
+                console.log(chalk.red(`Connection closed due to ${lastDisconnect?.error}, reconnecting ${shouldReconnect}`))
+            }
             
             if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
                 try {
@@ -556,7 +565,9 @@ async function startXeonBotInc() {
             if (shouldReconnect) {
                 if (reconnectTimer) return
                 reconnectAttempts += 1
-                const backoffMs = Math.min(60000, 5000 * (2 ** Math.min(reconnectAttempts - 1, 4)))
+                const backoffMs = isQrRefsExpiredError
+                    ? Math.min(120000, 10000 * (2 ** Math.min(pairingExpiryAttempts - 1, 3)))
+                    : Math.min(60000, 5000 * (2 ** Math.min(reconnectAttempts - 1, 4)))
                 console.log(chalk.yellow(`Reconnecting in ${Math.ceil(backoffMs / 1000)}s (attempt ${reconnectAttempts})...`))
                 reconnectTimer = setTimeout(async () => {
                     reconnectTimer = null
