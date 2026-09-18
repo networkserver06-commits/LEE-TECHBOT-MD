@@ -15,24 +15,24 @@ test('mode names are normalized and validated', () => {
     assert.equal(normalizeMode('owner-only'), null);
 });
 
-test('public mode allows all commands in groups and DMs', () => {
+test('public mode allows everyone in groups and DMs', () => {
     assert.equal(access('public', true), true);
     assert.equal(access('public', false), true);
 });
 
-test('private mode allows all commands only for owner, sudo, or developer', () => {
+test('private mode allows only owner, sudo, or developer everywhere', () => {
     assert.equal(access('private', true, true), true);
     assert.equal(access('private', false, true), true);
     assert.equal(access('private', true, false), false);
     assert.equal(access('private', false, false), false);
 });
 
-test('dm mode allows all commands for everyone only in DMs', () => {
+test('dm mode allows everyone only in DMs', () => {
     assert.equal(access('dm', false), true);
     assert.equal(access('dm', true), false);
 });
 
-test('group mode allows all commands for everyone only in groups', () => {
+test('group mode allows everyone only in groups', () => {
     assert.equal(access('group', true), true);
     assert.equal(access('group', false), false);
 });

@@ -294,6 +294,18 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         const senderIsSudo = await isSudo(senderId).catch(()=>false);
         const senderIsOwnerOrSudo = await isOwnerOrSudo(senderId, sock, chatId).catch(()=>false);
+        const isOwnerOrSudoCheck = message.key.fromMe || senderIsOwnerOrSudo;
+
+        // Enforce the selected mode before buttons, rate-limit replies, fast
+        // commands, moderation, and the normal command router. This prevents
+        // non-authorized users from bypassing mode restrictions through menu
+        // buttons or other non-text message types.
+        let modeData = { mode: 'public', isPublic: true };
+        try {
+            modeData = loadBotMode();
+        } catch (error) {}
+        if (!canProcessMessage({ mode: modeData.mode, isPublic: modeData.isPublic, isGroup, isOwnerOrSudo: isOwnerOrSudoCheck })) return;
+        if (global.ownerControls?.maintenance && !isOwnerOrSudoCheck) return;
 
         // Handle button responses
         if (message.message?.buttonsResponseMessage) {
@@ -338,18 +350,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
             message.message?.imageMessage?.caption ||
             message.message?.videoMessage?.caption ||
             '');
-
-        // Read bot mode safely
-        let modeData = { mode: 'public', isPublic: true };
-        try {
-            modeData = loadBotMode();
-        } catch (error) {}
-        const isOwnerOrSudoCheck = message.key.fromMe || senderIsOwnerOrSudo;
-        // Private mode is a hard no-reply/no-command mode for everyone except
-        // the linked owner, sudo identities, and the configured developer
-        // identity represented by the owner/sudo authorization helper.
-        if (!canProcessMessage({ mode: modeData.mode, isPublic: modeData.isPublic, isGroup, isOwnerOrSudo: isOwnerOrSudoCheck })) return;
-        if (global.ownerControls?.maintenance && !isOwnerOrSudoCheck) return;
 
         // Fast lane: these read-only commands do not need group metadata or
         // moderation checks, so they remain responsive on busy groups.
