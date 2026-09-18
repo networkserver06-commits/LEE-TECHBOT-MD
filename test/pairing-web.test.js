@@ -135,9 +135,21 @@ test('connected account gets a live dashboard after authentication', async () =>
     const { server, authDir } = await startServer({ getSocket: () => socket });
     try {
         const auth = await request(server, 'POST', '/api/auth', { password: 'secure-pass', confirmPassword: 'secure-pass' });
+        assert.equal(auth.body.paired, true);
         const cookie = cookieFrom(auth);
         const status = await request(server, 'GET', '/api/status', null, { cookie });
         assert.deepEqual(status.body, { connected: true, registered: true, state: 'connected', name: 'Connected Bot', number: '254700000000' });
+        const page = await new Promise((resolve, reject) => {
+            const req = http.get({ hostname: '127.0.0.1', port: server.address().port, path: '/', headers: { cookie } }, (res) => {
+                let text = '';
+                res.on('data', (chunk) => { text += chunk; });
+                res.on('end', () => resolve({ status: res.statusCode, text }));
+            });
+            req.on('error', reject);
+        });
+        assert.equal(page.status, 200);
+        assert.match(page.text, /PROTECTED STATUS/);
+        assert.doesNotMatch(page.text, /Generate pairing code/);
     } finally {
         await closeServer(server, authDir);
     }
