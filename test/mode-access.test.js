@@ -5,6 +5,8 @@ const test = require('node:test');
 const { canProcessMessage } = require('../lib/modeAccess');
 const { normalizeMode } = require('../lib/mode');
 
+const access = (mode, isGroup, isOwnerOrSudo = false) => canProcessMessage({ mode, isGroup, isOwnerOrSudo });
+
 test('mode names are normalized and validated', () => {
     assert.equal(normalizeMode('PUBLIC'), 'public');
     assert.equal(normalizeMode('group'), 'group');
@@ -13,22 +15,24 @@ test('mode names are normalized and validated', () => {
     assert.equal(normalizeMode('owner-only'), null);
 });
 
-test('public mode allows group and private chats', () => {
-    assert.equal(canProcessMessage({ mode: 'public', isGroup: true }), true);
-    assert.equal(canProcessMessage({ mode: 'public', isGroup: false }), true);
+test('public mode allows all commands in groups and DMs', () => {
+    assert.equal(access('public', true), true);
+    assert.equal(access('public', false), true);
 });
 
-test('group mode allows only group chats', () => {
-    assert.equal(canProcessMessage({ mode: 'group', isGroup: true }), true);
-    assert.equal(canProcessMessage({ mode: 'group', isGroup: false }), false);
+test('private mode allows all commands only for owner, sudo, or developer', () => {
+    assert.equal(access('private', true, true), true);
+    assert.equal(access('private', false, true), true);
+    assert.equal(access('private', true, false), false);
+    assert.equal(access('private', false, false), false);
 });
 
-test('dm mode allows only private chats', () => {
-    assert.equal(canProcessMessage({ mode: 'dm', isGroup: false }), true);
-    assert.equal(canProcessMessage({ mode: 'dm', isGroup: true }), false);
+test('dm mode allows all commands for everyone only in DMs', () => {
+    assert.equal(access('dm', false), true);
+    assert.equal(access('dm', true), false);
 });
 
-test('private mode remains a strict group-only legacy alias', () => {
-    assert.equal(canProcessMessage({ mode: 'private', isGroup: true }), true);
-    assert.equal(canProcessMessage({ mode: 'private', isGroup: false }), false);
+test('group mode allows all commands for everyone only in groups', () => {
+    assert.equal(access('group', true), true);
+    assert.equal(access('group', false), false);
 });

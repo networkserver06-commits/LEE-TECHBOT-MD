@@ -348,7 +348,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         // Private mode is a hard no-reply/no-command mode for everyone except
         // the linked owner, sudo identities, and the configured developer
         // identity represented by the owner/sudo authorization helper.
-        if (!canProcessMessage({ mode: modeData.mode, isPublic: modeData.isPublic, isGroup })) return;
+        if (!canProcessMessage({ mode: modeData.mode, isPublic: modeData.isPublic, isGroup, isOwnerOrSudo: isOwnerOrSudoCheck })) return;
         if (global.ownerControls?.maintenance && !isOwnerOrSudoCheck) return;
 
         // Fast lane: these read-only commands do not need group metadata or
@@ -820,7 +820,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 if (!action || !supportedModes.includes(action)) {
                     const currentMode = data.mode || (data.isPublic ? 'public' : 'private');
                     await sock.sendMessage(chatId, {
-                        text: `Current bot mode: *${currentMode}*\n\nUsage: .mode public|private|group|dm\n\npublic — commands in groups and DMs\ngroup — commands in groups only\ndm — commands in private chats only\nprivate — legacy group-only mode`,
+                        text: `Current bot mode: *${currentMode}*\n\nUsage: .mode public|private|group|dm\n\npublic — everyone in groups and DMs\nprivate — owner, sudo, and developer only in groups and DMs\ngroup — everyone in groups only\ndm — everyone in private chats only`,
                         ...channelInfo
                     }, { quoted: message });
                     break;
