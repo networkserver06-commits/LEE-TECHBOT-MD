@@ -17,6 +17,7 @@ test('recognizes Baileys 428 connection closures as transient', () => {
 
 test('recognizes expired QR reference pools separately from ordinary disconnects', () => {
     assert.equal(isQrRefsExpired({ output: { statusCode: 408 }, message: 'QR refs attempts ended' }), true);
+    assert.equal(isTransientPairingError({ output: { statusCode: 408 }, message: 'QR refs attempts ended' }), true);
     assert.equal(isQrRefsExpired(new Error('Connection Closed')), false);
 });
 
