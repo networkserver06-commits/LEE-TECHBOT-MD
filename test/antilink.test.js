@@ -4,9 +4,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { shouldDeleteLink, extractDomains } = require('../lib/antilink');
+const { Antilink, shouldDeleteLink, extractDomains } = require('../lib/antilink');
 const { handleAntilinkCommand } = require('../commands/antilink');
-const { getAntilink, removeAntilink } = require('../lib/index');
+const { getAntilink, removeAntilink, setAntilink } = require('../lib/index');
 
 const stateFile = path.join(process.cwd(), 'data', 'userGroupData.json');
 const originalState = fs.existsSync(stateFile) ? fs.readFileSync(stateFile) : null;
@@ -28,6 +28,25 @@ test('anti-link supports scam-only and specific denied domains', () => {
     assert.equal(shouldDeleteLink('Claim your prize at https://gift.example.com', { enabled: true, mode: 'scam', silent: true }), true);
     assert.equal(shouldDeleteLink('Visit https://safe.example.com', { enabled: true, mode: 'custom', denyDomains: ['example.com'] }), true);
     assert.equal(shouldDeleteLink('Visit https://safe.example.com', { enabled: true, mode: 'custom', allowDomains: ['example.com'] }), false);
+});
+
+test('silent anti-link deletes only and sends no warning or information', async () => {
+    const sent = [];
+    const group = '120363000000000001@g.us';
+    const sender = '254700000001@s.whatsapp.net';
+    const sock = {
+        user: { id: '254700000099@s.whatsapp.net' },
+        async groupMetadata() { return { participants: [{ id: '254700000099@s.whatsapp.net', admin: 'admin' }] }; },
+        async sendMessage(chatId, payload) { sent.push({ chatId, payload }); }
+    };
+    try {
+        await setAntilink(group, 'on', 'delete', { mode: 'all', silent: true });
+        await Antilink({ key: { remoteJid: group, participant: sender, id: 'message-1' }, message: { conversation: 'https://blocked.example/scam' } }, sock);
+        assert.equal(sent.length, 1);
+        assert.deepEqual(sent[0].payload, { delete: { remoteJid: group, participant: sender, id: 'message-1' } });
+    } finally {
+        await removeAntilink(group, 'on');
+    }
 });
 
 test('linked-account DM can configure and persist a group anti-link rule', async () => {
