@@ -45,6 +45,10 @@ test('status content accepts quoted text, direct text, and directly captioned me
     assert.equal(getCommandContent(directImage()).type, 'image');
     const imageWithMessage = getCommandContent({ message: { imageMessage: { url: 'https://example.invalid/image', caption: '.tostatus Exam notice' } } });
     assert.equal(imageWithMessage.value.caption, 'Exam notice');
+    const repliedImage = getCommandContent({ message: { extendedTextMessage: { text: '.tostatus', contextInfo: { quotedMessage: { imageMessage: { url: 'image', caption: 'Original notice' } } } } } });
+    assert.equal(repliedImage.value.caption, 'Original notice');
+    const replacedImage = getCommandContent({ message: { extendedTextMessage: { text: '.tostatus New notice', contextInfo: { quotedMessage: { imageMessage: { url: 'image', caption: 'Old notice' } } } } } });
+    assert.equal(replacedImage.value.caption, 'New notice');
 });
 
 test('togstatus publishes text as a Status for current group members', async () => {
