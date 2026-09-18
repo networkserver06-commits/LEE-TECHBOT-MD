@@ -359,6 +359,11 @@ async function startXeonBotInc() {
                 const code = await requestPairingCodeWithRetry({
                     socket: XeonBotInc,
                     getSocket: () => activeSocket,
+                    onTransientError: async (_error, socket) => {
+                        try {
+                            if (socket?.ws && typeof socket.ws.close === 'function') socket.ws.close()
+                        } catch (_) {}
+                    },
                     phoneNumber: requestedPhoneNumber,
                     isActive: () => Boolean(activeSocket && !activeSocket.authState?.creds?.registered),
                     logger: console
