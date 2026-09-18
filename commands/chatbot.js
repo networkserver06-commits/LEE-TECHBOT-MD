@@ -163,8 +163,10 @@ function allowAutoReply(chatId) {
 async function handleSavedContactAutoReply(sock, chatId, message, userMessage, senderId) {
     if (!chatId || chatId.endsWith('@g.us') || message?.key?.fromMe) return false;
     const data = loadUserGroupData();
-    const config = data.autoReply?.contacts?.[normalizeContactJid(senderId)];
-    if (!data.autoReply?.enabled || !config || !String(userMessage || '').trim() || !allowAutoReply(chatId) || responseLocks.has(chatId)) return false;
+    if (!data.autoReply?.enabled) return false;
+    const config = data.autoReply.contacts?.[normalizeContactJid(senderId)];
+    if (!config || !String(userMessage || '').trim()) return true;
+    if (!allowAutoReply(chatId) || responseLocks.has(chatId)) return true;
     responseLocks.add(chatId);
     try {
         const response = config.mode === 'ai' ? await getAIResponse(String(userMessage).trim(), { messages: [String(userMessage).trim()], userInfo: {}, groupMetadata: null }) : config.text;
@@ -411,6 +413,8 @@ async function handleChatbotResponse(sock, chatId, message, userMessage, senderI
     const data = loadUserGroupData();
     data.chatbot = data.chatbot || {};
     const isContactDm = !isGroup && !isOwnerDm && data.chatbotContacts === true;
+    const selectedAutoReplyContact = !isGroup && data.autoReply?.enabled && data.autoReply?.contacts?.[normalizeContactJid(senderId)];
+    if (!isGroup && !isOwnerDm && data.autoReply?.enabled && !selectedAutoReplyContact) return;
     if ((!isGroup && !isOwnerDm && !isContactDm) || !String(userMessage || '').trim()) return;
     if (!chatbotEnabled(data.chatbot?.[chatId]) && !isContactDm) return;
     if (responseLocks.has(chatId)) return;
