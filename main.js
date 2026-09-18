@@ -380,6 +380,13 @@ async function handleMessages(sock, messageUpdate, printLog) {
             return;
         }
         
+        // Tic-Tac-Toe moves do not need group metadata or moderation checks.
+        // Handle them before the potentially slow group-admin lookup.
+        if (/^[1-9]$/.test(userMessage) || userMessage === 'surrender') {
+            await handleTicTacToeMove(sock, chatId, senderId, userMessage).catch(() => null);
+            return;
+        }
+
         let isBotAdmin = false;
         let isSenderAdmin = false;
         let groupMetadataAvailable = true;
@@ -392,12 +399,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 isBotAdmin = adminStatus.isBotAdmin;
                 groupMetadataAvailable = adminStatus.metadataAvailable !== false;
             } catch (err) { }
-        }
-
-        // Tic Tac Toe Move
-        if (/^[1-9]$/.test(userMessage) || userMessage.toLowerCase() === 'surrender') {
-            await handleTicTacToeMove(sock, chatId, senderId, userMessage).catch(()=>null);
-            return;
         }
 
         if (!message.key.fromMe) incrementMessageCount(chatId, senderId);
