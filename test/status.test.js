@@ -78,6 +78,7 @@ test('publishStatus always targets the WhatsApp status broadcast', async () => {
     const sent = [];
     await publishStatus(sock(sent), { type: 'text', value: 'Hello' }, ['254700000001@s.whatsapp.net']);
     assert.equal(sent[0].chatId, 'status@broadcast');
+    assert.equal(sent[0].options.broadcast, true);
     assert.deepEqual(sent[0].options.statusJidList, ['254700000001@s.whatsapp.net']);
 });
 
