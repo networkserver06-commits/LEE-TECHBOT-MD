@@ -104,6 +104,25 @@ For further customization and setup guidance, click the button below:
 
 ---
 
+## 🔗 Anti-link controls
+
+Group administrators can configure anti-link behavior in the group. The linked account can also configure a group privately by DM, which is useful when the bot is already linked and the operator does not want to expose setup commands in the group.
+
+In a group, use `.antilink on`, `.antilink off`, `.antilink get`, or `.antilink set <mode> [silent|loud] [allow domains] [deny domains]`. Supported modes are `all`, `scam`, `whatsapp`, `telegram`, and `custom`. Silent mode deletes the offending message without posting a warning or notification. The default for the explicit `.antilink on` command is silent deletion.
+
+From the linked account DM, include the target group number or JID first:
+
+```text
+.antilink 120363000000000000@g.us set all silent allow chat.whatsapp.com,wa.me deny bit.ly
+.antilink 120363000000000000@g.us set scam silent
+.antilink 120363000000000000@g.us get
+.antilink 120363000000000000@g.us off
+```
+
+Allowed domains are never deleted, so WhatsApp links can be permitted while other links are blocked. Denied domains always take priority unless they are also explicitly allowed. Only the linked account owner or an authorized sudo identity can change another group’s settings from DM.
+
+---
+
 ## 📖 About
 
 The LEE TECH WhatsApp Bot assists group admins by providing them with tools to efficiently manage large WhatsApp groups. The bot uses the Baileys library to interact with the WhatsApp Web API and supports multi-device features.
@@ -156,7 +175,7 @@ It is lightweight and can be easily customized to add more commands as per your 
 
 5. **Link the bot:**
 
-    For pairing-code login, open the pairing website using your hosting panel's public host link, enter your full international phone number in the website field without `+`, spaces, or dashes, and press **Generate pairing code**. You do not need to type the number in the host terminal. Enter the displayed code in WhatsApp under **Settings → Linked Devices → Link a Device**.
+For pairing-code login, open the pairing website using your hosting panel's public host link. **The first time the page is opened, create a website password and confirm it before the phone-number form or account status is available.** The host stores only a salted `scrypt` password hash in the configured `AUTH_DIR` as `.pairing-web-password.json`; the plaintext password is never stored. On later visits or after a restart, enter the same password first. If WhatsApp disconnects, the web session and saved pairing password are automatically removed; the next visit must create and confirm a new password. Then enter your full international phone number without `+`, spaces, or dashes, press **Generate pairing code**, and enter the displayed code in WhatsApp under **Settings → Linked Devices → Link a Device**.
 
     The website binds to `0.0.0.0` and uses the host-provided `SERVER_PORT` automatically. To expose it through a hosting panel or reverse proxy, set these values in the existing `.env` file and use a long random token:
 
@@ -169,7 +188,7 @@ It is lightweight and can be easily customized to add more commands as per your 
     PAIRING_INPUT_MODE=choose
     ```
 
-    With `PAIRING_INPUT_MODE=choose`, startup asks whether to use **Website** or **Terminal** pairing. Both methods remain available: Website asks for the phone number on the host link, while Terminal asks for it in the host console. Use `PAIRING_INPUT_MODE=web` to skip the choice and use the website, or `PAIRING_INPUT_MODE=terminal` to skip it and use the terminal. Send the token as the `X-Pairing-Token` header if calling the API directly. Keep the pairing page and token private because a pairing code can link the bot to a WhatsApp account.
+With `PAIRING_INPUT_MODE=choose`, startup asks whether to use **Website** or **Terminal** pairing. Both methods remain available: Website asks for the website password and phone number on the host link, while Terminal asks for the phone number in the host console. Use `PAIRING_INPUT_MODE=web` to skip the choice and use the website, or `PAIRING_INPUT_MODE=terminal` to skip it and use the terminal. Send the token as the `X-Pairing-Token` header if calling the API directly. Keep the pairing page, password, and token private because a pairing code can link the bot to a WhatsApp account.
 
     To allow both methods, set `PAIRING_WEB_ONLY=false`. The host terminal will then accept a phone number when no valid `PHONE_NUMBER` or `PAIRING_NUMBER` is configured, while the website remains available. To always show the terminal prompt, even when a number is already configured, also set `PAIRING_TERMINAL_PROMPT=true`.
 

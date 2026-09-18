@@ -876,15 +876,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.antilink'):
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups.', ...channelInfo }, { quoted: message });
-                    break;
-                }
-                if (!isBotAdmin) {
+                if (isGroup && !isBotAdmin) {
                     await sock.sendMessage(chatId, { text: 'Please make the bot an admin first.', ...channelInfo }, { quoted: message });
                     break;
                 }
-                await handleAntilinkCommand(sock, chatId, userMessage, senderId, isSenderAdmin, message);
+                await handleAntilinkCommand(sock, chatId, userMessage, senderId, isSenderAdmin, message, isOwnerOrSudoCheck);
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.antitag'):

@@ -457,6 +457,10 @@ async function startXeonBotInc() {
             }
             XeonBotInc.__connectionOpened = false
             activeSocket = null
+            // Invalidate authenticated pairing-web browser sessions and reset
+            // the host password when the WhatsApp socket drops. The next web
+            // visit must create and confirm a new password before pairing.
+            pairingWebServer?.clearWebSessions?.('WhatsApp disconnection', true)
             if (global.__updateRestarting) {
                 console.log(chalk.yellow('Update restart requested; suppressing reconnect for the closing socket.'))
                 return
