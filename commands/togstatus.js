@@ -1,6 +1,6 @@
 'use strict';
 
-const { getCommandContent, groupAudience, publishStatus } = require('../lib/status');
+const { getCommandContent, groupAudience, publishToChat } = require('../lib/status');
 
 const togStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck, isGroup) => {
     if (!isOwnerOrSudoCheck) {
@@ -18,17 +18,18 @@ const togStatusCommand = async (sock, chatId, message, isOwnerOrSudoCheck, isGro
     }
 
     try {
-        await sock.sendMessage(chatId, { text: '⏳ Uploading a group-audience Status…' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '⏳ Sending to this group and mentioning its members…' }, { quoted: message });
         const audience = await groupAudience(sock, chatId);
         if (!audience.recipients.length) throw new Error('The group has no usable phone recipients');
-        await publishStatus(sock, content, audience.recipients);
+        const mentions = audience.recipients.filter((jid) => /@s\.whatsapp\.net$/i.test(jid)).slice(0, 100);
+        await publishToChat(sock, chatId, content, mentions);
         return sock.sendMessage(chatId, {
-            text: `✅ ${content.type === 'text' ? 'Text' : `${content.type.charAt(0).toUpperCase()}${content.type.slice(1)}`} Status posted for *${audience.subject}* members (*${audience.recipients.length}* recipients).`
+            text: `✅ ${content.type === 'text' ? 'Text' : `${content.type.charAt(0).toUpperCase()}${content.type.slice(1)}`} sent to *${audience.subject}* with member mentions.`
         }, { quoted: message });
     } catch (error) {
         console.error('[togstatus]', error.message || error);
         return sock.sendMessage(chatId, {
-            text: '❌ Group-audience Status failed. Confirm the group is active and try again.'
+            text: '❌ Group mention post failed. Confirm the group is active and try again.'
         }, { quoted: message });
     }
 };

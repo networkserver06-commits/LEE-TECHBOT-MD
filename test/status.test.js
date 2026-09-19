@@ -51,15 +51,14 @@ test('status content accepts quoted text, direct text, and directly captioned me
     assert.equal(replacedImage.value.caption, 'New notice');
 });
 
-test('togstatus publishes text as a Status for current group members', async () => {
+test('togstatus posts directly in the group and mentions current members', async () => {
     const sent = [];
     const result = await togStatus(sock(sent), '123@g.us', quotedText('Exam at 8am'), true, true);
     assert.equal(result.key !== undefined, true);
-    const status = sent.find((item) => item.chatId === 'status@broadcast');
-    assert.ok(status);
-    assert.deepEqual(status.payload, { text: 'Exam at 8am', backgroundColor: '#000000', font: 1 });
-    assert.equal(status.options.broadcast, true);
-    assert.deepEqual(status.options.statusJidList, ['999@s.whatsapp.net', '254700000001@s.whatsapp.net']);
+    const groupPost = sent.find((item) => item.chatId === '123@g.us' && item.payload.mentions);
+    assert.ok(groupPost);
+    assert.match(groupPost.payload.text, /Exam at 8am/);
+    assert.deepEqual(groupPost.payload.mentions, ['999@s.whatsapp.net', '254700000001@s.whatsapp.net']);
     assert.match(sent.at(-1).payload.text, /IAM Class/);
 });
 
