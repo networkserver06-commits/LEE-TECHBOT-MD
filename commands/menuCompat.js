@@ -32,6 +32,7 @@ const { allCommands } = require('../lib/menuCatalog');
 const { superOwnerNumber } = require('../settings');
 const { fetchParticipatingGroups } = require('../lib/groupTarget');
 const { groupSettingsCommand } = require('../commands/groupSettings');
+const { getAntilink } = require('../lib/index');
 const { groqCommand } = require('./groq');
 const { legacyCommand } = require('./legacyCommands');
 const linkCommand = require('./link');
@@ -281,8 +282,14 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
                 await reply(sock, chatId, message, 'ℹ️ The bot is not currently participating in any groups.');
                 return true;
             }
-            const lines = groups.map((group) => `${group.index}. *${group.subject}*\n   Group number: ${group.number}\n   Members: ${group.participants.length}`);
-            await reply(sock, chatId, message, `📋 *GROUPS (${groups.length})*\n\n${lines.join('\n\n')}\n\nUse .settings <list number|full group number> to view or .gsettings <list number|full group number> <feature> <on|off> to change settings.`);
+            const lines = await Promise.all(groups.map(async (group) => {
+                const antiLink = await getAntilink(group.jid, 'on');
+                const status = antiLink?.enabled ? 'ON' : 'OFF';
+                const mode = antiLink?.mode || 'all';
+                const action = antiLink?.action || 'delete';
+                return `${group.index}. *${group.subject}*\n   Group number: ${group.number}\n   Members: ${group.participants.length}\n   Anti-link: ${status} | Mode: ${mode} | Action: ${action}\n   DM command: .antilink ${group.index} get`;
+            }));
+            await reply(sock, chatId, message, `📋 *GROUPS (${groups.length})*\n\n${lines.join('\n\n')}\n\nUse .antilink <list number> get to view anti-link settings, or .antilink <list number> on all silent to enable it from DM.\nUse .settings <list number|full group number> to view other settings, or .gsettings <list number|full group number> <feature> <on|off> to change them.`);
         } catch (error) {
             console.error('[listgroup]', error.message || error);
             await reply(sock, chatId, message, '❌ Could not fetch the bot group list.');

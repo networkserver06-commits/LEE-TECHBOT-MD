@@ -3,6 +3,7 @@
 const { setAntilink, getAntilink, removeAntilink } = require('../lib/index');
 const isOwnerOrSudo = require('../lib/isOwner');
 const { getGroupMetadata } = require('../lib/groupMetadata');
+const { resolveGroupTarget } = require('../lib/groupTarget');
 const { modeLabel, normalizeDomain } = require('../lib/antilink');
 
 const MODES = new Set(['all', 'scam', 'whatsapp', 'telegram', 'custom']);
@@ -58,6 +59,16 @@ function groupLabel(groupName, targetChatId) {
     return `${groupName || 'Unknown group'} (${targetChatId})`;
 }
 
+async function resolveAntilinkTarget(sock, chatId, value) {
+    const raw = String(value || '').trim();
+    // A short numeric target is the numbered entry shown by .listgroup.
+    if (/^\d{1,3}$/.test(raw)) {
+        return resolveGroupTarget(sock, chatId, raw);
+    }
+    const jid = groupJid(raw);
+    return jid ? { jid, number: jid.replace(/@g\.us$/i, ''), source: 'group-number' } : { error: usage(true) };
+}
+
 async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSenderAdmin, message, ownerCheck = false) {
     try {
         const isGroup = String(chatId).endsWith('@g.us');
@@ -66,8 +77,9 @@ async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSend
         let targetChatId = chatId;
         if (!isGroup) {
             if (!isLinkedOwner) return sock.sendMessage(chatId, { text: '❌ Only the linked account owner can configure group anti-link settings from DM.' }, { quoted: message });
-            targetChatId = groupJid(rawArgs.shift());
-            if (!targetChatId) return sock.sendMessage(chatId, { text: usage(true) }, { quoted: message });
+            const target = await resolveAntilinkTarget(sock, chatId, rawArgs.shift());
+            if (target.error) return sock.sendMessage(chatId, { text: target.error }, { quoted: message });
+            targetChatId = target.jid;
         } else if (!isSenderAdmin && !isLinkedOwner) {
             return sock.sendMessage(chatId, { text: '❌ Group admins or the linked account owner can configure anti-link.' }, { quoted: message });
         }
@@ -118,4 +130,4 @@ async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSend
     }
 }
 
-module.exports = { handleAntilinkCommand, groupJid, parseConfigArgs, parseDomains, cleanGroupName, resolveGroupName, groupLabel };
+module.exports = { handleAntilinkCommand, groupJid, parseConfigArgs, parseDomains, cleanGroupName, resolveGroupName, groupLabel, resolveAntilinkTarget };

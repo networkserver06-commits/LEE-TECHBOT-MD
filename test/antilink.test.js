@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { Antilink, shouldDeleteLink, extractDomains } = require('../lib/antilink');
-const { handleAntilinkCommand } = require('../commands/antilink');
+const { handleAntilinkCommand, resolveAntilinkTarget } = require('../commands/antilink');
 const { getAntilink, removeAntilink, setAntilink } = require('../lib/index');
 
 const stateFile = path.join(process.cwd(), 'data', 'userGroupData.json');
@@ -107,4 +107,22 @@ test('DM status still works when group metadata is unavailable', async () => {
         if (originalState === null) fs.rmSync(stateFile, { force: true });
         else fs.writeFileSync(stateFile, originalState);
     }
+});
+
+test('anti-link DM target accepts the numbered group shown by listgroup', async () => {
+    const group = '120363000000000004@g.us';
+    const sock = {
+        async groupFetchAllParticipating() {
+            return { [group]: { subject: 'Numbered Group', participants: [] } };
+        }
+    };
+    assert.deepEqual(await resolveAntilinkTarget(sock, '254700000000@s.whatsapp.net', '1'), {
+        jid: group,
+        number: '120363000000000004',
+        source: 'number',
+        subject: 'Numbered Group',
+        participants: [],
+        metadata: { subject: 'Numbered Group', participants: [] },
+        index: 1
+    });
 });

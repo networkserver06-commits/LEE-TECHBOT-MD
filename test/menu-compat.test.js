@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { menuCompatCommand } = require('../commands/menuCompat');
+const { setAntilink, removeAntilink } = require('../lib/index');
 
 function mockSock() {
     const sent = [];
@@ -53,6 +54,25 @@ test('group-only missing commands are rejected outside groups', async () => {
     const handled = await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.addall', { isGroup: false, isOwnerOrSudoCheck: false });
     assert.equal(handled, true);
     assert.match(sock.sent[0].payload.text, /only be used in a group/i);
+});
+
+test('listgroup shows anti-link status and the indexed DM command', async () => {
+    const sock = mockSock();
+    const group = '120363000000000010@g.us';
+    sock.groupFetchAllParticipating = async () => ({
+        [group]: { subject: 'Selected Group', participants: [{ id: 'member@s.whatsapp.net' }] }
+    });
+    const ownerMessage = { key: { remoteJid: 'owner@s.whatsapp.net', fromMe: true }, message: { conversation: '.listgroup' } };
+    try {
+        await setAntilink(group, 'on', 'delete', { mode: 'scam', silent: true });
+        const handled = await menuCompatCommand(sock, 'owner@s.whatsapp.net', ownerMessage, '.listgroup', { isOwnerOrSudoCheck: true });
+        assert.equal(handled, true);
+        assert.match(sock.sent.at(-1).payload.text, /Anti-link: ON \| Mode: scam \| Action: delete/);
+        assert.match(sock.sent.at(-1).payload.text, /DM command: \.antilink 1 get/);
+        assert.match(sock.sent.at(-1).payload.text, /\.antilink <list number> on all silent/);
+    } finally {
+        await removeAntilink(group, 'on');
+    }
 });
 
 test('local poll command produces a native WhatsApp poll payload', async () => {
