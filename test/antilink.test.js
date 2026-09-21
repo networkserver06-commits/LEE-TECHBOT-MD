@@ -6,7 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { Antilink, shouldDeleteLink, extractDomains } = require('../lib/antilink');
 const { handleAntilinkCommand, resolveAntilinkTarget } = require('../commands/antilink');
-const { getAntilink, removeAntilink, setAntilink } = require('../lib/index');
+const { getAntilink, removeAntilink, setAntilink, incrementWarningCount } = require('../lib/index');
 
 const stateFile = path.join(process.cwd(), 'data', 'userGroupData.json');
 const originalState = fs.existsSync(stateFile) ? fs.readFileSync(stateFile) : null;
@@ -77,6 +77,38 @@ test('ban anti-link action bans and removes a repeat offender after three links'
         if (originalState === null) fs.rmSync(stateFile, { force: true });
         else fs.writeFileSync(stateFile, originalState);
         fs.writeFileSync(bannedFile, originalBanned);
+    }
+});
+
+test('anti-link settings and violation counters persist fully on disk', async () => {
+    const group = '120363000000000006@g.us';
+    const sender = '254700000006@s.whatsapp.net';
+    try {
+        await setAntilink(group, 'on', 'ban', {
+            mode: 'custom', silent: true,
+            allowDomains: ['chat.whatsapp.com'], denyDomains: ['short.example']
+        });
+        await incrementWarningCount(group, sender);
+        const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+        assert.deepEqual(saved.antilink[group], {
+            enabled: true,
+            action: 'ban',
+            mode: 'custom',
+            silent: true,
+            allowDomains: ['chat.whatsapp.com'],
+            denyDomains: ['short.example']
+        });
+        assert.equal(saved.warnings[group][sender], 1);
+        // getAntilink reads JSON on every call, proving this survives a restart.
+        assert.deepEqual(await getAntilink(group, 'on'), saved.antilink[group]);
+        await removeAntilink(group, 'on');
+        const cleared = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+        assert.equal(cleared.antilink?.[group], undefined);
+        assert.equal(cleared.warnings?.[group], undefined);
+    } finally {
+        await removeAntilink(group, 'on');
+        if (originalState === null) fs.rmSync(stateFile, { force: true });
+        else fs.writeFileSync(stateFile, originalState);
     }
 });
 
