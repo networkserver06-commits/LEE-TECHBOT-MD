@@ -110,6 +110,8 @@ Group administrators can configure anti-link behavior in the group. The linked a
 
 In a group, use `.antilink on`, `.antilink off`, `.antilink get`, or `.antilink set <mode> [silent|loud] [allow domains] [deny domains]`. Supported modes are `all`, `scam`, `whatsapp`, `telegram`, and `custom`. Silent mode deletes the offending message without posting a warning or notification. The default for the explicit `.antilink on` command is silent deletion.
 
+To automatically ban repeat offenders, set the action to `ban` with `.antilink action ban`. The bot counts unauthorized-link violations per group and user and, after `WARN_COUNT` violations (three by default), adds the user to the global ban list and removes them from the group. Group admins, the bot account, and sudo identities are exempt.
+
 From the linked account DM, include the target group number or JID first:
 
 ```text
@@ -117,6 +119,7 @@ From the linked account DM, include the target group number or JID first:
 .antilink 120363000000000000@g.us set scam silent
 .antilink 120363000000000000@g.us get
 .antilink 120363000000000000@g.us off
+.antilink 120363000000000000@g.us action ban
 ```
 
 Allowed domains are never deleted, so WhatsApp links can be permitted while other links are blocked. Denied domains always take priority unless they are also explicitly allowed. Only the linked account owner or an authorized sudo identity can change another group’s settings from DM.

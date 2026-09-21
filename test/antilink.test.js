@@ -10,6 +10,8 @@ const { getAntilink, removeAntilink, setAntilink } = require('../lib/index');
 
 const stateFile = path.join(process.cwd(), 'data', 'userGroupData.json');
 const originalState = fs.existsSync(stateFile) ? fs.readFileSync(stateFile) : null;
+const bannedFile = path.join(process.cwd(), 'data', 'banned.json');
+const originalBanned = fs.existsSync(bannedFile) ? fs.readFileSync(bannedFile) : Buffer.from('[]');
 
 function dmMessage(text) {
     return { key: { remoteJid: '254700000000@s.whatsapp.net', participant: '254700000000@s.whatsapp.net' }, message: { conversation: text } };
@@ -46,6 +48,35 @@ test('silent anti-link deletes only and sends no warning or information', async 
         assert.deepEqual(sent[0].payload, { delete: { remoteJid: group, participant: sender, id: 'message-1' } });
     } finally {
         await removeAntilink(group, 'on');
+    }
+});
+
+test('ban anti-link action bans and removes a repeat offender after three links', async () => {
+    const sent = [];
+    const removals = [];
+    const group = '120363000000000005@g.us';
+    const sender = '254700000005@s.whatsapp.net';
+    const sock = {
+        user: { id: '254700000099@s.whatsapp.net' },
+        async groupMetadata() { return { participants: [{ id: '254700000099@s.whatsapp.net', admin: 'admin' }] }; },
+        async groupParticipantsUpdate(chatId, jids, action) { removals.push({ chatId, jids, action }); },
+        async sendMessage(chatId, payload) { sent.push({ chatId, payload }); }
+    };
+    try {
+        await setAntilink(group, 'on', 'ban', { mode: 'all', silent: true });
+        for (let index = 1; index <= 3; index += 1) {
+            await Antilink({ key: { remoteJid: group, participant: sender, id: `ban-message-${index}` }, message: { conversation: `https://blocked${index}.example` } }, sock);
+        }
+        const bannedUsers = JSON.parse(fs.readFileSync(bannedFile, 'utf8'));
+        assert.ok(bannedUsers.includes(sender));
+        assert.deepEqual(removals, [{ chatId: group, jids: [sender], action: 'remove' }]);
+        assert.equal(sent.filter((item) => item.payload.delete).length, 3);
+        assert.match(sent.at(-1).payload.text, /globally banned and removed after 3 unauthorized links/i);
+    } finally {
+        await removeAntilink(group, 'on');
+        if (originalState === null) fs.rmSync(stateFile, { force: true });
+        else fs.writeFileSync(stateFile, originalState);
+        fs.writeFileSync(bannedFile, originalBanned);
     }
 });
 

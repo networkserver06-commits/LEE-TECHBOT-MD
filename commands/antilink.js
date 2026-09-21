@@ -7,7 +7,7 @@ const { resolveGroupTarget } = require('../lib/groupTarget');
 const { modeLabel, normalizeDomain } = require('../lib/antilink');
 
 const MODES = new Set(['all', 'scam', 'whatsapp', 'telegram', 'custom']);
-const ACTIONS = new Set(['delete', 'kick', 'warn']);
+const ACTIONS = new Set(['delete', 'kick', 'warn', 'ban']);
 
 function groupJid(value) {
     const raw = String(value || '').trim().toLowerCase();
@@ -22,7 +22,7 @@ function parseDomains(value) {
 
 function usage(dm = false) {
     const target = dm ? '<group-number|group-jid> ' : '';
-    return `*ANTILINK SETUP*\n\n${dm ? 'Linked-account DM configuration:\n' : ''}.antilink ${target}on all silent\n.antilink ${target}off\n.antilink ${target}set <all|scam|whatsapp|telegram|custom> [silent|loud] [allow domain1,domain2] [deny domain3]\n.antilink ${target}action <delete|kick|warn>\n.antilink ${target}get\n\nExamples:\n.antilink ${target}set all silent allow whatsapp.com,wa.me\n.antilink ${target}set scam silent\n.antilink ${target}set custom silent deny example.com`;
+    return `*ANTILINK SETUP*\n\n${dm ? 'Linked-account DM configuration:\n' : ''}.antilink ${target}on all silent\n.antilink ${target}off\n.antilink ${target}set <all|scam|whatsapp|telegram|custom> [silent|loud] [allow domain1,domain2] [deny domain3]\n.antilink ${target}action <delete|kick|warn|ban>\n.antilink ${target}get\n\nExamples:\n.antilink ${target}set all silent allow whatsapp.com,wa.me\n.antilink ${target}set scam silent\n.antilink ${target}action ban\n.antilink ${target}set custom silent deny example.com`;
 }
 
 function parseConfigArgs(args) {
@@ -100,7 +100,7 @@ async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSend
         }
         if (action === 'action') {
             const nextAction = String(rawArgs[0] || '').toLowerCase();
-            if (!ACTIONS.has(nextAction)) return sock.sendMessage(chatId, { text: 'Use action delete, kick, or warn.' }, { quoted: message });
+            if (!ACTIONS.has(nextAction)) return sock.sendMessage(chatId, { text: 'Use action delete, kick, warn, or ban.' }, { quoted: message });
             const current = await getAntilink(targetChatId, 'on') || {};
             await setAntilink(targetChatId, current.enabled ? 'on' : 'off', nextAction, {});
             return sock.sendMessage(chatId, { text: `✅ Anti-link action for ${targetLabel}: ${nextAction}.` }, { quoted: message });
