@@ -68,3 +68,43 @@ test('linked-account DM can configure and persist a group anti-link rule', async
         else fs.writeFileSync(stateFile, originalState);
     }
 });
+
+test('DM status includes the resolved group name and group ID', async () => {
+    const sent = [];
+    const group = '120363000000000002@g.us';
+    const sock = {
+        async groupMetadata(chatId) {
+            assert.equal(chatId, group);
+            return { subject: 'Family & Friends' };
+        },
+        async sendMessage(chatId, payload) { sent.push({ chatId, payload }); }
+    };
+    try {
+        await setAntilink(group, 'on', 'delete', { mode: 'all', silent: true });
+        await handleAntilinkCommand(sock, '254700000000@s.whatsapp.net', `.antilink ${group} get`, '254700000000@s.whatsapp.net', false, dmMessage(`.antilink ${group} get`), true);
+        assert.match(sent.at(-1).payload.text, /Group: Family & Friends/);
+        assert.match(sent.at(-1).payload.text, /Group ID: 120363000000000002@g\.us/);
+    } finally {
+        await removeAntilink(group, 'on');
+        if (originalState === null) fs.rmSync(stateFile, { force: true });
+        else fs.writeFileSync(stateFile, originalState);
+    }
+});
+
+test('DM status still works when group metadata is unavailable', async () => {
+    const sent = [];
+    const group = '120363000000000003@g.us';
+    const sock = {
+        async groupMetadata() { throw new Error('temporary metadata failure'); },
+        async sendMessage(chatId, payload) { sent.push({ chatId, payload }); }
+    };
+    try {
+        await handleAntilinkCommand(sock, '254700000000@s.whatsapp.net', `.antilink ${group} get`, '254700000000@s.whatsapp.net', false, dmMessage(`.antilink ${group} get`), true);
+        assert.match(sent.at(-1).payload.text, /Group: Unknown group/);
+        assert.match(sent.at(-1).payload.text, /Group ID: 120363000000000003@g\.us/);
+    } finally {
+        await removeAntilink(group, 'on');
+        if (originalState === null) fs.rmSync(stateFile, { force: true });
+        else fs.writeFileSync(stateFile, originalState);
+    }
+});
