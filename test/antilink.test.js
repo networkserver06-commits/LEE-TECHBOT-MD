@@ -132,6 +132,24 @@ test('linked-account DM can configure and persist a group anti-link rule', async
     }
 });
 
+test('anti-link enable confirmation shows the group name instead of the JID', async () => {
+    const sent = [];
+    const group = '65@g.us';
+    const sock = {
+        async groupMetadata() { return { subject: 'My Community Group' }; },
+        async sendMessage(chatId, payload) { sent.push({ chatId, payload }); }
+    };
+    try {
+        await handleAntilinkCommand(sock, group, '.antilink on', '254700000000@s.whatsapp.net', true, { key: { remoteJid: group } }, false);
+        assert.match(sent.at(-1).payload.text, /Anti-link enabled for My Community Group\./);
+        assert.doesNotMatch(sent.at(-1).payload.text, /65@g\.us/);
+    } finally {
+        await removeAntilink(group, 'on');
+        if (originalState === null) fs.rmSync(stateFile, { force: true });
+        else fs.writeFileSync(stateFile, originalState);
+    }
+});
+
 test('DM status includes the resolved group name and group ID', async () => {
     const sent = [];
     const group = '120363000000000002@g.us';

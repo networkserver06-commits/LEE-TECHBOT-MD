@@ -52,11 +52,15 @@ function cleanGroupName(value) {
 
 async function resolveGroupName(sock, targetChatId) {
     const metadata = await getGroupMetadata(sock, targetChatId);
-    return cleanGroupName(metadata?.subject || metadata?.name) || 'Unknown group';
+    const subject = cleanGroupName(metadata?.subject);
+    // Some Baileys fallbacks expose the JID as `name`; never present that as
+    // the human-readable group name in confirmations.
+    if (!subject || /@g\.us$/i.test(subject)) return 'Unknown group';
+    return subject;
 }
 
-function groupLabel(groupName, targetChatId) {
-    return `${groupName || 'Unknown group'} (${targetChatId})`;
+function groupLabel(groupName) {
+    return groupName || 'Unknown group';
 }
 
 async function resolveAntilinkTarget(sock, chatId, value) {
