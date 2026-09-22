@@ -1,6 +1,8 @@
 const isAdmin = require('../lib/isAdmin');
 
-async function kickCommand(sock, chatId, senderId, mentionedJids, message) {
+async function kickCommand(sock, chatId, senderId, mentionedJids, message, verb = 'kick') {
+    const commandLabel = verb === 'out' ? 'out' : 'kick';
+    const actionPast = verb === 'out' ? 'removed' : 'kicked';
     const isOwner = message.key.fromMe;
     if (!isOwner) {
         const { isSenderAdmin, isBotAdmin } = await isAdmin(sock, chatId, senderId);
@@ -11,7 +13,7 @@ async function kickCommand(sock, chatId, senderId, mentionedJids, message) {
         }
 
         if (!isSenderAdmin) {
-            await sock.sendMessage(chatId, { text: 'Only group admins can use the kick command.' }, { quoted: message });
+            await sock.sendMessage(chatId, { text: `Only group admins can use the ${commandLabel} command.` }, { quoted: message });
             return;
         }
     }
@@ -27,7 +29,7 @@ async function kickCommand(sock, chatId, senderId, mentionedJids, message) {
     
     if (usersToKick.length === 0) {
         await sock.sendMessage(chatId, { 
-            text: 'Please mention the user or reply to their message to kick!'
+            text: `Please mention the user or reply to their message to ${commandLabel}!`
         }, { quoted: message });
         return;
     }
@@ -103,7 +105,7 @@ async function kickCommand(sock, chatId, senderId, mentionedJids, message) {
 
     if (isTryingToKickBot) {
         await sock.sendMessage(chatId, { 
-            text: "I can't kick myself🤖"
+            text: `I can't ${commandLabel} myself🤖`
         }, { quoted: message });
         return;
     }
@@ -116,13 +118,13 @@ async function kickCommand(sock, chatId, senderId, mentionedJids, message) {
         }));
         
         await sock.sendMessage(chatId, { 
-            text: `${usernames.join(', ')} has been kicked successfully!`,
+            text: `${usernames.join(', ')} has been ${actionPast} successfully!`,
             mentions: usersToKick
         });
     } catch (error) {
         console.error('Error in kick command:', error);
         await sock.sendMessage(chatId, { 
-            text: 'Failed to kick user(s)!'
+            text: `Failed to ${commandLabel} user(s)!`
         });
     }
 }

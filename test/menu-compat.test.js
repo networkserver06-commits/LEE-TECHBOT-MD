@@ -24,6 +24,11 @@ test('missing test command is routed by compatibility handler', async () => {
     assert.match(sock.sent[0].payload.text, /router is working/i);
 });
 
+test('group menu lists the .out removal command', async () => {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'lib', 'menuCatalog.js'), 'utf8');
+    assert.match(source, /commands: \[[^\]]*'kick', 'out', 'kickall'/);
+});
+
 test('catalog fallback never emits the removed provider warning', async () => {
     const sock = mockSock();
     const handled = await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.menu', {});

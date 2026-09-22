@@ -506,7 +506,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         const commandToken = userMessage.split(/\s+/)[0].toLowerCase();
-        const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.antidemote', '.demote', '.kick', '.antifake', '.tagall', '.tagnotadmin', '.all', '.contacttag', '.tagadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
+        const adminCommands = ['.add', '.groupvcf', '.savecontacts', '.extract', '.mute', '.unmute', '.link', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.antidemote', '.demote', '.kick', '.out', '.antifake', '.tagall', '.tagnotadmin', '.all', '.contacttag', '.tagadmin', '.hidetag', '.antilink', '.antiphoto', '.antisticker', '.antitag', '.antimention', '.setgdesc', '.setgname', '.setgpp', '.kickall'];
         const isAdminCommand = adminCommands.includes(commandToken);
 
         const ownerCommands = ['.mode', '.autostatus', '.autoviewstatus', '.autolikestatus', '.antidelete', '.cleartmp', '.setpp', '.tostatus', '.togstatus', '.clearsession', '.creategroup', '.areact', '.autoreact', '.decrypt', '.autotyping', '.autoread', '.pmblocker', '.update', '.antiban', '.setpayment', '.setprefix', '.hidechannel', '.maintenance', '.ownerstatus', '.setmenuimage', '.setmenu', '.menumode', '.menustyle', '.menufont'];
@@ -522,7 +522,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 return;
             }
 
-            if (['.mute', '.unmute', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.antidemote', '.demote', '.kickall'].includes(commandToken)) {
+            if (['.mute', '.unmute', '.ban', '.unban', '.promote', '.promotemsg', '.promotion', '.promotions', '.antidemote', '.demote', '.out', '.kickall'].includes(commandToken)) {
                 if (!isSenderAdmin && !isOwnerOrSudoCheck) {
                     await sock.sendMessage(chatId, { text: 'Sorry, only group admins can use this command.', ...channelInfo }, { quoted: message });
                     return;
@@ -689,11 +689,18 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
                 
-            case userMessage.startsWith('.kick'):
+            case userMessage === '.out' || userMessage.startsWith('.out '): {
+                const mentionedJidListOut = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
+                await kickCommand(sock, chatId, senderId, mentionedJidListOut, message, 'out');
+                commandExecuted = true;
+                break;
+            }
+            case userMessage.startsWith('.kick'): {
                 const mentionedJidListKick = message.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
                 await kickCommand(sock, chatId, senderId, mentionedJidListKick, message);
                 commandExecuted = true;
                 break;
+            }
             case userMessage.startsWith('.antisticker'):
                 await antistickerCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
                 commandExecuted = true;

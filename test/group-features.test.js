@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { menuCompatCommand } = require('../commands/menuCompat');
+const kickCommand = require('../commands/kick');
 
 const stateFile = path.join(process.cwd(), 'data', 'groupFeatures.json');
 function mockSock(sent) {
@@ -59,4 +60,31 @@ test('open and close commands accept relative durations', async () => {
         assert.match(sent.at(-1).text, /timer set for \*5 mins?\*/i);
     }
     if (fs.existsSync(stateFile)) fs.unlinkSync(stateFile);
+});
+
+test('.out removes a mentioned member and uses removal wording', async () => {
+    const sent = [];
+    const removals = [];
+    const sock = mockSock(sent);
+    sock.groupParticipantsUpdate = async (chatId, ids, action) => removals.push({ chatId, ids, action });
+    const target = '222@s.whatsapp.net';
+    await kickCommand(sock, '123@g.us', '999@s.whatsapp.net', [target], {
+        key: { remoteJid: '123@g.us', fromMe: true },
+        message: { extendedTextMessage: { contextInfo: { mentionedJid: [target] } } }
+    }, 'out');
+    assert.deepEqual(removals, [{ chatId: '123@g.us', ids: [target], action: 'remove' }]);
+    assert.match(sent.at(-1).text, /removed successfully/i);
+});
+
+test('.out refuses to remove the bot itself', async () => {
+    const sent = [];
+    const removals = [];
+    const sock = mockSock(sent);
+    sock.groupParticipantsUpdate = async (chatId, ids, action) => removals.push({ chatId, ids, action });
+    await kickCommand(sock, '123@g.us', '999@s.whatsapp.net', ['999@s.whatsapp.net'], {
+        key: { remoteJid: '123@g.us', fromMe: true },
+        message: { extendedTextMessage: { contextInfo: { mentionedJid: ['999@s.whatsapp.net'] } } }
+    }, 'out');
+    assert.equal(removals.length, 0);
+    assert.match(sent.at(-1).text, /can't out myself/i);
 });
