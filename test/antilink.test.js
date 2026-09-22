@@ -95,6 +95,7 @@ test('anti-link settings and violation counters persist fully on disk', async ()
             action: 'ban',
             mode: 'custom',
             silent: true,
+            threshold: 3,
             allowDomains: ['chat.whatsapp.com'],
             denyDomains: ['short.example']
         });
@@ -112,6 +113,32 @@ test('anti-link settings and violation counters persist fully on disk', async ()
     }
 });
 
+test('automatic ban uses the configured per-group threshold', async () => {
+    const sent = [];
+    const removals = [];
+    const group = '120363000000000008@g.us';
+    const sender = '254700000008@s.whatsapp.net';
+    const sock = {
+        user: { id: '254700000099@s.whatsapp.net' },
+        async groupMetadata() { return { participants: [{ id: '254700000099@s.whatsapp.net', admin: 'admin' }] }; },
+        async groupParticipantsUpdate(chatId, jids, action) { removals.push({ chatId, jids, action }); },
+        async sendMessage(chatId, payload) { sent.push({ chatId, payload }); }
+    };
+    try {
+        await setAntilink(group, 'on', 'ban', { mode: 'all', silent: true, threshold: 2 });
+        for (let index = 1; index <= 2; index += 1) {
+            await Antilink({ key: { remoteJid: group, participant: sender, id: `threshold-message-${index}` }, message: { conversation: `https://threshold${index}.example` } }, sock);
+        }
+        assert.deepEqual(removals, [{ chatId: group, jids: [sender], action: 'remove' }]);
+        assert.match(sent.at(-1).payload.text, /after 2 unauthorized links/i);
+    } finally {
+        await removeAntilink(group, 'on');
+        if (originalState === null) fs.rmSync(stateFile, { force: true });
+        else fs.writeFileSync(stateFile, originalState);
+        fs.writeFileSync(bannedFile, originalBanned);
+    }
+});
+
 test('linked-account DM can configure and persist a group anti-link rule', async () => {
     const sent = [];
     const sock = { async sendMessage(chatId, payload) { sent.push({ chatId, payload }); } };
@@ -125,6 +152,27 @@ test('linked-account DM can configure and persist a group anti-link rule', async
         assert.deepEqual(settings.allowDomains, ['chat.whatsapp.com', 'wa.me']);
         assert.deepEqual(settings.denyDomains, ['bit.ly']);
         assert.match(sent.at(-1).payload.text, /settings saved/i);
+    } finally {
+        await removeAntilink(group, 'on');
+        if (originalState === null) fs.rmSync(stateFile, { force: true });
+        else fs.writeFileSync(stateFile, originalState);
+    }
+});
+
+test('admins can persist a custom anti-link threshold and view it in status', async () => {
+    const sent = [];
+    const group = '120363000000000007@g.us';
+    const sock = {
+        async groupMetadata() { return { subject: 'Threshold Group' }; },
+        async sendMessage(chatId, payload) { sent.push({ chatId, payload }); }
+    };
+    try {
+        await handleAntilinkCommand(sock, group, '.antilink on', 'admin@s.whatsapp.net', true, { key: { remoteJid: group } }, false);
+        await handleAntilinkCommand(sock, group, '.antilink threshold 5', 'admin@s.whatsapp.net', true, { key: { remoteJid: group } }, false);
+        assert.match(sent.at(-1).payload.text, /threshold for Threshold Group: 5/i);
+        assert.equal((await getAntilink(group, 'on')).threshold, 5);
+        await handleAntilinkCommand(sock, group, '.antilink get', 'admin@s.whatsapp.net', true, { key: { remoteJid: group } }, false);
+        assert.match(sent.at(-1).payload.text, /Warning threshold: 5/);
     } finally {
         await removeAntilink(group, 'on');
         if (originalState === null) fs.rmSync(stateFile, { force: true });

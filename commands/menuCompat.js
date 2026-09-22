@@ -287,7 +287,8 @@ async function menuCompatCommand(sock, chatId, message, input, context = {}) {
                 const status = antiLink?.enabled ? 'ON' : 'OFF';
                 const mode = antiLink?.mode || 'all';
                 const action = antiLink?.action || 'delete';
-                return `${group.index}. *${group.subject}*\n   Group number: ${group.number}\n   Members: ${group.participants.length}\n   Anti-link: ${status} | Mode: ${mode} | Action: ${action}\n   DM command: .antilink ${group.index} get`;
+                const threshold = antiLink?.threshold || Number(process.env.WARN_COUNT || 3);
+                return `${group.index}. *${group.subject}*\n   Group number: ${group.number}\n   Members: ${group.participants.length}\n   Anti-link: ${status} | Mode: ${mode} | Action: ${action} | Threshold: ${threshold}\n   DM command: .antilink ${group.index} get`;
             }));
             await reply(sock, chatId, message, `📋 *GROUPS (${groups.length})*\n\n${lines.join('\n\n')}\n\nUse .antilink <list number> get to view anti-link settings, or .antilink <list number> on all silent to enable it from DM.\nUse .settings <list number|full group number> to view other settings, or .gsettings <list number|full group number> <feature> <on|off> to change them.`);
         } catch (error) {
