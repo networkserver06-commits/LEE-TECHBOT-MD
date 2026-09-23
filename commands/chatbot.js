@@ -61,6 +61,11 @@ function contactChatbotEnabled(data) {
     return data?.chatbotContacts === true || data?.chatbot?.contacts?.enabled === true;
 }
 
+function contactChatbotTarget(data, jid) {
+    const normalized = normalizeContactJid(jid);
+    return Boolean(normalized && data?.chatbotContactTargets?.[normalized]?.enabled === true);
+}
+
 function chatbotSettingsText(data, chatId, isOwnerDm = false) {
     const configured = data.chatbot?.[chatId];
     const enabled = chatbotEnabled(configured);
@@ -75,6 +80,7 @@ function chatbotSettingsText(data, chatId, isOwnerDm = false) {
         `Other languages: *Only when explicitly requested*\n` +
         `Group chatbot instances enabled: *${groupsEnabled}*\n` +
         `Contact DMs: *${contactChatbotEnabled(data) ? 'ON' : 'OFF'}*\n` +
+        `Specific contact chatbot targets: *${Object.values(data.chatbotContactTargets || {}).filter((value) => value?.enabled === true).length}*\n` +
         `Conversation memory: *Last 20 messages per sender*\n` +
         `Response mode: *${chatbotMode(configured)} — automatic replies while enabled*\n\n` +
         `*CONTROLS*\n` +
@@ -84,7 +90,8 @@ function chatbotSettingsText(data, chatId, isOwnerDm = false) {
         `• Owner DM: .chatbot <group number> on|off|status\n` +
         `• Owner DM: .chatbot DM on|off|status\n` +
         `• Owner DM: .chatbot DM constant on|off\n` +
-        `• Owner DM: .chatbot contacts on|off|status`;
+        `• Owner DM: .chatbot contacts on|off|status\n` +
+        `• Owner DM: .chatbot contact <number> on|off|status`;
 }
 
 // Load user group data
@@ -270,6 +277,22 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
             saveUserGroupData(data);
             return sock.sendMessage(chatId, { text: `✅ Contact chatbot turned *${action.toUpperCase()}*.` }, { quoted: message });
         }
+        if (dmParts[0]?.toLowerCase() === 'contact') {
+            const jid = normalizeContactJid(dmParts[1]);
+            const action = String(dmParts[2] || '').toLowerCase();
+            const data = loadUserGroupData();
+            data.chatbotContactTargets = data.chatbotContactTargets || {};
+            if (!jid || !['on', 'off', 'status'].includes(action)) {
+                return sock.sendMessage(chatId, { text: 'Usage: .chatbot contact <full international number> on|off|status' }, { quoted: message });
+            }
+            if (action === 'status') {
+                return sock.sendMessage(chatId, { text: `👤 *Specific contact chatbot* for ${jid.split('@')[0]}: ${contactChatbotTarget(data, jid) ? 'ON' : 'OFF'}` }, { quoted: message });
+            }
+            if (action === 'on') data.chatbotContactTargets[jid] = { enabled: true, scope: 'contact', mode: 'constant' };
+            else delete data.chatbotContactTargets[jid];
+            saveUserGroupData(data);
+            return sock.sendMessage(chatId, { text: `✅ Chatbot for contact ${jid.split('@')[0]} turned *${action.toUpperCase()}*.` }, { quoted: message });
+        }
         if (/^(status|show|list)$/i.test(String(match || '').trim())) {
             const data = loadUserGroupData();
             data.chatbot = data.chatbot || {};
@@ -432,7 +455,7 @@ async function handleChatbotResponse(sock, chatId, message, userMessage, senderI
     if (message?.key?.fromMe || isOwnerContact(sock, senderId)) return;
     const data = loadUserGroupData();
     data.chatbot = data.chatbot || {};
-    const isContactDm = !isGroup && !isOwnerDm && contactChatbotEnabled(data);
+    const isContactDm = !isGroup && !isOwnerDm && (contactChatbotEnabled(data) || contactChatbotTarget(data, senderId));
     const selectedAutoReplyContact = !isGroup && data.autoReply?.enabled && data.autoReply?.contacts?.[normalizeContactJid(senderId)];
     // Selected-contact autoreply takes precedence only for contacts explicitly
     // saved in that list. Other contacts must still reach the contact chatbot.
@@ -705,5 +728,6 @@ module.exports = {
     handleChatbotResponse,
     handleAutoReplyCommand,
     handleSavedContactAutoReply,
-    contactChatbotEnabled
+    contactChatbotEnabled,
+    contactChatbotTarget
 };
