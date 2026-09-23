@@ -51,6 +51,7 @@ const { ensureRuntimeDirs, readJson } = require('./lib/runtime')
 const { normalizeWhatsAppNumber } = require('./lib/phone')
 const { requestPairingCodeWithRetry, isTransientPairingError, isQrRefsExpired } = require('./lib/pairing')
 const { createPairingWebServer } = require('./lib/pairingWeb')
+const { selfChatSendOptions } = require('./lib/selfChat')
 ensureRuntimeDirs()
 
 // Initialize store
@@ -262,6 +263,16 @@ async function startXeonBotInc() {
             keepAliveIntervalMs: Number(process.env.WA_KEEPALIVE_MS || 10000),
         })
         activeSocket = XeonBotInc
+
+        // WhatsApp can leave replies to the linked bot account's own chat
+        // showing "Waiting for this message" when the reply quotes the
+        // primary-device message. Normalize the self-chat JID and remove only
+        // that optional quote; all other chats retain their normal behavior.
+        const rawSendMessage = XeonBotInc.sendMessage.bind(XeonBotInc)
+        XeonBotInc.sendMessage = async (jid, content, options = {}) => {
+            const prepared = selfChatSendOptions(XeonBotInc, jid, options)
+            return rawSendMessage(prepared.jid, content, prepared.options)
+        }
 
         // Persist every pairing and key update. Keep the listener guarded so a
         // storage failure is visible without becoming an unhandled rejection
