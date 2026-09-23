@@ -1,6 +1,7 @@
+'use strict';
+
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const isOwnerOrSudo = require('../lib/isOwner');
 
 const channelInfo = {
@@ -15,87 +16,76 @@ const channelInfo = {
     }
 };
 
+function sessionDirectory() {
+    return path.resolve(process.env.AUTH_DIR || path.join(__dirname, '../session'));
+}
+
+function isLiveRegisteredSocket(sock) {
+    return Boolean(sock?.user?.id && sock?.authState?.creds?.registered !== false);
+}
+
 async function clearSessionCommand(sock, chatId, msg) {
     try {
         const senderId = msg.key.participant || msg.key.remoteJid;
         const isOwner = await isOwnerOrSudo(senderId, sock, chatId);
-        
+
         if (!msg.key.fromMe && !isOwner) {
-            await sock.sendMessage(chatId, { 
+            await sock.sendMessage(chatId, {
                 text: '❌ This command can only be used by the owner!',
                 ...channelInfo
             });
             return;
         }
 
-        // Define session directory
-        const sessionDir = path.join(__dirname, '../session');
-
+        const sessionDir = sessionDirectory();
         if (!fs.existsSync(sessionDir)) {
-            await sock.sendMessage(chatId, { 
-                text: '❌ Session directory not found!',
+            await sock.sendMessage(chatId, {
+                text: `❌ Auth directory not found: ${sessionDir}`,
                 ...channelInfo
             });
             return;
         }
 
+        // Never delete Signal keys from a live socket. Removing pre-keys,
+        // sender keys, or app-state keys during a connection corrupts the
+        // active crypto state and causes WhatsApp to show "Waiting for this
+        // message" for new messages.
+        if (isLiveRegisteredSocket(sock)) {
+            await sock.sendMessage(chatId, {
+                text: '⚠️ Session cleanup was stopped safely. The bot is currently connected, so deleting Signal keys would cause “Waiting for this message” errors.\n\nRestart the bot first, then run .clearsession only if you intend to re-pair. Existing messages cannot be decrypted retroactively.',
+                ...channelInfo
+            });
+            return;
+        }
+
+        const files = fs.readdirSync(sessionDir, { withFileTypes: true });
+        const removable = files.filter((entry) =>
+            entry.isFile() && (/\.tmp$|\.bak$|\.lock$/.test(entry.name) || entry.name === '.connection-notice.json')
+        );
         let filesCleared = 0;
         let errors = 0;
-        let errorDetails = [];
-
-        // Send initial status
-        await sock.sendMessage(chatId, { 
-            text: `🔍 Optimizing session files for better performance...`,
-            ...channelInfo
-        });
-
-        const files = fs.readdirSync(sessionDir);
-        
-        // Count files by type for optimization
-        let appStateSyncCount = 0;
-        let preKeyCount = 0;
-
-        for (const file of files) {
-            if (file.startsWith('app-state-sync-')) appStateSyncCount++;
-            if (file.startsWith('pre-key-')) preKeyCount++;
-        }
-
-        // Delete files
-        for (const file of files) {
-            if (file === 'creds.json') {
-                // Skip creds.json file
-                continue;
-            }
+        for (const entry of removable) {
             try {
-                const filePath = path.join(sessionDir, file);
-                fs.unlinkSync(filePath);
+                fs.unlinkSync(path.join(sessionDir, entry.name));
                 filesCleared++;
-            } catch (error) {
+            } catch (_) {
                 errors++;
-                errorDetails.push(`Failed to delete ${file}: ${error.message}`);
             }
         }
 
-        // Send completion message
-        const message = `✅ Session files cleared successfully!\n\n` +
-                       `📊 Statistics:\n` +
-                       `• Total files cleared: ${filesCleared}\n` +
-                       `• App state sync files: ${appStateSyncCount}\n` +
-                       `• Pre-key files: ${preKeyCount}\n` +
-                       (errors > 0 ? `\n⚠️ Errors encountered: ${errors}\n${errorDetails.join('\n')}` : '');
-
-        await sock.sendMessage(chatId, { 
-            text: message,
+        await sock.sendMessage(chatId, {
+            text: `✅ Safe session cleanup completed.\n\n• Temporary files removed: ${filesCleared}\n• Errors: ${errors}\n• Signal keys preserved: yes\n\nThe bot must be re-paired only when WhatsApp has logged the device out.`,
             ...channelInfo
         });
-
     } catch (error) {
         console.error('Error in clearsession command:', error);
-        await sock.sendMessage(chatId, { 
-            text: '❌ Failed to clear session files!',
+        await sock.sendMessage(chatId, {
+            text: '❌ Failed to inspect session safely!',
             ...channelInfo
         });
     }
 }
 
-module.exports = clearSessionCommand; 
+module.exports = clearSessionCommand;
+module.exports.sessionDirectory = sessionDirectory;
+module.exports.isLiveRegisteredSocket = isLiveRegisteredSocket;
