@@ -246,6 +246,19 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
     }
     if (options.isOwnerDm) {
         const dmParts = String(match || '').trim().split(/\s+/).filter(Boolean);
+        const directPrivateAction = String(dmParts[0] || '').toLowerCase();
+        if (message?.key?.fromMe === true && !chatId?.endsWith('@g.us') && !isOwnerContact(sock, chatId) && ['on', 'off', 'status'].includes(directPrivateAction)) {
+            const jid = normalizeContactJid(chatId);
+            const data = loadUserGroupData();
+            data.chatbotContactTargets = data.chatbotContactTargets || {};
+            if (directPrivateAction === 'status') {
+                return sock.sendMessage(chatId, { text: `👤 *Private contact chatbot*: ${contactChatbotTarget(data, jid) ? 'ON' : 'OFF'}` }, { quoted: message });
+            }
+            if (directPrivateAction === 'on') data.chatbotContactTargets[jid] = { enabled: true, scope: 'contact', mode: 'constant' };
+            else delete data.chatbotContactTargets[jid];
+            saveUserGroupData(data);
+            return sock.sendMessage(chatId, { text: `✅ Private contact chatbot turned *${directPrivateAction.toUpperCase()}*.` }, { quoted: message });
+        }
         if (dmParts[0]?.toLowerCase() === 'dm') {
             const modeRequested = String(dmParts[1] || '').toLowerCase() === 'constant';
             const action = String(dmParts[modeRequested ? 2 : 1] || '').toLowerCase();

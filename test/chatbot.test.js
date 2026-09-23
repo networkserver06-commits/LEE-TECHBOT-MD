@@ -31,6 +31,7 @@ test('owner DM chatbot status lists every participating group', async () => {
     fs.writeFileSync(stateFile, JSON.stringify({ chatbot: { '123@g.us': { enabled: true } } }));
     const sent = [];
     const sock = {
+        user: { id: '999@s.whatsapp.net' },
         async groupFetchAllParticipating() {
             return {
                 '123@g.us': { subject: 'Enabled Group', participants: [] },
@@ -101,5 +102,18 @@ test('owner can enable chatbot for one specific contact', async () => {
     data = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     assert.equal(data.chatbotContactTargets['254700000123@s.whatsapp.net'], undefined);
     assert.match(sent.at(-1).payload.text, /contact 254700000123 turned \*OFF\*/i);
+    if (original === null) fs.rmSync(stateFile, { force: true }); else fs.writeFileSync(stateFile, original);
+});
+
+test('owner can enable chatbot directly from the contact private DM', async () => {
+    const original = fs.existsSync(stateFile) ? fs.readFileSync(stateFile) : null;
+    const sent = [];
+    const sock = { user: { id: '254700000099@s.whatsapp.net' }, async sendMessage(chatId, payload) { sent.push({ chatId, payload }); } };
+    const contactChat = '254700000456@s.whatsapp.net';
+    const message = { key: { remoteJid: contactChat, fromMe: true }, message: { conversation: '.chatbot on' } };
+    await handleChatbotCommand(sock, contactChat, message, 'on', { isOwnerDm: true });
+    const data = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    assert.deepEqual(data.chatbotContactTargets[contactChat], { enabled: true, scope: 'contact', mode: 'constant' });
+    assert.match(sent.at(-1).payload.text, /Private contact chatbot turned \*ON\*/i);
     if (original === null) fs.rmSync(stateFile, { force: true }); else fs.writeFileSync(stateFile, original);
 });
