@@ -255,3 +255,38 @@ test('anti-link DM target accepts the numbered group shown by listgroup', async 
         index: 1
     });
 });
+
+test('anti-link can enforce links from an administrator when explicitly enabled', async () => {
+    const sent = [];
+    const group = '120363000000000009@g.us';
+    const sender = '254700000009@s.whatsapp.net';
+    const sock = {
+        user: { id: '254700000099@s.whatsapp.net' },
+        async groupMetadata() { return { participants: [{ id: sender, admin: 'admin' }, { id: '254700000099@s.whatsapp.net', admin: 'admin' }] }; },
+        async sendMessage(chatId, payload) { sent.push({ chatId, payload }); }
+    };
+    try {
+        await setAntilink(group, 'on', 'delete', { mode: 'all', silent: true, enforceAdmins: true });
+        await Antilink({ key: { remoteJid: group, participant: sender, fromMe: true, id: 'admin-link-1' }, message: { conversation: 'https://blocked.example' } }, sock);
+        assert.equal(sent.filter((item) => item.payload.delete).length, 1);
+    } finally {
+        await removeAntilink(group, 'on');
+    }
+});
+
+test('anti-link enforce command persists and reports admin enforcement', async () => {
+    const sent = [];
+    const group = '120363000000000010@g.us';
+    const sock = {
+        async groupMetadata() { return { subject: 'Enforced Group' }; },
+        async sendMessage(chatId, payload) { sent.push(payload.text); }
+    };
+    try {
+        await handleAntilinkCommand(sock, group, '.antilink enforce on', 'admin@s.whatsapp.net', true, { key: { remoteJid: group } }, false);
+        assert.equal((await getAntilink(group, 'on')).enforceAdmins, true);
+        await handleAntilinkCommand(sock, group, '.antilink get', 'admin@s.whatsapp.net', true, { key: { remoteJid: group } }, false);
+        assert.match(sent.at(-1), /Admin enforcement: ON/);
+    } finally {
+        await removeAntilink(group, 'on');
+    }
+});

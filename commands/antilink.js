@@ -22,7 +22,7 @@ function parseDomains(value) {
 
 function usage(dm = false) {
     const target = dm ? '<group-number|group-jid> ' : '';
-    return `*ANTILINK SETUP*\n\n${dm ? 'Linked-account DM configuration:\n' : ''}.antilink ${target}on all silent\n.antilink ${target}off\n.antilink ${target}set <all|scam|whatsapp|telegram|custom> [silent|loud] [allow domain1,domain2] [deny domain3]\n.antilink ${target}action <delete|kick|warn|ban>\n.antilink ${target}threshold <1-100>\n.antilink ${target}get\n\nExamples:\n.antilink ${target}set all silent allow whatsapp.com,wa.me\n.antilink ${target}set scam silent\n.antilink ${target}action ban\n.antilink ${target}threshold 5\n.antilink ${target}set custom silent deny example.com`;
+    return `*ANTILINK SETUP*\n\n${dm ? 'Linked-account DM configuration:\n' : ''}.antilink ${target}on all silent\n.antilink ${target}off\n.antilink ${target}set <all|scam|whatsapp|telegram|custom> [silent|loud] [allow domain1,domain2] [deny domain3]\n.antilink ${target}action <delete|kick|warn|ban>\n.antilink ${target}threshold <1-100>\n.antilink ${target}enforce <on|off>\n.antilink ${target}get\n\nExamples:\n.antilink ${target}set all silent allow whatsapp.com,wa.me\n.antilink ${target}set scam silent\n.antilink ${target}action ban\n.antilink ${target}threshold 5\n.antilink ${target}enforce on\n.antilink ${target}set custom silent deny example.com`;
 }
 
 function parseConfigArgs(args) {
@@ -119,6 +119,13 @@ async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSend
             const result = await setAntilink(targetChatId, current.enabled ? 'on' : 'off', current.action || 'delete', { threshold });
             return sock.sendMessage(chatId, { text: result ? `✅ Anti-link threshold for ${targetLabel}: ${threshold} unauthorized links before ${current.action === 'ban' ? 'ban' : 'enforcement'}.` : '❌ Failed to save anti-link threshold.' }, { quoted: message });
         }
+        if (action === 'enforce') {
+            const value = String(rawArgs[0] || '').toLowerCase();
+            if (!['on', 'off'].includes(value)) return sock.sendMessage(chatId, { text: `Use .antilink ${isGroup ? '' : `${targetChatId} `}enforce on or off.` }, { quoted: message });
+            const current = await getAntilink(targetChatId, 'on') || {};
+            const result = await setAntilink(targetChatId, current.enabled ? 'on' : 'off', current.action || 'delete', { enforceAdmins: value === 'on' });
+            return sock.sendMessage(chatId, { text: result ? `✅ Anti-link admin enforcement for ${targetLabel}: ${value.toUpperCase()}.` : '❌ Failed to save admin enforcement.' }, { quoted: message });
+        }
         if (action === 'set') {
             if (ACTIONS.has(String(rawArgs[0] || '').toLowerCase())) {
                 const current = await getAntilink(targetChatId, 'on') || {};
@@ -136,7 +143,7 @@ async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSend
             const allow = current?.allowDomains?.length ? current.allowDomains.join(', ') : 'none';
             const deny = current?.denyDomains?.length ? current.denyDomains.join(', ') : 'none';
             const threshold = current?.threshold || Number(process.env.WARN_COUNT || 3);
-            return sock.sendMessage(chatId, { text: `*Anti-link configuration*\nGroup: ${groupName}\nGroup ID: ${targetChatId}\nStatus: ${current?.enabled ? 'ON' : 'OFF'}\nMode: ${modeLabel(current?.mode || 'all')}\nAction: ${current?.action || 'delete'}\nWarning threshold: ${threshold}\nSilent deletion: ${current?.silent === false ? 'OFF' : 'ON'}\nAllowed domains: ${allow}\nDenied domains: ${deny}` }, { quoted: message });
+            return sock.sendMessage(chatId, { text: `*Anti-link configuration*\nGroup: ${groupName}\nGroup ID: ${targetChatId}\nStatus: ${current?.enabled ? 'ON' : 'OFF'}\nMode: ${modeLabel(current?.mode || 'all')}\nAction: ${current?.action || 'delete'}\nWarning threshold: ${threshold}\nSilent deletion: ${current?.silent === false ? 'OFF' : 'ON'}\nAdmin enforcement: ${current?.enforceAdmins ? 'ON' : 'OFF'}\nAllowed domains: ${allow}\nDenied domains: ${deny}` }, { quoted: message });
         }
         return sock.sendMessage(chatId, { text: usage(!isGroup) }, { quoted: message });
     } catch (error) {

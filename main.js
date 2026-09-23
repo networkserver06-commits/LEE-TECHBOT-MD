@@ -406,7 +406,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         // =====================================================================
         // THE FRONT-LINE INTERCEPTORS 
         // =====================================================================
-        if (isGroup && !message.key.fromMe) {
+        if (isGroup) {
             if (userMessage) {
                 await handleBadwordDetection(sock, chatId, message, userMessage, senderId).catch(()=>null);
             }
