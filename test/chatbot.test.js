@@ -68,6 +68,21 @@ test('owner can enable chatbot replies for contact DMs', async () => {
     await handleChatbotCommand(sock, '999@s.whatsapp.net', message, 'contacts on', { isOwnerDm: true });
     const data = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     assert.equal(data.chatbotContacts, true);
+    assert.deepEqual(data.chatbot.contacts, { enabled: true, scope: 'contacts', mode: 'constant' });
     assert.match(sent.at(-1).payload.text, /Contact chatbot turned \*ON\*/i);
+    if (original === null) fs.rmSync(stateFile, { force: true }); else fs.writeFileSync(stateFile, original);
+});
+
+test('owner can disable contact chatbot without changing group chatbot settings', async () => {
+    const original = fs.existsSync(stateFile) ? fs.readFileSync(stateFile) : null;
+    fs.writeFileSync(stateFile, JSON.stringify({ chatbot: { '123@g.us': { enabled: true } }, chatbotContacts: true }));
+    const sent = [];
+    const sock = { async sendMessage(chatId, payload) { sent.push({ chatId, payload }); } };
+    const message = { key: { remoteJid: '999@s.whatsapp.net' }, message: { conversation: '.chatbot contacts off' } };
+    await handleChatbotCommand(sock, '999@s.whatsapp.net', message, 'contacts off', { isOwnerDm: true });
+    const data = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    assert.equal(data.chatbotContacts, false);
+    assert.equal(data.chatbot['123@g.us'].enabled, true);
+    assert.match(sent.at(-1).payload.text, /Contact chatbot turned \*OFF\*/i);
     if (original === null) fs.rmSync(stateFile, { force: true }); else fs.writeFileSync(stateFile, original);
 });

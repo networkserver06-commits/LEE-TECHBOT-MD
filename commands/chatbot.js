@@ -57,6 +57,10 @@ function chatbotMode(value) {
     return value?.mode || 'constant';
 }
 
+function contactChatbotEnabled(data) {
+    return data?.chatbotContacts === true || data?.chatbot?.contacts?.enabled === true;
+}
+
 function chatbotSettingsText(data, chatId, isOwnerDm = false) {
     const configured = data.chatbot?.[chatId];
     const enabled = chatbotEnabled(configured);
@@ -70,7 +74,7 @@ function chatbotSettingsText(data, chatId, isOwnerDm = false) {
         `Language: *Auto — English or Kiswahili*\n` +
         `Other languages: *Only when explicitly requested*\n` +
         `Group chatbot instances enabled: *${groupsEnabled}*\n` +
-        `Contact DMs: *${data.chatbotContacts ? 'ON' : 'OFF'}*\n` +
+        `Contact DMs: *${contactChatbotEnabled(data) ? 'ON' : 'OFF'}*\n` +
         `Conversation memory: *Last 20 messages per sender*\n` +
         `Response mode: *${chatbotMode(configured)} — automatic replies while enabled*\n\n` +
         `*CONTROLS*\n` +
@@ -179,7 +183,7 @@ async function handleSavedContactAutoReply(sock, chatId, message, userMessage, s
     const data = loadUserGroupData();
     if (!data.autoReply?.enabled) return false;
     const config = data.autoReply.contacts?.[normalizeContactJid(senderId)];
-    if (!config || !String(userMessage || '').trim()) return true;
+    if (!config || !String(userMessage || '').trim()) return false;
     if (!allowAutoReply(chatId) || responseLocks.has(chatId)) return true;
     responseLocks.add(chatId);
     try {
@@ -259,9 +263,10 @@ async function handleChatbotCommand(sock, chatId, message, match, options = {}) 
                 return sock.sendMessage(chatId, { text: 'Usage: .chatbot contacts on|off|status' }, { quoted: message });
             }
             if (action === 'status') {
-                return sock.sendMessage(chatId, { text: `👥 *Contact chatbot*: ${data.chatbotContacts ? 'ON' : 'OFF'}` }, { quoted: message });
+                return sock.sendMessage(chatId, { text: `👥 *Contact chatbot*: ${contactChatbotEnabled(data) ? 'ON' : 'OFF'}` }, { quoted: message });
             }
             data.chatbotContacts = action === 'on';
+            data.chatbot.contacts = { enabled: action === 'on', scope: 'contacts', mode: 'constant' };
             saveUserGroupData(data);
             return sock.sendMessage(chatId, { text: `✅ Contact chatbot turned *${action.toUpperCase()}*.` }, { quoted: message });
         }
@@ -427,9 +432,11 @@ async function handleChatbotResponse(sock, chatId, message, userMessage, senderI
     if (message?.key?.fromMe || isOwnerContact(sock, senderId)) return;
     const data = loadUserGroupData();
     data.chatbot = data.chatbot || {};
-    const isContactDm = !isGroup && !isOwnerDm && data.chatbotContacts === true;
+    const isContactDm = !isGroup && !isOwnerDm && contactChatbotEnabled(data);
     const selectedAutoReplyContact = !isGroup && data.autoReply?.enabled && data.autoReply?.contacts?.[normalizeContactJid(senderId)];
-    if (!isGroup && !isOwnerDm && data.autoReply?.enabled && !selectedAutoReplyContact) return;
+    // Selected-contact autoreply takes precedence only for contacts explicitly
+    // saved in that list. Other contacts must still reach the contact chatbot.
+    if (!isGroup && !isOwnerDm && data.autoReply?.enabled && selectedAutoReplyContact) return;
     if ((!isGroup && !isOwnerDm && !isContactDm) || !String(userMessage || '').trim()) return;
     if (!chatbotEnabled(data.chatbot?.[chatId]) && !isContactDm) return;
     if (responseLocks.has(chatId)) return;
@@ -697,5 +704,6 @@ module.exports = {
     handleChatbotCommand,
     handleChatbotResponse,
     handleAutoReplyCommand,
-    handleSavedContactAutoReply
+    handleSavedContactAutoReply,
+    contactChatbotEnabled
 };
