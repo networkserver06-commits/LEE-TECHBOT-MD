@@ -84,6 +84,7 @@ let ackStreamAttempts = 0
 let activeSocket = null
 let reconnectTimer = null
 let socketStartInFlight = false
+let selfChatWarmupUntil = 0
 let cachedBaileysVersion = null
 const pairingWebEnabled = process.env.PAIRING_WEB_ENABLED !== 'false'
 const configuredPairingInputMode = process.env.PAIRING_INPUT_MODE || (pairingWebEnabled ? 'choose' : 'terminal')
@@ -301,7 +302,9 @@ async function startXeonBotInc() {
                 persistMessage(store, sent, settings.maxStoreMessages)
                 return sent
             }
-            return isSelfChat(XeonBotInc, jid) ? enqueueSelfChatSend(prepared.jid, send) : send()
+            if (!isSelfChat(XeonBotInc, jid)) return send()
+            const warmupDelay = Math.max(250, selfChatWarmupUntil - Date.now())
+            return enqueueSelfChatSend(prepared.jid, send, warmupDelay)
         }
 
         // Persist every pairing and key update. Keep the listener guarded so a
@@ -529,6 +532,11 @@ async function startXeonBotInc() {
         if (connection === "open") {
             if (XeonBotInc.__connectionOpened) return
             XeonBotInc.__connectionOpened = true
+            // WhatsApp may report the WebSocket open before the own PN/LID
+            // Signal sessions are usable. Delay only self-chat sends so the
+            // first post-restart owner reply is not rendered as a retry
+            // placeholder; groups and ordinary DMs remain immediate.
+            selfChatWarmupUntil = Date.now() + 5000
             signalRecoveryScheduled = false
             signalDecryptFailures.length = 0
             if (reconnectTimer) {
