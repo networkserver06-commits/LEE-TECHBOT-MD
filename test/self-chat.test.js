@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { isSelfChat, selfChatSendOptions, persistMessage } = require('../lib/selfChat');
+const { isSelfChat, selfChatSendOptions, createSelfChatSendQueue, persistMessage } = require('../lib/selfChat');
 
 test('detects the bot account self-chat and removes only the quote', () => {
     const sock = { user: { id: '254700000111:7@s.whatsapp.net', lid: '99887766:0@lid' } };
@@ -32,4 +32,17 @@ test('persists an outgoing message when an older cached store lacks saveMessage'
     assert.equal(persistMessage(store, message, 20), true);
     assert.deepEqual(store.messages['254700000111@s.whatsapp.net'], [message]);
     assert.equal(store.dirty, true);
+});
+
+test('serializes concurrent self-chat sends to avoid session races', async () => {
+    const enqueue = createSelfChatSendQueue(0);
+    const events = [];
+    const send = (name) => enqueue('99887766@lid', async () => {
+        events.push(`${name}:start`);
+        await new Promise(resolve => setTimeout(resolve, 5));
+        events.push(`${name}:end`);
+        return name;
+    });
+    assert.deepEqual(await Promise.all([send('first'), send('second')]), ['first', 'second']);
+    assert.deepEqual(events, ['first:start', 'first:end', 'second:start', 'second:end']);
 });

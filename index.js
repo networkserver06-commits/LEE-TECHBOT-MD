@@ -52,7 +52,10 @@ const { normalizeWhatsAppNumber } = require('./lib/phone')
 const { requestPairingCodeWithRetry, isTransientPairingError, isQrRefsExpired } = require('./lib/pairing')
 const { createPairingWebServer } = require('./lib/pairingWeb')
 const selfChatModule = require('./lib/selfChat')
-const { selfChatSendOptions } = selfChatModule
+const { selfChatSendOptions, isSelfChat, createSelfChatSendQueue } = selfChatModule
+const enqueueSelfChatSend = typeof createSelfChatSendQueue === 'function'
+    ? createSelfChatSendQueue()
+    : (jid, send) => send()
 const persistMessage = typeof selfChatModule.persistMessage === 'function'
     ? selfChatModule.persistMessage
     : (store, message, maxMessages = 20) => {
@@ -291,9 +294,12 @@ async function startXeonBotInc() {
         const rawSendMessage = XeonBotInc.sendMessage.bind(XeonBotInc)
         XeonBotInc.sendMessage = async (jid, content, options = {}) => {
             const prepared = selfChatSendOptions(XeonBotInc, jid, options)
-            const sent = await rawSendMessage(prepared.jid, content, prepared.options)
-            persistMessage(store, sent, settings.maxStoreMessages)
-            return sent
+            const send = async () => {
+                const sent = await rawSendMessage(prepared.jid, content, prepared.options)
+                persistMessage(store, sent, settings.maxStoreMessages)
+                return sent
+            }
+            return isSelfChat(XeonBotInc, jid) ? enqueueSelfChatSend(prepared.jid, send) : send()
         }
 
         // Persist every pairing and key update. Keep the listener guarded so a
