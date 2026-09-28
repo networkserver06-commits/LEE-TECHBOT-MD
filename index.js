@@ -246,6 +246,9 @@ async function startXeonBotInc() {
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
             },
             markOnlineOnConnect: true,
+            // Keep outgoing messages flowing through messages.upsert so the
+            // retry callback can return their original plaintext to WhatsApp.
+            emitOwnEvents: true,
             generateHighQualityLinkPreview: true,
             syncFullHistory: false,
             getMessage: async (key) => {
@@ -265,13 +268,16 @@ async function startXeonBotInc() {
         activeSocket = XeonBotInc
 
         // WhatsApp can leave replies to the linked bot account's own chat
-        // showing "Waiting for this message" when the reply quotes the
-        // primary-device message. Normalize the self-chat JID and remove only
-        // that optional quote; all other chats retain their normal behavior.
+        // showing "Waiting for this message" when the retry callback cannot
+        // find the original self-chat message. Normalize self-chat JIDs,
+        // remove the unsafe optional quote, and persist the returned outgoing
+        // message as a final guarantee even if emitOwnEvents is delayed.
         const rawSendMessage = XeonBotInc.sendMessage.bind(XeonBotInc)
         XeonBotInc.sendMessage = async (jid, content, options = {}) => {
             const prepared = selfChatSendOptions(XeonBotInc, jid, options)
-            return rawSendMessage(prepared.jid, content, prepared.options)
+            const sent = await rawSendMessage(prepared.jid, content, prepared.options)
+            store.saveMessage(sent)
+            return sent
         }
 
         // Persist every pairing and key update. Keep the listener guarded so a
