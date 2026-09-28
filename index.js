@@ -51,6 +51,7 @@ const { ensureRuntimeDirs, readJson } = require('./lib/runtime')
 const { normalizeWhatsAppNumber } = require('./lib/phone')
 const { requestPairingCodeWithRetry, isTransientPairingError, isQrRefsExpired } = require('./lib/pairing')
 const { createPairingWebServer } = require('./lib/pairingWeb')
+const { restoreSessionBundle } = require('./lib/sessionBundle')
 const selfChatModule = require('./lib/selfChat')
 const { selfChatSendOptions, isSelfChat, createSelfChatSendQueue } = selfChatModule
 const enqueueSelfChatSend = typeof createSelfChatSendQueue === 'function'
@@ -229,6 +230,16 @@ global.themeemoji = "•"
 let pairingCode = process.env.AUTH_METHOD !== 'qr' && process.env.PAIRING_CODE !== 'false' || process.argv.includes("--pairing-code")
 const useMobile = process.env.USE_MOBILE === 'true' || process.argv.includes("--mobile")
 const authDir = process.env.AUTH_DIR || './session'
+
+const sessionBundle = process.env.SESSION_BUNDLE || process.env.SESSION_ID || ''
+if (sessionBundle) {
+    try {
+        const imported = restoreSessionBundle(sessionBundle, authDir)
+        console.log(`[auth] SESSION_BUNDLE ${imported.imported ? `imported (${imported.files} files)` : imported.reason}.`)
+    } catch (error) {
+        console.error(`[auth] SESSION_BUNDLE could not be imported: ${error.message || error}`)
+    }
+}
 
 // Katabump consoles can expose stdin without reporting a TTY, so keep the
 // prompt available in both terminal and panel-console deployments.

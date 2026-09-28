@@ -47,7 +47,16 @@ Deploy the bot and easily connect it to your WhatsApp account by pair code. Clic
 </div>
 
 
-### After getting creds.json file, upload it to session folder
+### After pairing, configure SESSION_BUNDLE
+
+The pairing site sends a single `SESSION_BUNDLE=...` line as text. Paste the complete line into your host environment or `.env` file:
+
+```env
+AUTH_DIR=./session
+SESSION_BUNDLE=...paste-the-complete-value-here...
+```
+
+The bot imports the bundle into `AUTH_DIR` once, then persists all new Baileys keys there. Do not upload `creds.json`, do not add line breaks to the bundle, and never commit `.env`. `SESSION_ID` is accepted as a backward-compatible alias.
 
 ---
 
