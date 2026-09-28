@@ -51,7 +51,23 @@ const { ensureRuntimeDirs, readJson } = require('./lib/runtime')
 const { normalizeWhatsAppNumber } = require('./lib/phone')
 const { requestPairingCodeWithRetry, isTransientPairingError, isQrRefsExpired } = require('./lib/pairing')
 const { createPairingWebServer } = require('./lib/pairingWeb')
-const { selfChatSendOptions, persistMessage } = require('./lib/selfChat')
+const selfChatModule = require('./lib/selfChat')
+const { selfChatSendOptions } = selfChatModule
+const persistMessage = typeof selfChatModule.persistMessage === 'function'
+    ? selfChatModule.persistMessage
+    : (store, message, maxMessages = 20) => {
+        const jid = String(message?.key?.remoteJid || '').trim()
+        const id = String(message?.key?.id || '')
+        if (!store || !jid || !id) return false
+        if (!store.messages || typeof store.messages !== 'object') store.messages = {}
+        const bucket = Array.isArray(store.messages[jid]) ? store.messages[jid] : []
+        const existing = bucket.findIndex(item => String(item?.key?.id || '') === id)
+        if (existing >= 0) bucket[existing] = message
+        else bucket.push(message)
+        store.messages[jid] = bucket.slice(-Math.max(1, Number(maxMessages) || 20))
+        store.dirty = true
+        return true
+    }
 ensureRuntimeDirs()
 
 // Initialize store
