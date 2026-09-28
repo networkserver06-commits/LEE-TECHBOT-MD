@@ -14,6 +14,9 @@ test('detects the bot account self-chat and removes only the quote', () => {
     assert.equal(prepared.jid, '254700000111@s.whatsapp.net');
     assert.equal(prepared.options.quoted, undefined);
     assert.equal(prepared.options.ephemeralExpiration, 0);
+    const lidPrepared = selfChatSendOptions(sock, '99887766:4@lid', { quoted: { key: { id: 'y' } } });
+    assert.equal(lidPrepared.jid, '99887766@lid');
+    assert.equal(lidPrepared.options.quoted, undefined);
 });
 
 test('leaves ordinary contact and group sends unchanged', () => {
