@@ -48,6 +48,7 @@ const { join } = require('path')
 // Import lightweight store
 const store = require('./lib/lightweight_store')
 const { ensureRuntimeDirs, readJson } = require('./lib/runtime')
+const { normalizeWhatsAppNumber } = require('./lib/phone')
 const { restoreSessionBundle } = require('./lib/sessionBundle')
 const selfChatModule = require('./lib/selfChat')
 const { selfChatSendOptions, isSelfChat, createSelfChatSendQueue } = selfChatModule
@@ -212,6 +213,7 @@ global.themeemoji = "•"
 const authDir = process.env.AUTH_DIR || './session'
 
 let sessionBundle = process.env.SESSION_BUNDLE || process.env.SESSION_ID || ''
+let terminalPairingNumber = ''
 if (sessionBundle) {
     try {
         const imported = restoreSessionBundle(sessionBundle, authDir)
@@ -243,29 +245,38 @@ async function startXeonBotInc() {
         // churn and is slower on panel hosts.
         if (!cachedBaileysVersion) cachedBaileysVersion = await fetchLatestBaileysVersion()
         const { version } = cachedBaileysVersion
-        // The bot never creates a new WhatsApp link from this process. Supply
-        // SESSION_BUNDLE/SESSION_ID in the environment, or paste the bundle
-        // into the host terminal when prompted.
+        // Supply SESSION_BUNDLE/SESSION_ID in the environment, or choose a
+        // session bundle or terminal-only pairing code at the host prompt.
         let { state, saveCreds } = await useMultiFileAuthState(authDir)
         if (!state.creds.registered && !sessionBundle) {
             const promptEnabled = process.env.SESSION_TERMINAL_PROMPT === 'true'
                 || (process.stdin.isTTY && process.env.SESSION_TERMINAL_PROMPT !== 'false')
             if (!promptEnabled) {
-                const error = new Error('No registered WhatsApp session. Set SESSION_BUNDLE in the environment or enable SESSION_TERMINAL_PROMPT=true and paste it in the host terminal.')
+                const error = new Error('No registered WhatsApp session. Set SESSION_BUNDLE in the environment or enable SESSION_TERMINAL_PROMPT=true for the terminal choice.')
                 error.code = 'NO_SESSION_CONFIGURED'
                 throw error
             }
-            const pasted = await question(chalk.bgBlack(chalk.greenBright('Paste SESSION_BUNDLE (or SESSION_ID) and press Enter:\n')))
-            if (!String(pasted || '').trim()) {
-                const error = new Error('No session bundle was pasted. Add SESSION_BUNDLE to the environment and restart.')
-                error.code = 'NO_SESSION_CONFIGURED'
-                throw error
+            const choice = String(await question(chalk.bgBlack(chalk.greenBright('Choose terminal login:\n1. Paste SESSION_BUNDLE / SESSION_ID\n2. Enter phone number for a pairing code\nChoice [1/2]: ')))).trim()
+            if (choice === '2') {
+                terminalPairingNumber = normalizeWhatsAppNumber(await question(chalk.bgBlack(chalk.greenBright('Enter international phone number without +, spaces, or dashes:\nNumber: '))))
+                if (!terminalPairingNumber) {
+                    const error = new Error('Invalid phone number. Restart and enter a complete international number, for example 254712345678.')
+                    error.code = 'NO_SESSION_CONFIGURED'
+                    throw error
+                }
+            } else {
+                const pasted = await question(chalk.bgBlack(chalk.greenBright('Paste SESSION_BUNDLE (or SESSION_ID) and press Enter:\n')))
+                if (!String(pasted || '').trim()) {
+                    const error = new Error('No session bundle was pasted. Choose terminal pairing or add SESSION_BUNDLE to the environment.')
+                    error.code = 'NO_SESSION_CONFIGURED'
+                    throw error
+                }
+                sessionBundle = String(pasted).trim()
+                restoreSessionBundle(sessionBundle, authDir)
+                ;({ state, saveCreds } = await useMultiFileAuthState(authDir))
             }
-            sessionBundle = String(pasted).trim()
-            restoreSessionBundle(sessionBundle, authDir)
-            ;({ state, saveCreds } = await useMultiFileAuthState(authDir))
         }
-        if (!state.creds.registered) {
+        if (!state.creds.registered && !terminalPairingNumber) {
             const error = new Error('The configured session is not registered. Generate a new SESSION_BUNDLE from the separate pairing site.')
             error.code = 'NO_SESSION_CONFIGURED'
             throw error
@@ -435,6 +446,30 @@ async function startXeonBotInc() {
 
     XeonBotInc.serializeM = (m) => smsg(XeonBotInc, m, store)
 
+    let terminalPairingRequested = false
+    const requestTerminalPairingCode = async () => {
+        if (!terminalPairingNumber || terminalPairingRequested || XeonBotInc.authState?.creds?.registered) return
+        terminalPairingRequested = true
+        try {
+            await delay(1500)
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+                try {
+                    if (activeSocket !== XeonBotInc) return
+                    const code = await XeonBotInc.requestPairingCode(terminalPairingNumber)
+                    console.log(chalk.green(`Your terminal pairing code: ${String(code).match(/.{1,4}/g)?.join('-') || code}`))
+                    console.log(chalk.yellow('Open WhatsApp → Linked devices → Link a device → Link with phone number instead, then enter the code.'))
+                    return
+                } catch (error) {
+                    if (attempt === 3) throw error
+                    await delay(2500)
+                }
+            }
+        } catch (error) {
+            terminalPairingRequested = false
+            console.error(chalk.red(`Terminal pairing code unavailable: ${error.message || error}`))
+        }
+    }
+
     // Connection handling
     XeonBotInc.ev.on('connection.update', async (s) => {
         const { connection, lastDisconnect } = s
@@ -591,6 +626,8 @@ async function startXeonBotInc() {
             }
         }
     })
+
+    if (terminalPairingNumber) requestTerminalPairingCode().catch(() => {})
 
     // Track recently-notified callers to avoid spamming messages
     const antiCallNotified = new Set();

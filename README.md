@@ -38,7 +38,7 @@ Click the button below to fork the LEE TECH BOT repository to your GitHub accoun
 
 ### Step 2: Add the session environment value
 
-This bot does not host a pairing page or generate a pairing code. Add the `SESSION_BUNDLE` value supplied by your separate session provider to the hosting panel environment before starting the bot.
+This bot does not host a pairing page. Add the `SESSION_BUNDLE` value supplied by your separate session provider to the hosting panel environment, or use the optional terminal login choice described below.
 
 
 ### After pairing, configure SESSION_BUNDLE
@@ -182,14 +182,14 @@ It is lightweight and can be easily customized to add more commands as per your 
 
 5. **Configure the existing session:**
 
-    The bot intentionally has no pairing website, QR flow, or direct phone-number pairing. Generate a session with the separate pairing site, copy the complete `SESSION_BUNDLE=...` line it sends to WhatsApp, and add it to the hosting panel's environment variables:
+    The bot intentionally has no pairing website or QR flow. Generate a session with the separate pairing site, copy the complete `SESSION_BUNDLE=...` line it sends to WhatsApp, and add it to the hosting panel's environment variables:
 
     ```env
     AUTH_DIR=./session
     SESSION_BUNDLE=...paste-the-complete-value-here...
     ```
 
-    Restart the bot. It imports the bundle into `AUTH_DIR` once and then persists all live Baileys key updates there. For a host terminal, set `SESSION_TERMINAL_PROMPT=true`, start the bot, and paste the bundle when prompted. This is a session paste only; the bot never requests a phone number or generates a pairing code.
+    Restart the bot. It imports the bundle into `AUTH_DIR` once and then persists all live Baileys key updates there. For an interactive host terminal, set `SESSION_TERMINAL_PROMPT=true` and start the bot. Choose either **1** to paste `SESSION_BUNDLE`/`SESSION_ID`, or **2** to enter the full international phone number and receive a terminal-only pairing code. The bot does not host a pairing website or QR flow.
 
     Keep the bundle private. Do not add line breaks, upload it to GitHub, or commit `.env`. If the linked device is logged out, generate a new bundle with the separate pairing site, replace the old environment value, and restart.
 
