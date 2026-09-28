@@ -248,7 +248,7 @@ async function startXeonBotInc() {
         // Supply SESSION_BUNDLE/SESSION_ID in the environment, or choose a
         // session bundle or terminal-only pairing code at the host prompt.
         let { state, saveCreds } = await useMultiFileAuthState(authDir)
-        if (!state.creds.registered && !sessionBundle) {
+        if (!state.creds.registered && !sessionBundle && !terminalPairingNumber) {
             const promptEnabled = process.env.SESSION_TERMINAL_PROMPT === 'true'
                 || (process.stdin.isTTY && process.env.SESSION_TERMINAL_PROMPT !== 'false')
             if (!promptEnabled) {
@@ -557,6 +557,7 @@ async function startXeonBotInc() {
             const statusCode = lastDisconnect?.error?.output?.statusCode
             const disconnectText = String(lastDisconnect?.error?.message || lastDisconnect?.error || '')
             const needsFreshPairing = statusCode === DisconnectReason.loggedOut || statusCode === 401
+            const terminalPairingPending = Boolean(terminalPairingNumber && !XeonBotInc.authState?.creds?.registered)
             const shouldReconnect = !needsFreshPairing && !global.__updateRestarting
             const isStreamConflict = statusCode === 440 || /stream errored.*conflict|conflict.*stream errored/i.test(disconnectText)
             const isRestartRequired = statusCode === DisconnectReason.restartRequired || /stream errored.*restart required|restart required/i.test(disconnectText)
@@ -601,9 +602,9 @@ async function startXeonBotInc() {
                 return
             }
             
-            console.log(chalk.red(`Connection closed due to ${lastDisconnect?.error}, reconnecting ${shouldReconnect}`))
+            console.log(chalk.red(`Connection closed due to ${lastDisconnect?.error} (status ${statusCode || 'unknown'}), reconnecting ${shouldReconnect}`))
             
-            if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
+            if ((statusCode === DisconnectReason.loggedOut || statusCode === 401) && !terminalPairingPending) {
                 try {
                     rmSync(authDir, { recursive: true, force: true })
                     console.log(chalk.yellow(`Auth directory deleted: ${authDir}. Please re-authenticate.`))
@@ -611,6 +612,19 @@ async function startXeonBotInc() {
                     console.error('Error deleting session:', error)
                 }
                 console.log(chalk.red('Session logged out. Pair again using the separate pairing site, replace SESSION_BUNDLE, and restart the bot.'))
+            }
+
+            if (terminalPairingPending && !global.__updateRestarting) {
+                reconnectAttempts = 0
+                console.log(chalk.yellow('Terminal pairing socket closed before linking. Keeping the terminal pairing flow active and requesting a fresh code...'))
+                if (!reconnectTimer) {
+                    reconnectTimer = setTimeout(async () => {
+                        reconnectTimer = null
+                        if (global.__updateRestarting || activeSocket) return
+                        await startXeonBotInc()
+                    }, 3000)
+                }
+                return
             }
             
             if (shouldReconnect) {
