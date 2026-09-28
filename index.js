@@ -97,6 +97,8 @@ const pairingWebServer = createPairingWebServer({
 })
 const connectionNoticePath = path.join(process.env.AUTH_DIR || './session', '.connection-notice.json')
 let hasAnnouncedConnection = Boolean(readJson(connectionNoticePath, {}).sent)
+const pendingRestartNoticePath = path.join(process.cwd(), 'data', '.pending-restart-notice.json')
+let pendingRestartNotice = readJson(pendingRestartNoticePath, {})
 const decryptWarningCache = new Map()
 const signalDecryptFailures = []
 let signalRecoveryScheduled = false
@@ -551,6 +553,19 @@ async function startXeonBotInc() {
                     fs.writeFileSync(connectionNoticePath, JSON.stringify({ sent: true, sentAt: new Date().toISOString() }))
                 } catch (error) {
                     console.error('Error sending initial connection message:', error.message)
+                }
+            }
+
+            if (pendingRestartNotice?.targetJid) {
+                const notice = pendingRestartNotice
+                try {
+                    await XeonBotInc.sendMessage(notice.targetJid, {
+                        text: `✅ *Bot updated and restarted successfully*\nVersion: *${notice.version || settings.version}*\nRevision: *${notice.revision || 'archive'}*\nStatus: Online and ready.`
+                    })
+                    rmSync(pendingRestartNoticePath, { force: true })
+                    pendingRestartNotice = {}
+                } catch (error) {
+                    console.error('Error sending post-restart update notice:', error.message || error)
                 }
             }
 

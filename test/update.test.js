@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const updater = require('../commands/update');
 
 test('updater accepts HTTPS URLs and rejects unsafe schemes', () => {
@@ -15,6 +17,22 @@ test('updater exposes safe helper APIs', () => {
     assert.equal(typeof updater.downloadFile, 'function');
     assert.equal(typeof updater.updateViaGit, 'function');
     assert.equal(typeof updater.updateViaZip, 'function');
+    assert.equal(typeof updater.writeRestartNotice, 'function');
+});
+
+test('restart notice records the initiating chat and revision', () => {
+    const noticePath = path.join(process.cwd(), 'data', '.pending-restart-notice.json');
+    const previous = fs.existsSync(noticePath) ? fs.readFileSync(noticePath) : null;
+    try {
+        assert.equal(updater.writeRestartNotice('99887766@lid', '2.0.0', 'abc123'), noticePath);
+        const payload = JSON.parse(fs.readFileSync(noticePath, 'utf8'));
+        assert.equal(payload.targetJid, '99887766@lid');
+        assert.equal(payload.version, '2.0.0');
+        assert.equal(payload.revision, 'abc123');
+        assert.equal(typeof payload.createdAt, 'string');
+    } finally {
+        if (previous) fs.writeFileSync(noticePath, previous); else fs.rmSync(noticePath, { force: true });
+    }
 });
 
 test('archive safety allows the destination root but rejects traversal', () => {

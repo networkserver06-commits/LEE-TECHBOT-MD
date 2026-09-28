@@ -20,6 +20,18 @@ const PRESERVED_NAMES = new Set([
 ]);
 const PRESERVED_PATHS = ['.env', 'env', 'config.env', 'data/', 'session/', 'sessions/', 'auth/', 'auth_info/', 'package-lock.json'];
 
+function writeRestartNotice(targetJid, version, revision) {
+    const noticePath = path.join(process.cwd(), 'data', '.pending-restart-notice.json');
+    fs.mkdirSync(path.dirname(noticePath), { recursive: true });
+    fs.writeFileSync(noticePath, JSON.stringify({
+        targetJid: String(targetJid || ''),
+        version: String(version || 'unknown'),
+        revision: String(revision || 'archive'),
+        createdAt: new Date().toISOString()
+    }), { mode: 0o600 });
+    return noticePath;
+}
+
 function shellCommand(command, args, options = {}) {
     return execFileAsync(command, args, {
         cwd: process.cwd(),
@@ -276,6 +288,7 @@ async function updateCommand(sock, chatId, message, zipOverride) {
         let version = settings.version || 'unknown';
         try { version = JSON.parse(fs.readFileSync(packagePath, 'utf8')).version || version; } catch {}
         await sock.sendMessage(chatId, { text: `✅ *Update completed*\nVersion: *${version}*\nRevision: *${result.newRev ? result.newRev.slice(0, 12) : 'archive'}*\nRestarting now; send *.ping* after reconnect.` }, { quoted: message });
+        writeRestartNotice(chatId, version, result.newRev ? result.newRev.slice(0, 12) : 'archive');
         // Give Baileys time to flush the final status message before the
         // socket handoff. Restarting immediately can leave that message in
         // WhatsApp's "waiting for this message" state.
@@ -292,6 +305,7 @@ module.exports.isSafeUpdateUrl = isSafeUpdateUrl;
 module.exports.downloadFile = downloadFile;
 module.exports.updateViaGit = updateViaGit;
 module.exports.updateViaZip = updateViaZip;
+module.exports.writeRestartNotice = writeRestartNotice;
 module.exports.copyRecursive = copyRecursive;
 module.exports.assertInside = assertInside;
 module.exports.isPreservedPath = isPreservedPath;
