@@ -51,7 +51,7 @@ const { ensureRuntimeDirs, readJson } = require('./lib/runtime')
 const { normalizeWhatsAppNumber } = require('./lib/phone')
 const { requestPairingCodeWithRetry, isTransientPairingError, isQrRefsExpired } = require('./lib/pairing')
 const { createPairingWebServer } = require('./lib/pairingWeb')
-const { selfChatSendOptions } = require('./lib/selfChat')
+const { selfChatSendOptions, persistMessage } = require('./lib/selfChat')
 ensureRuntimeDirs()
 
 // Initialize store
@@ -276,7 +276,7 @@ async function startXeonBotInc() {
         XeonBotInc.sendMessage = async (jid, content, options = {}) => {
             const prepared = selfChatSendOptions(XeonBotInc, jid, options)
             const sent = await rawSendMessage(prepared.jid, content, prepared.options)
-            store.saveMessage(sent)
+            persistMessage(store, sent, settings.maxStoreMessages)
             return sent
         }
 

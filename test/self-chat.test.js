@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { isSelfChat, selfChatSendOptions } = require('../lib/selfChat');
+const { isSelfChat, selfChatSendOptions, persistMessage } = require('../lib/selfChat');
 
 test('detects the bot account self-chat and removes only the quote', () => {
     const sock = { user: { id: '254700000111:7@s.whatsapp.net', lid: '99887766:0@lid' } };
@@ -21,4 +21,12 @@ test('leaves ordinary contact and group sends unchanged', () => {
     const options = { quoted: { key: { id: 'x' } } };
     assert.deepEqual(selfChatSendOptions(sock, '254700000222@s.whatsapp.net', options), { jid: '254700000222@s.whatsapp.net', options });
     assert.deepEqual(selfChatSendOptions(sock, '123@g.us', options), { jid: '123@g.us', options });
+});
+
+test('persists an outgoing message when an older cached store lacks saveMessage', () => {
+    const store = { messages: {}, dirty: false };
+    const message = { key: { remoteJid: '254700000111@s.whatsapp.net', id: 'legacy-store-1' }, message: { conversation: 'Pong!' } };
+    assert.equal(persistMessage(store, message, 20), true);
+    assert.deepEqual(store.messages['254700000111@s.whatsapp.net'], [message]);
+    assert.equal(store.dirty, true);
 });
