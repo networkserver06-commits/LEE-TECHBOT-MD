@@ -36,15 +36,9 @@ Click the button below to fork the LEE TECH BOT repository to your GitHub accoun
 
 ---
 
-### Step 2: Get Pair Code
+### Step 2: Add the session environment value
 
-Deploy the bot and easily connect it to your WhatsApp account by pair code. Click the button below to pair your WhatsApp.
-
-<div align="center">
-  <a href="https://lee-techbot-pair.onrender.com" target="_blank">
-    <img src="https://img.shields.io/badge/GET%20PAIR%20CODE-Easy%20Method-ff4d4d?style=for-the-badge" alt="Generate Pair Code"/>
-  </a>
-</div>
+This bot does not host a pairing page or generate a pairing code. Add the `SESSION_BUNDLE` value supplied by your separate session provider to the hosting panel environment before starting the bot.
 
 
 ### After pairing, configure SESSION_BUNDLE
@@ -186,24 +180,18 @@ It is lightweight and can be easily customized to add more commands as per your 
     node index.js
     ```
 
-5. **Link the bot:**
+5. **Configure the existing session:**
 
-For pairing-code login, open the pairing website using your hosting panel's public host link. **The first time the page is opened, create a website password and confirm it before the phone-number form or account status is available.** The host stores only a salted `scrypt` password hash in the configured `AUTH_DIR` as `.pairing-web-password.json`; the plaintext password is never stored. On later visits or after a restart, enter the same password first. If WhatsApp disconnects, the web session and saved pairing password are automatically removed; the next visit must create and confirm a new password. Then enter your full international phone number without `+`, spaces, or dashes, press **Generate pairing code**, and enter the displayed code in WhatsApp under **Settings → Linked Devices → Link a Device**.
-
-    The website binds to `0.0.0.0` and uses the host-provided `SERVER_PORT` automatically. To expose it through a hosting panel or reverse proxy, set these values in the existing `.env` file and use a long random token:
+    The bot intentionally has no pairing website, QR flow, or direct phone-number pairing. Generate a session with the separate pairing site, copy the complete `SESSION_BUNDLE=...` line it sends to WhatsApp, and add it to the hosting panel's environment variables:
 
     ```env
-    PAIRING_WEB_ENABLED=true
-    PAIRING_WEB_HOST=0.0.0.0
-    PAIRING_WEB_PORT=
-    PAIRING_WEB_TOKEN=replace-with-a-long-random-secret
-    PAIRING_WEB_ONLY=true
-    PAIRING_INPUT_MODE=choose
+    AUTH_DIR=./session
+    SESSION_BUNDLE=...paste-the-complete-value-here...
     ```
 
-With `PAIRING_INPUT_MODE=choose`, startup asks whether to use **Website** or **Terminal** pairing. Both methods remain available: Website asks for the website password and phone number on the host link, while Terminal asks for the phone number in the host console. Use `PAIRING_INPUT_MODE=web` to skip the choice and use the website, or `PAIRING_INPUT_MODE=terminal` to skip it and use the terminal. Send the token as the `X-Pairing-Token` header if calling the API directly. Keep the pairing page, password, and token private because a pairing code can link the bot to a WhatsApp account.
+    Restart the bot. It imports the bundle into `AUTH_DIR` once and then persists all live Baileys key updates there. For a host terminal, set `SESSION_TERMINAL_PROMPT=true`, start the bot, and paste the bundle when prompted. This is a session paste only; the bot never requests a phone number or generates a pairing code.
 
-    To allow both methods, set `PAIRING_WEB_ONLY=false`. The host terminal will then accept a phone number when no valid `PHONE_NUMBER` or `PAIRING_NUMBER` is configured, while the website remains available. To always show the terminal prompt, even when a number is already configured, also set `PAIRING_TERMINAL_PROMPT=true`.
+    Keep the bundle private. Do not add line breaks, upload it to GitHub, or commit `.env`. If the linked device is logged out, generate a new bundle with the separate pairing site, replace the old environment value, and restart.
 
 ---
 

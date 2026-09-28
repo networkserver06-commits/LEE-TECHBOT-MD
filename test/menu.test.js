@@ -38,7 +38,7 @@ test('full menu numbers every catalog command in stable catalog order', () => {
     const commands = allCommands();
     const menu = help.buildMenu();
     assert.match(menu, /╾ 001\. Addowner/);
-    assert.match(menu, new RegExp(`╾ ${String(commands.length).padStart(3, '0')}\\. Pair`));
+    assert.match(menu, new RegExp(`╾ ${String(commands.length).padStart(3, '0')}\\. `));
     const numberedLines = menu.split('\n').filter((line) => /╾ \d{3}\. /.test(line));
     assert.equal(numberedLines.length, commands.length);
     assert.deepEqual(numberedLines.map((line) => Number(line.match(/╾ (\d{3})\./)[1])), commands.map((_, index) => index + 1));

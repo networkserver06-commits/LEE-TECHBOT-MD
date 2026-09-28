@@ -223,7 +223,6 @@ const groupVcfCommand = require('./commands/groupvcf');
 const { isGroupAlertEnabled } = require('./commands/groupFeatures');
 const setMenuImageCommand = require('./commands/setmenuimage');
 const linkCommand = require('./commands/link');
-const pairCommand = require('./commands/pair');
 const systemCommand = require('./commands/system');
 const { paymentCommand, setPaymentCommand } = require('./commands/payment');
 const { designCommand } = require('./commands/design');
@@ -541,14 +540,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         const commandStartedAt = Date.now();
         switch (true) {
-            case userMessage.startsWith('.pair'):
-                {
-                    const args = userMessage.split(' ').slice(1);
-                    await pairCommand(sock, chatId, message, args);
-                }
-                commandExecuted = true;
-                break;
-                
             case userMessage === '.system' || userMessage === '.stats':
                 await systemCommand(sock, chatId, message);
                 commandExecuted = true;

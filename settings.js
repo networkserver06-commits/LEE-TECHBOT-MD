@@ -47,9 +47,9 @@ for (const envPath of [...new Set(envCandidates)]) {
     loadedEnvPaths.push(envPath);
   }
 }
-const detectedEnvKeys = ['PHONE_NUMBER', 'PAIRING_NUMBER', 'AUTH_METHOD', 'PAIRING_CODE']
+const detectedEnvKeys = ['SESSION_BUNDLE', 'SESSION_ID', 'AUTH_DIR', 'SESSION_TERMINAL_PROMPT']
   .filter((key) => Object.prototype.hasOwnProperty.call(process.env, key));
-console.log(`[config] env files loaded: ${loadedEnvPaths.length ? loadedEnvPaths.join(', ') : 'none'}; pairing keys present: ${detectedEnvKeys.join(', ') || 'none'}`);
+console.log(`[config] env files loaded: ${loadedEnvPaths.length ? loadedEnvPaths.join(', ') : 'none'}; session settings present: ${detectedEnvKeys.join(', ') || 'none'}`);
 // EAC is commonly used to mean East Africa; the correct IANA timezone is
 // Africa/Nairobi (EAT, UTC+03:00). Set Node's process timezone before any
 // modules create user-facing timestamps. TIME_ZONE/TIMEZONE remain optional

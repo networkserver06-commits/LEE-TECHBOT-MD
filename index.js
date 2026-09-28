@@ -48,9 +48,6 @@ const { join } = require('path')
 // Import lightweight store
 const store = require('./lib/lightweight_store')
 const { ensureRuntimeDirs, readJson } = require('./lib/runtime')
-const { normalizeWhatsAppNumber } = require('./lib/phone')
-const { requestPairingCodeWithRetry, isTransientPairingError, isQrRefsExpired } = require('./lib/pairing')
-const { createPairingWebServer } = require('./lib/pairingWeb')
 const { restoreSessionBundle } = require('./lib/sessionBundle')
 const selfChatModule = require('./lib/selfChat')
 const { selfChatSendOptions, isSelfChat, createSelfChatSendQueue } = selfChatModule
@@ -79,7 +76,6 @@ store.readFromFile()
 const settings = require('./settings')
 setInterval(() => store.writeToFile(), settings.storeWriteInterval || 10000)
 let reconnectAttempts = 0
-let pairingExpiryAttempts = 0
 let streamRestartAttempts = 0
 let ackStreamAttempts = 0
 let activeSocket = null
@@ -87,16 +83,6 @@ let reconnectTimer = null
 let socketStartInFlight = false
 let selfChatWarmupUntil = 0
 let cachedBaileysVersion = null
-const pairingWebEnabled = process.env.PAIRING_WEB_ENABLED !== 'false'
-const configuredPairingInputMode = process.env.PAIRING_INPUT_MODE || (pairingWebEnabled ? 'choose' : 'terminal')
-const pairingWebServer = createPairingWebServer({
-    enabled: pairingWebEnabled,
-    host: process.env.PAIRING_WEB_HOST || '0.0.0.0',
-    port: Number(process.env.SERVER_PORT || process.env.PORT || process.env.PAIRING_WEB_PORT || 3000),
-    token: process.env.PAIRING_WEB_TOKEN || '',
-    getSocket: () => activeSocket,
-    logger: console
-})
 const connectionNoticePath = path.join(process.env.AUTH_DIR || './session', '.connection-notice.json')
 let hasAnnouncedConnection = Boolean(readJson(connectionNoticePath, {}).sent)
 const pendingRestartNoticePath = path.join(process.cwd(), 'data', '.pending-restart-notice.json')
@@ -219,19 +205,13 @@ setInterval(() => {
     }
 }, 30_000) // check every 30 seconds
 
-let phoneNumber = normalizeWhatsAppNumber(process.env.PHONE_NUMBER || '')
 let owner = readJson('./data/owner.json', { owner: settings.ownerNumber || '' })
 
 global.botname = "LEE TECH BOT"
 global.themeemoji = "•"
-// A saved session reconnects silently. New sessions use linking-code login by
-// default and ask directly for the phone number. Set AUTH_METHOD=qr or
-// PAIRING_CODE=false only when QR login is explicitly preferred.
-let pairingCode = process.env.AUTH_METHOD !== 'qr' && process.env.PAIRING_CODE !== 'false' || process.argv.includes("--pairing-code")
-const useMobile = process.env.USE_MOBILE === 'true' || process.argv.includes("--mobile")
 const authDir = process.env.AUTH_DIR || './session'
 
-const sessionBundle = process.env.SESSION_BUNDLE || process.env.SESSION_ID || ''
+let sessionBundle = process.env.SESSION_BUNDLE || process.env.SESSION_ID || ''
 if (sessionBundle) {
     try {
         const imported = restoreSessionBundle(sessionBundle, authDir)
@@ -249,7 +229,7 @@ const question = (text) => {
         return new Promise((resolve) => rl.question(text, resolve))
     }
     const error = new Error('Pairing input console is closed')
-    error.code = 'PAIRING_INPUT_CLOSED'
+    error.code = 'SESSION_INPUT_CLOSED'
     return Promise.reject(error)
 }
 
@@ -263,16 +243,39 @@ async function startXeonBotInc() {
         // churn and is slower on panel hosts.
         if (!cachedBaileysVersion) cachedBaileysVersion = await fetchLatestBaileysVersion()
         const { version } = cachedBaileysVersion
-        // Auth files are generated automatically on first pairing. They do not
-        // need to be uploaded beforehand; keep AUTH_DIR on persistent panel
-        // storage if you want to avoid relinking after a restart.
-    const { state, saveCreds } = await useMultiFileAuthState(authDir)
+        // The bot never creates a new WhatsApp link from this process. Supply
+        // SESSION_BUNDLE/SESSION_ID in the environment, or paste the bundle
+        // into the host terminal when prompted.
+        let { state, saveCreds } = await useMultiFileAuthState(authDir)
+        if (!state.creds.registered && !sessionBundle) {
+            const promptEnabled = process.env.SESSION_TERMINAL_PROMPT === 'true'
+                || (process.stdin.isTTY && process.env.SESSION_TERMINAL_PROMPT !== 'false')
+            if (!promptEnabled) {
+                const error = new Error('No registered WhatsApp session. Set SESSION_BUNDLE in the environment or enable SESSION_TERMINAL_PROMPT=true and paste it in the host terminal.')
+                error.code = 'NO_SESSION_CONFIGURED'
+                throw error
+            }
+            const pasted = await question(chalk.bgBlack(chalk.greenBright('Paste SESSION_BUNDLE (or SESSION_ID) and press Enter:\n')))
+            if (!String(pasted || '').trim()) {
+                const error = new Error('No session bundle was pasted. Add SESSION_BUNDLE to the environment and restart.')
+                error.code = 'NO_SESSION_CONFIGURED'
+                throw error
+            }
+            sessionBundle = String(pasted).trim()
+            restoreSessionBundle(sessionBundle, authDir)
+            ;({ state, saveCreds } = await useMultiFileAuthState(authDir))
+        }
+        if (!state.creds.registered) {
+            const error = new Error('The configured session is not registered. Generate a new SESSION_BUNDLE from the separate pairing site.')
+            error.code = 'NO_SESSION_CONFIGURED'
+            throw error
+        }
         const msgRetryCounterCache = new NodeCache()
 
         const XeonBotInc = makeWASocket({
             version,
             logger: pino({ level: 'silent' }),
-            printQRInTerminal: !pairingCode,
+            printQRInTerminal: false,
             browser: ["Ubuntu", "Chrome", "20.0.04"],
             auth: {
                 creds: state.creds,
@@ -432,112 +435,19 @@ async function startXeonBotInc() {
 
     XeonBotInc.serializeM = (m) => smsg(XeonBotInc, m, store)
 
-        // Handle pairing code. The phone number is collected before the socket
-    // reaches its connecting state, but the request itself must wait until
-    // the socket is initializing; requesting too early causes Baileys 428
-    // "Connection Closed / Precondition Required" responses.
-    let requestedPhoneNumber = ''
-    let pairingRequestStarted = false
-    let pairingTerminalSelected = false
-    let pairingWebOnly = pairingWebEnabled && process.env.PAIRING_WEB_ONLY !== 'false'
-    const requestTerminalPairingCode = () => {
-        if (!pairingCode || pairingWebOnly || !requestedPhoneNumber || pairingRequestStarted) return
-        pairingRequestStarted = true
-        setTimeout(async () => {
-            try {
-                const code = await requestPairingCodeWithRetry({
-                    socket: XeonBotInc,
-                    getSocket: () => activeSocket,
-                    onTransientError: async (_error, socket) => {
-                        try {
-                            if (socket?.ws && typeof socket.ws.close === 'function') socket.ws.close()
-                        } catch (_) {}
-                    },
-                    phoneNumber: requestedPhoneNumber,
-                    isActive: () => Boolean(activeSocket && !activeSocket.authState?.creds?.registered),
-                    logger: console
-                })
-                if (code) {
-                    console.log(chalk.black(chalk.bgGreen('Your Pairing Code : ')), chalk.black(chalk.white(code)))
-                    console.log(chalk.yellow(`\nPlease enter this code in your WhatsApp app:\n1. Open WhatsApp\n2. Go to Settings > Linked Devices\n3. Tap \`Link a Device\`\n4. Enter the code shown above`))
-                }
-            } catch (error) {
-                if (isTransientPairingError(error)) {
-                    console.log(chalk.yellow('Pairing socket closed before the code was ready. A fresh socket will retry automatically.'))
-                    pairingRequestStarted = false
-                    setTimeout(() => requestTerminalPairingCode(), 3000).unref()
-                } else {
-                    console.error('Error requesting pairing code:', error)
-                    console.log(chalk.red('Pairing code unavailable. Keep the panel running while the connection is restored.'))
-                }
-            }
-        }, 1500)
-    }
-    // Web-only deployments must never open the terminal pairing prompt. The
-    // old prompt allowed selecting Terminal even when PAIRING_WEB_ONLY=true,
-    // which caused the panel to request codes from a closing socket.
-    if (pairingCode && !pairingWebOnly && !XeonBotInc.authState.creds.registered && configuredPairingInputMode === 'choose') {
-        try {
-            const choice = await question(chalk.bgBlack(chalk.greenBright('Choose pairing method:\n1. Website (enter number on host link)\n2. Terminal (enter number here)\nChoose 1 or 2: ')))
-            pairingWebOnly = choice.trim() !== '2'
-            pairingTerminalSelected = !pairingWebOnly
-            console.log(chalk.cyan(pairingWebOnly ? 'Pairing method selected: Website' : 'Pairing method selected: Terminal'))
-        } catch (error) {
-            pairingWebOnly = true
-            console.log(chalk.yellow('Console input is unavailable; using the pairing website.'))
-        }
-    }
-    if (pairingCode && !XeonBotInc.authState.creds.registered && !pairingWebOnly) {
-        if (useMobile) throw new Error('Cannot use pairing code with mobile api')
-        const forceTerminalPrompt = process.env.PAIRING_TERMINAL_PROMPT === 'true' || pairingTerminalSelected
-
-        // Re-read panel variables here because some panel launchers inject
-        // environment values after the module bootstrap phase.
-        const explicitPairingVariables = ['PHONE_NUMBER', 'PAIRING_NUMBER', 'PAIRING_PHONE', 'WHATSAPP_NUMBER', 'WHATSAPP_PHONE', 'WA_NUMBER', 'BOT_PHONE_NUMBER', 'OWNER_NUMBER']
-        const envPairingEntry = Object.entries(process.env).find(([key, value]) => {
-            if (!value || !/PHONE|WHATSAPP|PAIR|WA_NUMBER|BOT_NUMBER|OWNER_NUMBER|^NUMBER$/i.test(key)) return false
-            return Boolean(normalizeWhatsAppNumber(value))
-        })
-        const pairingEntry = explicitPairingVariables.map((key) => [key, process.env[key]])
-            .concat(envPairingEntry ? [envPairingEntry] : [])
-            .find(([, value]) => Boolean(normalizeWhatsAppNumber(value)))
-        const configuredPairingInput = pairingEntry?.[1] || (process.env.PAIRING_CODE !== 'true' && process.env.PAIRING_CODE !== 'false' ? process.env.PAIRING_CODE : '') || phoneNumber
-        requestedPhoneNumber = forceTerminalPrompt ? '' : normalizeWhatsAppNumber(configuredPairingInput)
-        const detectedFrom = pairingEntry?.[0] || (requestedPhoneNumber ? 'bootstrap' : 'none')
-        console.log(chalk.cyan(`Pairing configuration: number ${requestedPhoneNumber ? 'detected' : 'missing'} (${detectedFrom}), console input ${rl.closed || process.stdin.readableEnded ? 'closed' : 'available'}`))
-        do {
-            if (!requestedPhoneNumber && (rl.closed || process.stdin.readableEnded)) {
-                throw Object.assign(new Error('Pairing input console is closed and no valid pairing number was detected'), { code: 'PAIRING_INPUT_CLOSED' })
-            }
-            if (!requestedPhoneNumber) requestedPhoneNumber = await question(chalk.bgBlack(chalk.greenBright(`Enter WhatsApp phone number for pairing code:\nInclude country code digits, without +, spaces, or dashes.\nExample: 254116553618 or 254723456789\nNumber: `)))
-            requestedPhoneNumber = normalizeWhatsAppNumber(requestedPhoneNumber)
-            if (!requestedPhoneNumber) {
-                console.log(chalk.red('Please enter the complete international number, for example 254781231617 or +254 781 231 617. Try again.'))
-                requestedPhoneNumber = ''
-            }
-        } while (!requestedPhoneNumber)
-        if (XeonBotInc.__pairingReady) requestTerminalPairingCode()
-    }
-
     // Connection handling
     XeonBotInc.ev.on('connection.update', async (s) => {
-        const { connection, lastDisconnect, qr } = s
+        const { connection, lastDisconnect } = s
 
         // A previous socket can emit delayed events during an update or
         // reconnect handoff. Never let those events print a second banner or
         // start another lifecycle action.
         if (activeSocket !== XeonBotInc) return
         
-        if (qr) {
-            if (!pairingCode) console.log(chalk.yellow('📱 QR Code generated. Please scan with WhatsApp.'))
-        }
-        
         if (connection === 'connecting') {
             if (XeonBotInc.__connectingLogged) return
             XeonBotInc.__connectingLogged = true
             console.log(chalk.yellow('🔄 Connecting to WhatsApp...'))
-            XeonBotInc.__pairingReady = true
-            requestTerminalPairingCode()
         }
         
         if (connection === "open") {
@@ -555,7 +465,6 @@ async function startXeonBotInc() {
                 reconnectTimer = null
             }
             reconnectAttempts = 0
-            pairingExpiryAttempts = 0
             streamRestartAttempts = 0
             ackStreamAttempts = 0
             console.log(chalk.magenta(` `))
@@ -613,18 +522,10 @@ async function startXeonBotInc() {
             const statusCode = lastDisconnect?.error?.output?.statusCode
             const disconnectText = String(lastDisconnect?.error?.message || lastDisconnect?.error || '')
             const needsFreshPairing = statusCode === DisconnectReason.loggedOut || statusCode === 401
-            const shouldReconnect = !needsFreshPairing || (pairingCode && !global.__updateRestarting)
+            const shouldReconnect = !needsFreshPairing && !global.__updateRestarting
             const isStreamConflict = statusCode === 440 || /stream errored.*conflict|conflict.*stream errored/i.test(disconnectText)
             const isRestartRequired = statusCode === DisconnectReason.restartRequired || /stream errored.*restart required|restart required/i.test(disconnectText)
             const isAckStreamError = /stream errored.*\back\b|\back\b.*stream errored/i.test(disconnectText)
-            const isQrRefsExpiredError = !XeonBotInc.authState?.creds?.registered && (isQrRefsExpired(lastDisconnect?.error) || /qr refs attempts ended/i.test(disconnectText))
-
-            // A normal network/socket reconnect must not force the operator to
-            // recreate the website password. Reset credentials only when
-            // WhatsApp explicitly logged the device out or invalidated it.
-            if (needsFreshPairing) {
-                pairingWebServer?.clearWebSessions?.('WhatsApp logout', true)
-            }
 
             if (isStreamConflict) {
                 global.__conflictRestarting = true
@@ -665,13 +566,7 @@ async function startXeonBotInc() {
                 return
             }
             
-            if (isQrRefsExpiredError) {
-                pairingExpiryAttempts += 1
-                reconnectAttempts = 0
-                console.log(chalk.yellow(`Pairing window expired before the phone was linked (attempt ${pairingExpiryAttempts}). Starting a fresh pairing socket; the website remains available.`))
-            } else {
-                console.log(chalk.red(`Connection closed due to ${lastDisconnect?.error}, reconnecting ${shouldReconnect}`))
-            }
+            console.log(chalk.red(`Connection closed due to ${lastDisconnect?.error}, reconnecting ${shouldReconnect}`))
             
             if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
                 try {
@@ -680,19 +575,13 @@ async function startXeonBotInc() {
                 } catch (error) {
                     console.error('Error deleting session:', error)
                 }
-                if (pairingCode) {
-                    console.log(chalk.yellow('Session logged out. Starting a fresh pairing session automatically.'))
-                } else {
-                    console.log(chalk.red('Session logged out. Please re-authenticate.'))
-                }
+                console.log(chalk.red('Session logged out. Pair again using the separate pairing site, replace SESSION_BUNDLE, and restart the bot.'))
             }
             
             if (shouldReconnect) {
                 if (reconnectTimer) return
                 reconnectAttempts += 1
-                const backoffMs = isQrRefsExpiredError
-                    ? Math.min(120000, 10000 * (2 ** Math.min(pairingExpiryAttempts - 1, 3)))
-                    : Math.min(60000, 5000 * (2 ** Math.min(reconnectAttempts - 1, 4)))
+                const backoffMs = Math.min(60000, 5000 * (2 ** Math.min(reconnectAttempts - 1, 4)))
                 console.log(chalk.yellow(`Reconnecting in ${Math.ceil(backoffMs / 1000)}s (attempt ${reconnectAttempts})...`))
                 reconnectTimer = setTimeout(async () => {
                     reconnectTimer = null
@@ -702,11 +591,6 @@ async function startXeonBotInc() {
             }
         }
     })
-
-    // Terminal input may have blocked startup long enough for the socket's
-    // first connection.update event to fire before the listener was attached.
-    // Trigger once here as a fallback; the request lock prevents duplicates.
-    if (pairingCode && !pairingWebOnly && requestedPhoneNumber) requestTerminalPairingCode()
 
     // Track recently-notified callers to avoid spamming messages
     const antiCallNotified = new Set();
@@ -770,10 +654,9 @@ async function startXeonBotInc() {
     } catch (error) {
         socketStartInFlight = false
         activeSocket = null
-        if (error?.code === 'PAIRING_INPUT_CLOSED' || error?.code === 'ERR_USE_AFTER_CLOSE') {
-            console.error('Pairing input closed before a number was entered. Enable the Katabump console/terminal input and restart the server.')
-            process.exitCode = 1
-            return
+        if (error?.code === 'NO_SESSION_CONFIGURED' || error?.code === 'SESSION_INPUT_CLOSED' || error?.code === 'ERR_USE_AFTER_CLOSE') {
+            console.error(error.message)
+            process.exit(1)
         }
         console.error('Error in startXeonBotInc:', error)
         await delay(Math.min(30000, 5000 * Math.max(1, reconnectAttempts)))
