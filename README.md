@@ -191,6 +191,8 @@ It is lightweight and can be easily customized to add more commands as per your 
 
     Restart the bot. It imports the bundle into `AUTH_DIR` once and then persists all live Baileys key updates there. For an interactive host terminal, set `SESSION_TERMINAL_PROMPT=true` and start the bot. Choose either **1** to paste `SESSION_BUNDLE`/`SESSION_ID`, or **2** to enter the full international phone number and receive a terminal-only pairing code. The bot does not host a pairing website or QR flow.
 
+    If WhatsApp closes the terminal pairing socket with status `401` after issuing a code, this is a WhatsApp/Baileys server-side rejection of the unofficial phone-number linking flow; the bot now stops cleanly instead of looping. Use the separate pairing site’s **QR** method, copy its `SESSION_BUNDLE`, and paste it using option **1** or the `SESSION_BUNDLE` environment variable.
+
     Keep the bundle private. Do not add line breaks, upload it to GitHub, or commit `.env`. If the linked device is logged out, generate a new bundle with the separate pairing site, replace the old environment value, and restart.
 
 ---

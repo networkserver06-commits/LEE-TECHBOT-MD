@@ -214,6 +214,7 @@ const authDir = process.env.AUTH_DIR || './session'
 
 let sessionBundle = process.env.SESSION_BUNDLE || process.env.SESSION_ID || ''
 let terminalPairingNumber = ''
+let terminalPairingStopped = false
 if (sessionBundle) {
     try {
         const imported = restoreSessionBundle(sessionBundle, authDir)
@@ -237,7 +238,7 @@ const question = (text) => {
 
 
 async function startXeonBotInc() {
-    if (activeSocket || socketStartInFlight || global.__updateRestarting) return activeSocket
+    if (activeSocket || socketStartInFlight || global.__updateRestarting || terminalPairingStopped) return activeSocket
     socketStartInFlight = true
     try {
         // Reuse the negotiated version across reconnects. Fetching a different
@@ -448,10 +449,9 @@ async function startXeonBotInc() {
 
     let terminalPairingRequested = false
     const requestTerminalPairingCode = async () => {
-        if (!terminalPairingNumber || terminalPairingRequested || XeonBotInc.authState?.creds?.registered) return
+        if (terminalPairingStopped || !terminalPairingNumber || terminalPairingRequested || state.creds.registered) return
         terminalPairingRequested = true
         try {
-            await delay(1500)
             for (let attempt = 1; attempt <= 3; attempt += 1) {
                 try {
                     if (activeSocket !== XeonBotInc) return
@@ -472,7 +472,7 @@ async function startXeonBotInc() {
 
     // Connection handling
     XeonBotInc.ev.on('connection.update', async (s) => {
-        const { connection, lastDisconnect } = s
+        const { connection, lastDisconnect, qr } = s
 
         // A previous socket can emit delayed events during an update or
         // reconnect handoff. Never let those events print a second banner or
@@ -483,6 +483,14 @@ async function startXeonBotInc() {
             if (XeonBotInc.__connectingLogged) return
             XeonBotInc.__connectingLogged = true
             console.log(chalk.yellow('🔄 Connecting to WhatsApp...'))
+        }
+
+        // Baileys emits a QR value while the unauthenticated socket is ready
+        // for linking. Pairing-code requests must be made here: requesting
+        // before this event can close the socket with a 401, while waiting for
+        // `open` is too late because `open` happens only after linking.
+        if (qr && terminalPairingNumber) {
+            await requestTerminalPairingCode()
         }
         
         if (connection === "open") {
@@ -615,6 +623,15 @@ async function startXeonBotInc() {
             }
 
             if (terminalPairingPending && !global.__updateRestarting) {
+                if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
+                    terminalPairingStopped = true
+                    if (reconnectTimer) {
+                        clearTimeout(reconnectTimer)
+                        reconnectTimer = null
+                    }
+                    console.error(chalk.red('WhatsApp rejected terminal phone-number linking with status 401. No device was linked. Use the pairing site QR flow to create SESSION_BUNDLE, then paste that bundle into the bot environment or terminal.'))
+                    return
+                }
                 reconnectAttempts = 0
                 console.log(chalk.yellow('Terminal pairing socket closed before linking. Keeping the terminal pairing flow active and requesting a fresh code...'))
                 if (!reconnectTimer) {
@@ -640,8 +657,6 @@ async function startXeonBotInc() {
             }
         }
     })
-
-    if (terminalPairingNumber) requestTerminalPairingCode().catch(() => {})
 
     // Track recently-notified callers to avoid spamming messages
     const antiCallNotified = new Set();
