@@ -97,6 +97,7 @@ const { Antilink } = require('./lib/antilink');
 const { handleAntilinkCommand } = require('./commands/antilink'); // <== FIXED IMPORT PATH
 const { antimentionCommand, checkAntiMention } = require('./commands/antimention'); 
 const groupModeCommand = require('./commands/groupmode');
+const { resolveModerationTarget } = require('./lib/moderationTarget');
 
 // Commands
 const pingCommand = require('./commands/ping');
@@ -557,7 +558,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
                 
             case userMessage.startsWith('.antimention'):
-                await antimentionCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                {
+                    const target = await resolveModerationTarget(sock, { chatId, message, userMessage, command: '.antimention', isGroup, isOwner: isOwnerOrSudoCheck, isSenderAdmin, isBotAdmin });
+                    if (!target.ok) await sock.sendMessage(chatId, { text: target.error, ...channelInfo }, { quoted: message });
+                    else await antimentionCommand(sock, target.chatId, message, target.isGroup, target.isSenderAdmin, target.isBotAdmin, target.isOwner, target.userMessage);
+                }
                 commandExecuted = true;
                 break;
 
@@ -621,7 +626,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
             }
 
             case userMessage.startsWith('.nightmode'):
-                await nightmodeCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, userMessage);
+                {
+                    const target = await resolveModerationTarget(sock, { chatId, message, userMessage, command: '.nightmode', isGroup, isOwner: isOwnerOrSudoCheck, isSenderAdmin, isBotAdmin });
+                    if (!target.ok) await sock.sendMessage(chatId, { text: target.error, ...channelInfo }, { quoted: message });
+                    else await nightmodeCommand(sock, target.chatId, message, target.isGroup, target.isSenderAdmin, target.isBotAdmin, target.userMessage);
+                }
                 commandExecuted = true;
                 break;
         
@@ -652,16 +661,28 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.antibot'):
-                await antibotCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                {
+                    const target = await resolveModerationTarget(sock, { chatId, message, userMessage, command: '.antibot', isGroup, isOwner: isOwnerOrSudoCheck, isSenderAdmin, isBotAdmin });
+                    if (!target.ok) await sock.sendMessage(chatId, { text: target.error, ...channelInfo }, { quoted: message });
+                    else await antibotCommand(sock, target.chatId, message, target.isGroup, target.isSenderAdmin, target.isBotAdmin, target.isOwner, target.userMessage);
+                }
                 commandExecuted = true;
                 break;
             case commandToken === '.antiall':
-                await antiallCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                {
+                    const target = await resolveModerationTarget(sock, { chatId, message, userMessage, command: '.antiall', isGroup, isOwner: isOwnerOrSudoCheck, isSenderAdmin, isBotAdmin });
+                    if (!target.ok) await sock.sendMessage(chatId, { text: target.error, ...channelInfo }, { quoted: message });
+                    else await antiallCommand(sock, target.chatId, message, target.isGroup, target.isSenderAdmin, target.isBotAdmin, target.isOwner, target.userMessage);
+                }
                 commandExecuted = true;
                 break;
 
             case userMessage.startsWith('.antifake'):
-                await antifakeCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                {
+                    const target = await resolveModerationTarget(sock, { chatId, message, userMessage, command: '.antifake', isGroup, isOwner: isOwnerOrSudoCheck, isSenderAdmin, isBotAdmin });
+                    if (!target.ok) await sock.sendMessage(chatId, { text: target.error, ...channelInfo }, { quoted: message });
+                    else await antifakeCommand(sock, target.chatId, message, target.isGroup, target.isSenderAdmin, target.isBotAdmin, target.isOwner, target.userMessage);
+                }
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.eval'):
@@ -675,7 +696,11 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
 
             case userMessage.startsWith('.antispam'):
-                await antispamCommand(sock, chatId, message, isGroup, isSenderAdmin, isOwnerOrSudoCheck, userMessage);
+                {
+                    const target = await resolveModerationTarget(sock, { chatId, message, userMessage, command: '.antispam', isGroup, isOwner: isOwnerOrSudoCheck, isSenderAdmin, isBotAdmin });
+                    if (!target.ok) await sock.sendMessage(chatId, { text: target.error, ...channelInfo }, { quoted: message });
+                    else await antispamCommand(sock, target.chatId, message, target.isGroup, target.isSenderAdmin, target.isOwner, target.userMessage);
+                }
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.broadcast') || userMessage.startsWith('.bc'):
@@ -696,16 +721,28 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 break;
             }
             case userMessage.startsWith('.antisticker'):
-                await antistickerCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                {
+                    const target = await resolveModerationTarget(sock, { chatId, message, userMessage, command: '.antisticker', isGroup, isOwner: isOwnerOrSudoCheck, isSenderAdmin, isBotAdmin });
+                    if (!target.ok) await sock.sendMessage(chatId, { text: target.error, ...channelInfo }, { quoted: message });
+                    else await antistickerCommand(sock, target.chatId, message, target.isGroup, target.isSenderAdmin, target.isBotAdmin, target.isOwner, target.userMessage);
+                }
                 commandExecuted = true;
                 break;
 
             case userMessage.startsWith('.antiphoto'):
-                await antiphotoCommand(sock, chatId, message, isGroup, isSenderAdmin, isBotAdmin, isOwnerOrSudoCheck, userMessage);
+                {
+                    const target = await resolveModerationTarget(sock, { chatId, message, userMessage, command: '.antiphoto', isGroup, isOwner: isOwnerOrSudoCheck, isSenderAdmin, isBotAdmin });
+                    if (!target.ok) await sock.sendMessage(chatId, { text: target.error, ...channelInfo }, { quoted: message });
+                    else await antiphotoCommand(sock, target.chatId, message, target.isGroup, target.isSenderAdmin, target.isBotAdmin, target.isOwner, target.userMessage);
+                }
                 commandExecuted = true;
                 break;
             case commandToken === '.antiviewonce':
-                await antiviewonceCommand(sock, chatId, message, isGroup, isSenderAdmin, isOwnerOrSudoCheck, userMessage);
+                {
+                    const target = await resolveModerationTarget(sock, { chatId, message, userMessage, command: '.antiviewonce', isGroup, isOwner: isOwnerOrSudoCheck, isSenderAdmin, isBotAdmin });
+                    if (!target.ok) await sock.sendMessage(chatId, { text: target.error, ...channelInfo }, { quoted: message });
+                    else await antiviewonceCommand(sock, target.chatId, message, target.isGroup, target.isSenderAdmin, target.isOwner, target.userMessage);
+                }
                 commandExecuted = true;
                 break;
             case commandToken === '.open' || commandToken === '.close' || commandToken === '.groupopen' || commandToken === '.groupclose' || commandToken === '.announce' || commandToken === '.unannounce':
@@ -891,15 +928,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.antitag'):
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups.', ...channelInfo }, { quoted: message });
-                    break;
+                {
+                    const target = await resolveModerationTarget(sock, { chatId, message, userMessage, command: '.antitag', isGroup, isOwner: isOwnerOrSudoCheck, isSenderAdmin, isBotAdmin });
+                    if (!target.ok) await sock.sendMessage(chatId, { text: target.error, ...channelInfo }, { quoted: message });
+                    else if (!target.isBotAdmin) await sock.sendMessage(chatId, { text: 'Please make the bot an admin first.', ...channelInfo }, { quoted: message });
+                    else await handleAntitagCommand(sock, target.chatId, target.userMessage, senderId, target.isSenderAdmin, message);
                 }
-                if (!isBotAdmin) {
-                    await sock.sendMessage(chatId, { text: 'Please make the bot an admin first.', ...channelInfo }, { quoted: message });
-                    break;
-                }
-                await handleAntitagCommand(sock, chatId, userMessage, senderId, isSenderAdmin, message);
                 commandExecuted = true;
                 break;
             case userMessage === '.meme' || userMessage.startsWith('.meme '):
@@ -1112,15 +1146,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.antibadword'):
-                if (!isGroup) {
-                    await sock.sendMessage(chatId, { text: 'This command can only be used in groups.', ...channelInfo }, { quoted: message });
-                    break;
+                {
+                    const target = await resolveModerationTarget(sock, { chatId, message, userMessage, command: '.antibadword', isGroup, isOwner: isOwnerOrSudoCheck, isSenderAdmin, isBotAdmin });
+                    if (!target.ok) await sock.sendMessage(chatId, { text: target.error, ...channelInfo }, { quoted: message });
+                    else if (!target.isBotAdmin) await sock.sendMessage(chatId, { text: '*Bot must be admin to use this feature*', ...channelInfo }, { quoted: message });
+                    else await antibadwordCommand(sock, target.chatId, message, senderId, target.isSenderAdmin, target.userMessage);
                 }
-                if (!isBotAdmin) {
-                    await sock.sendMessage(chatId, { text: '*Bot must be admin to use this feature*', ...channelInfo }, { quoted: message });
-                    break;
-                }
-                await antibadwordCommand(sock, chatId, message, senderId, isSenderAdmin);
                 commandExecuted = true;
                 break;
             case userMessage.startsWith('.autoreply') || userMessage.startsWith('/autoreply'):

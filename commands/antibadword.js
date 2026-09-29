@@ -1,7 +1,7 @@
 const { handleAntiBadwordCommand } = require('../lib/antibadword');
 const isAdminHelper = require('../lib/isAdmin');
 
-async function antibadwordCommand(sock, chatId, message, senderId, isSenderAdmin) {
+async function antibadwordCommand(sock, chatId, message, senderId, isSenderAdmin, commandText) {
     try {
         if (!isSenderAdmin) {
             await sock.sendMessage(chatId, { text: '```For Group Admins Only!```' }, { quoted: message });
@@ -9,7 +9,7 @@ async function antibadwordCommand(sock, chatId, message, senderId, isSenderAdmin
         }
 
         // Extract match from message
-        const text = message.message?.conversation || 
+        const text = commandText || message.message?.conversation ||
                     message.message?.extendedTextMessage?.text || '';
         const match = text.split(' ').slice(1).join(' ');
 
@@ -20,4 +20,4 @@ async function antibadwordCommand(sock, chatId, message, senderId, isSenderAdmin
     }
 }
 
-module.exports = antibadwordCommand; 
+module.exports = antibadwordCommand;

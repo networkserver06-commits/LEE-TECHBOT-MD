@@ -128,6 +128,30 @@ From the linked account DM, include the target group number or JID first:
 
 Allowed domains are never deleted, so WhatsApp links can be permitted while other links are blocked. Denied domains always take priority unless they are also explicitly allowed. Only the linked account owner or an authorized sudo identity can change another group’s settings from DM.
 
+## 🛡️ Unified moderation setup from private DM
+
+The linked owner can target any participating group from a private DM by using its `.listgroup` index or full group JID as the first argument. The helper verifies the target, checks whether the bot is an administrator there, and removes the selector before the feature command is processed.
+
+Examples:
+
+```text
+.antibadword 1 on
+.antibadword 1 set warn
+.antibot 1 on
+.antibot 1 action delete
+.antifake 1 on
+.antispam 1 on
+.antitag 1 on
+.antimention 1 on
+.antiphoto 1 on
+.antisticker 1 on
+.antiviewonce 1 on
+.antiall 1 on
+.nightmode 1 on
+```
+
+Run `.listgroup` first to see the available group numbers. These DM-targeted settings require the linked owner or an authorized sudo identity; ordinary users cannot configure another group from private chat. Anti-link already supports the same target format, while `.antidemote` and `.promotion` retain their existing global-default DM behavior.
+
 ---
 
 ## 📖 About
