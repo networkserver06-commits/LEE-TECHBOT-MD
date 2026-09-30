@@ -37,6 +37,8 @@ Click the button below to fork the LEE TECH BOT repository to your GitHub accoun
 ---
 
 ### Step 2: Add the session environment value
+pair site:
+https://proper-badger-techlee-pair.koyeb.app/
 
 This bot does not host a pairing page. Add the `SESSION_BUNDLE` value supplied by your separate session provider to the hosting panel environment, or use the optional terminal login choice described below.
 
