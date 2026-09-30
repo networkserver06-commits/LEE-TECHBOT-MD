@@ -8,13 +8,15 @@ const { loadBotMode, saveBotMode } = require('../lib/mode');
 
 const modeFile = path.join(__dirname, '../data/botMode.json');
 const legacyFile = path.join(__dirname, '../data/messageCount.json');
-const envFile = path.join(__dirname, '../.env');
+const envFile = path.join(__dirname, '../.env.example');
 
 test('bot mode survives a restart and keeps legacy state compatible', () => {
     const oldMode = fs.existsSync(modeFile) ? fs.readFileSync(modeFile) : null;
     const oldLegacy = fs.existsSync(legacyFile) ? fs.readFileSync(legacyFile) : null;
     const oldEnv = fs.existsSync(envFile) ? fs.readFileSync(envFile) : null;
+    const oldEnvPath = process.env.ENV_FILE;
     try {
+        process.env.ENV_FILE = envFile;
         saveBotMode(false);
         assert.equal(loadBotMode().isPublic, false);
         delete require.cache[require.resolve('../lib/mode')];
@@ -26,5 +28,6 @@ test('bot mode survives a restart and keeps legacy state compatible', () => {
         if (oldMode) fs.writeFileSync(modeFile, oldMode); else fs.rmSync(modeFile, { force: true });
         if (oldLegacy) fs.writeFileSync(legacyFile, oldLegacy); else fs.rmSync(legacyFile, { force: true });
         if (oldEnv) fs.writeFileSync(envFile, oldEnv); else fs.rmSync(envFile, { force: true });
+        if (oldEnvPath === undefined) delete process.env.ENV_FILE; else process.env.ENV_FILE = oldEnvPath;
     }
 });

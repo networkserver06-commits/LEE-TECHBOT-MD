@@ -141,6 +141,7 @@ async function profilePicture(sock, chatId, message, targetJid) {
 
 async function handleSimpleLocal(sock, chatId, message, command, args, context = {}) {
     if (command === 'test') return reply(sock, chatId, message, '✅ LEE TECH BOT command router is working.');
+    if (command === 'speed' || command === 'ping') return speedCommand(sock, chatId, message);
     if (command === 'runtime') return uptimeCommand(sock, chatId, message);
     if (command === 'jid' || command === 'group-id' || command === 'channel-id') return idCommand(sock, chatId, message);
     if (command === 'botinfo' || command === 'script') return botInfoCommand(sock, chatId, message);

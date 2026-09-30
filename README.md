@@ -186,7 +186,7 @@ It is lightweight and can be easily customized to add more commands as per your 
 
 3. **Configure Groq/Grok AI:**
 
-    Use the existing `.env` file in the repository. Add your provider key to either `GROQ_API_KEY` (preferred) or `GROK_API_KEY`, then restart the bot:
+    Copy `.env.example` to `.env` locally, then add your provider key to either `GROQ_API_KEY` (preferred) or `GROK_API_KEY`, then restart the bot:
 
     ```env
     GROQ_API_KEY=your_api_key_here
@@ -277,10 +277,21 @@ This project contains code from various open source projects:
 
 ## Upgraded command menu
 
+### Local diagnostics and coverage
+
+The bot includes provider-independent diagnostics that are safe to test after startup:
+
+- `.test` checks command routing.
+- `.ping` / `.speed` measures response latency.
+- `.health` reports runtime counters and uptime.
+- `.botinfo` reports the live version, command count, memory, and runtime.
+
+Run `npm run audit:menu` to inspect how the catalog is routed. Provider-backed features that are not configured return a clear availability message instead of pretending they succeeded.
+
 The bot now exposes the supplied command families through a structured menu catalog. Use `.menu` to view the category index, then use `.menu settings`, `.menu groups`, `.menu ai`, `.menu anime`, `.menu img-maker`, `.menu convert`, `.menu fun`, `.menu downloads`, or `.menu general` for a focused view. The configured prefix is applied automatically.
 
 The menu catalog is intentionally separate from command execution so existing handlers remain stable while additional commands can be implemented incrementally. Commands that are not implemented by the current checkout should not be enabled in production until their handler and permissions are added.
 
 ## Environment safety
 
-Runtime credentials and deployment values belong in the existing `.env` file or hosting-panel secrets. Keep real API keys private and never post them in public issues or commits.
+Runtime credentials and deployment values belong in your local `.env` file or hosting-panel secrets. Start from `.env.example`; keep real API keys private and never post them in public issues or commits.

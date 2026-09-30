@@ -42,6 +42,8 @@ function sock(sent) {
 test('status content accepts quoted text, direct text, and directly captioned media', () => {
     assert.deepEqual(getCommandContent(quotedText('Exam at 8am')), { type: 'text', value: 'Exam at 8am' });
     assert.deepEqual(getCommandContent({ message: { conversation: '.tostatus Exam at 8am' } }), { type: 'text', value: 'Exam at 8am' });
+    assert.deepEqual(getCommandContent({ message: { conversation: '.tostatus hello 👋' } }), { type: 'text', value: 'hello 👋' });
+    assert.deepEqual(getCommandContent({ message: { conversation: '. tostatus spaced prefix' } }), { type: 'text', value: 'spaced prefix' });
     assert.equal(getCommandContent(directImage()).type, 'image');
     const imageWithMessage = getCommandContent({ message: { imageMessage: { url: 'https://example.invalid/image', caption: '.tostatus Exam notice' } } });
     assert.equal(imageWithMessage.value.caption, 'Exam notice');
@@ -49,6 +51,12 @@ test('status content accepts quoted text, direct text, and directly captioned me
     assert.equal(repliedImage.value.caption, 'Original notice');
     const replacedImage = getCommandContent({ message: { extendedTextMessage: { text: '.tostatus New notice', contextInfo: { quotedMessage: { imageMessage: { url: 'image', caption: 'Old notice' } } } } } });
     assert.equal(replacedImage.value.caption, 'New notice');
+    const repliedVideo = getCommandContent({ message: { extendedTextMessage: { text: '.tostatus Watch this 🎬', contextInfo: { quotedMessage: { videoMessage: { url: 'video', caption: 'Old caption' } } } } } });
+    assert.equal(repliedVideo.type, 'video');
+    assert.equal(repliedVideo.value.caption, 'Watch this 🎬');
+    const directVideo = getCommandContent({ message: { videoMessage: { url: 'video', caption: '.tostatus Direct video 🎥' } } });
+    assert.equal(directVideo.type, 'video');
+    assert.equal(directVideo.value.caption, 'Direct video 🎥');
 });
 
 test('togstatus posts directly in the group and mentions current members', async () => {

@@ -24,6 +24,22 @@ test('missing test command is routed by compatibility handler', async () => {
     assert.match(sock.sent[0].payload.text, /router is working/i);
 });
 
+test('speed and ping aliases use the local latency handler', async () => {
+    const sock = mockSock();
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.speed', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /SPEED TEST|Measuring response speed/i);
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.ping', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /SPEED TEST|Measuring response speed/i);
+});
+
+test('health and botinfo diagnostics return local runtime data', async () => {
+    const sock = mockSock();
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.health', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /BOT HEALTH|Status:/i);
+    assert.equal(await menuCompatCommand(sock, '123@s.whatsapp.net', message, '.botinfo', {}), true);
+    assert.match(sock.sent.at(-1).payload.text, /Commands:/i);
+});
+
 test('group menu lists the .out removal command', async () => {
     const source = fs.readFileSync(path.join(__dirname, '..', 'lib', 'menuCatalog.js'), 'utf8');
     assert.match(source, /commands: \[[^\]]*'kick', 'out', 'kickall'/);

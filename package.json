@@ -17,6 +17,7 @@
     "start:fresh": "npm run reset-session && npm start",
     "test": "node --test test/*.test.js",
     "check": "node --check index.js && node --check main.js && npm test",
+    "audit:menu": "node scripts/audit-menu-commands.js",
     "install:panel": "npm ci --omit=dev --no-audit --no-fund --prefer-offline && (npm rebuild sharp --foreground-scripts || echo 'Warning: sharp native build unavailable; core bot remains available')",
     "install:terminal": "npm ci --no-audit --no-fund --prefer-offline && (npm rebuild sharp --foreground-scripts || echo 'Warning: sharp native build unavailable; core bot remains available')",
     "install:termux": "npm ci --omit=dev --ignore-scripts --no-audit --no-fund --prefer-offline && rm -rf node_modules/sharp && echo 'Termux mode: skipped unsupported sharp native module; core bot remains available'",
