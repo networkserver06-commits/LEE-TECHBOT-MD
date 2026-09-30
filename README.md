@@ -8,6 +8,45 @@ A production-oriented WhatsApp multi-device bot built with [Baileys](https://git
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
+## Free deployment
+
+Choose a persistent host, fork the repository, add your environment variables, and start the bot. Free-host limits, sleep policies, storage rules, and availability can change, so always check the provider’s current terms.
+
+### Quick actions
+
+| Action | Link |
+|---|---|
+| **Fork this repository** | [![Fork repository](https://img.shields.io/badge/FORK%20REPOSITORY-181717?style=for-the-badge&logo=github)](https://github.com/networkserver06-commits/LEE-TECHBOT-MD/fork) |
+| **Download ZIP** | [![Download ZIP](https://img.shields.io/badge/DOWNLOAD%20ZIP-2ea44f?style=for-the-badge&logo=github)](https://github.com/networkserver06-commits/LEE-TECHBOT-MD/archive/refs/heads/main.zip) |
+| **Get WhatsApp session** | [![Pairing site](https://img.shields.io/badge/PAIRING%20SITE-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://proper-badger-techlee-pair.koyeb.app/) |
+
+### Free hosting options
+
+| Platform | Start here | Recommended settings |
+|---|---|---|
+| **Katabump** | [![Deploy on Katabump](https://img.shields.io/badge/KATABUMP-5b21b6?style=for-the-badge&logo=server&logoColor=white)](https://rl.katabump.fr/2db624) | Node.js service, persistent storage, `npm start` |
+| **Bot Hosting** | [![Deploy on Bot Hosting](https://img.shields.io/badge/BOT%20HOSTING-111827?style=for-the-badge&logo=server&logoColor=white)](https://bot-hosting.net/?aff=leetech254) | Node.js application, `npm ci`, `npm start` |
+
+> **Free-host note:** WhatsApp bots need a continuously running process and persistent auth storage. If a free host sleeps, resets its filesystem, or stops long-running processes, the bot may disconnect or require a new session.
+
+### Session and pairing
+
+1. Open the [LEE TECH pairing site](https://proper-badger-techlee-pair.koyeb.app/).
+2. Prefer **QR scan**. If using a pairing code, enter one fresh code immediately and do not request multiple codes for the same number.
+3. Copy the complete `SESSION_BUNDLE=...` line sent to the linked WhatsApp account.
+4. Add it to the host’s environment variables together with `AUTH_DIR=./auth`.
+5. Deploy or restart the bot.
+
+```env
+BOT_MODE=private
+PREFIX=.
+AUTH_DIR=./auth
+SESSION_BUNDLE=...paste-the-complete-value-here...
+TIME_ZONE=Africa/Nairobi
+```
+
+Never share the session bundle, commit it to GitHub, or use the same auth directory in multiple bot processes.
+
 ## Highlights
 
 - **Group management:** tagging, moderation, admin tools, anti-link, anti-spam, anti-bot, anti-sticker, anti-photo, anti-view-once, anti-mention, warnings, and member controls.
