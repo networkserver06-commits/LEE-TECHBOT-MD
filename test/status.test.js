@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { getCommandContent, groupAudience, publishStatus } = require('../lib/status');
+const { getCommandContent, groupAudience, personalAudience, publishStatus } = require('../lib/status');
 const toStatus = require('../commands/tostatus');
 const togStatus = require('../commands/togstatus');
 
@@ -77,6 +77,21 @@ test('tostatus sends a valid normal-number audience list for visible Status deli
     assert.match(sent.at(-1).payload.text, /posted to your WhatsApp Status/i);
 });
 
+test('tostatus accepts inline text without a quoted message', async () => {
+    const sent = [];
+    await toStatus(sock(sent), '999@s.whatsapp.net', { message: { conversation: '.tostatus Inline announcement' } }, true);
+    const status = sent.find((item) => item.chatId === 'status@broadcast');
+    assert.equal(status.payload.text, 'Inline announcement');
+});
+
+test('togstatus accepts inline text and posts it to the current group', async () => {
+    const sent = [];
+    await togStatus(sock(sent), '123@g.us', { message: { conversation: '.togstatus Group announcement' } }, true, true);
+    const groupPost = sent.find((item) => item.chatId === '123@g.us' && item.payload.mentions);
+    assert.ok(groupPost);
+    assert.match(groupPost.payload.text, /Group announcement/);
+});
+
 test('group audience requires participants', async () => {
     const emptySock = { async groupMetadata() { return { subject: 'Empty', participants: [] }; } };
     await assert.rejects(() => groupAudience(emptySock, '123@g.us'), /no participants/i);
@@ -104,6 +119,19 @@ test('publishStatus filters invalid LIDs from the Status audience', async () => 
     await publishStatus(retrySock, { type: 'text', value: 'Retry me' });
     assert.equal(attempts.length, 1);
     assert.deepEqual(attempts[0].options.statusJidList, ['254700000001@s.whatsapp.net', '999@s.whatsapp.net']);
+});
+
+test('personal Status audience includes synchronized contacts outside groups', async () => {
+    const audience = await personalAudience({
+        user: { id: '999@s.whatsapp.net' },
+        contacts: {
+            '254700000010@s.whatsapp.net': { id: '254700000010@s.whatsapp.net' }
+        },
+        async groupFetchAllParticipating() {
+            return {};
+        }
+    });
+    assert.deepEqual(audience, ['254700000010@s.whatsapp.net', '999@s.whatsapp.net']);
 });
 
 test('publishStatus retries with LID recipients when PN delivery is rejected', async () => {
