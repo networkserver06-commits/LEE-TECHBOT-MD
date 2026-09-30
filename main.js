@@ -634,12 +634,15 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 commandExecuted = true;
                 break;
 
-            case userMessage === '.tostatus' || userMessage === '.tostatus now':
+            // Match the command token instead of the whole message so these
+            // commands can receive inline text/captions, for example
+            // `.tostatus Good morning` and `.togstatus Exam reminder`.
+            case commandToken === '.tostatus':
                 await toStatusCommand(sock, chatId, message, isOwnerOrSudoCheck);
                 commandExecuted = true;
                 break;
                 
-            case userMessage === '.togstatus' || userMessage === '.togstatus now':
+            case commandToken === '.togstatus':
                 await togStatusCommand(sock, chatId, message, isOwnerOrSudoCheck, isGroup);
                 commandExecuted = true;
                 break;
