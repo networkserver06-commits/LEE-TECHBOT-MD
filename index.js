@@ -365,13 +365,10 @@ async function startXeonBotInc() {
                 await handleStatus(XeonBotInc, chatUpdate);
                 return;
             }
-            // In private mode, only block non-group messages (allow groups for moderation)
-            // Note: XeonBotInc.public is not synced, so we check mode in main.js instead
-            // This check is kept for backward compatibility but mainly blocks DMs
-            if (!XeonBotInc.public && !mek.key.fromMe && chatUpdate.type === 'notify') {
-                const isGroup = mek.key?.remoteJid?.endsWith('@g.us')
-                if (!isGroup) return // Block DMs in private mode, but allow group messages
-            }
+            // Private/public/group/DM access is enforced by main.js through the
+            // persisted mode and linked owner/sudo identity. Do not duplicate
+            // that check here: XeonBotInc.public is not a synchronized setting
+            // and an early gate incorrectly drops authorized private messages.
             if (mek.key.id.startsWith('BAE5') && mek.key.id.length === 16) return
 
             try {
