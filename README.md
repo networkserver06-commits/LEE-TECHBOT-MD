@@ -89,6 +89,20 @@ The bot also includes group moderation, anti-link controls, stickers, downloads,
 
 ---
 
+> 💬 **Community & Support**
+
+<div align="center">
+
+| Platform | Link |
+|----------|------|
+| **WhatsApp Group** | <a href="https://chat.whatsapp.com/HyRgJzzjaVrI1ofiuKDHS2?s=cl&p=a&mlu=4&ilr=4"><img src="https://img.shields.io/badge/WhatsApp%20Group-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="Join WhatsApp group"></a> |
+| **Telegram** | <a href="https://t.me/techleetel"><img src="https://img.shields.io/badge/Telegram-229ED9?style=for-the-badge&logo=telegram&logoColor=white" alt="Join Telegram"></a> |
+| **YouTube** | <a href="https://www.youtube.com/@techlee-z2f"><img src="https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Visit YouTube channel"></a> |
+
+</div>
+
+---
+
 > ⚠️ **Disclaimer**
 
 LEE TECHBOT is an unofficial WhatsApp automation project and is not affiliated with WhatsApp or Meta. Use it responsibly, do not spam, and follow WhatsApp’s terms and applicable laws. Account restrictions or bans are possible.
