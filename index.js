@@ -24,7 +24,6 @@ const {
     default: makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
-    fetchLatestBaileysVersion,
     generateForwardMessageContent,
     prepareWAMessageMedia,
     generateWAMessageFromContent,
@@ -83,7 +82,6 @@ let activeSocket = null
 let reconnectTimer = null
 let socketStartInFlight = false
 let selfChatWarmupUntil = 0
-let cachedBaileysVersion = null
 const connectionNoticePath = path.join(process.env.AUTH_DIR || './session', '.connection-notice.json')
 let hasAnnouncedConnection = Boolean(readJson(connectionNoticePath, {}).sent)
 const pendingRestartNoticePath = path.join(process.cwd(), 'data', '.pending-restart-notice.json')
@@ -241,11 +239,6 @@ async function startXeonBotInc() {
     if (activeSocket || socketStartInFlight || global.__updateRestarting || terminalPairingStopped) return activeSocket
     socketStartInFlight = true
     try {
-        // Reuse the negotiated version across reconnects. Fetching a different
-        // latest version during every handoff can create avoidable protocol
-        // churn and is slower on panel hosts.
-        if (!cachedBaileysVersion) cachedBaileysVersion = await fetchLatestBaileysVersion()
-        const { version } = cachedBaileysVersion
         // Supply SESSION_BUNDLE/SESSION_ID in the environment, or choose a
         // session bundle or terminal-only pairing code at the host prompt.
         let { state, saveCreds } = await useMultiFileAuthState(authDir)
@@ -285,7 +278,8 @@ async function startXeonBotInc() {
         const msgRetryCounterCache = new NodeCache()
 
         const XeonBotInc = makeWASocket({
-            version,
+            // Use the Web version bundled and tested with Baileys rc14.
+            // Fetching a newer Web version can invalidate phone pairing codes.
             logger: pino({ level: 'silent' }),
             printQRInTerminal: false,
             browser: ["Ubuntu", "Chrome", "20.0.04"],
