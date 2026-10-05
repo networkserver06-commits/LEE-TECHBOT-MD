@@ -58,14 +58,14 @@
 </div>
 
 1. Open the pairing site and use **QR scan** whenever possible.
-2. Copy the complete `SESSION_BUNDLE=...` line sent to WhatsApp.
+2. Copy the complete single-line `LEE-TECHBOT~...` token sent first to WhatsApp.
 3. Add it to your host environment variables:
 
 ```env
 BOT_MODE=private
 PREFIX=.
 AUTH_DIR=./auth
-SESSION_BUNDLE=your_complete_session_bundle
+SESSION_BUNDLE=LEE-TECHBOT~your_complete_session_token
 ```
 
 4. Start or restart the bot with `npm start`.
